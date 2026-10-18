@@ -55,6 +55,10 @@ def main() -> None:
         win32api.CloseHandle(token_writer)
         win32api.CloseHandle(child_input)
         sys.stdin.read(1)
+    except BaseException:
+        # Assignment failure must not leave a suspended, unowned process.
+        win32api.TerminateProcess(process, 2)
+        raise
     finally:
         win32api.CloseHandle(thread)
         win32api.CloseHandle(process)

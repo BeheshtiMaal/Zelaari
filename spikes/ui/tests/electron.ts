@@ -10,18 +10,27 @@ for (const protocol of ["file", "app"]) {
   try {
     const page = await instance.firstWindow();
     page.on("pageerror", error => errors.push(error.message));
+    page.on("requestfailed", request => errors.push(request.url() + ": " + request.failure()?.errorText));
     await expect(page.getByRole("heading")).toHaveText("OpenUI technical spike");
+    await expect(page.locator('main[data-hydrated="true"]')).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(21, 22, 24)");
     await page.getByRole("button", { name: "Start", exact: true }).click();
-    await expect(page.getByTestId("callout")).toContainText("Hel");
+    await expect(page.getByTestId("callout")).toContainText("Hel").catch(async error => {
+      throw new Error(String(error) + "\nDiagnostics: " + await page.getByTestId("diagnostics").textContent());
+    });
     await page.getByRole("button", { name: "Chunk", exact: true }).click();
     await expect(page.getByTestId("callout")).toHaveText("Hello");
     await page.getByRole("button", { name: "Finish", exact: true }).click();
     await expect(page.getByTestId("keyvalue")).toContainText("Ready");
     await expect(page.getByTestId("stack")).toBeVisible();
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(page.getByTestId("fallback")).toHaveCount(0);
+    await expect(page.getByTestId("keyvalue")).toContainText("Ready");
     for (const component of ["Callout", "Stack", "KeyValue"]) await expect(page.getByTestId("prompt")).toContainText(component);
     await page.screenshot({ path: `../artifacts/openui-${protocol}.png` });
     await page.getByRole("button", { name: "Malformed", exact: true }).click();
     await expect(page.getByTestId("fallback")).toContainText("bad input");
+    await page.screenshot({ path: `../artifacts/openui-${protocol}-fallback.png` });
     expect(errors).toEqual([]);
     results.push({ protocol, passed: true, errors });
   } finally { await instance.close(); }

@@ -16,6 +16,7 @@ import psutil
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+SEEN_TOKENS: set[str] = set()
 
 
 def read_lines(stream: TextIO, output: queue.Queue[str]) -> None:
@@ -29,6 +30,9 @@ def launch() -> Iterator[tuple[subprocess.Popen[str], str, int, queue.Queue[str]
     assert electron.is_file(), "Install UI dependencies first"
     assert (ROOT / "python/dist/sidecar/sidecar.exe").is_file(), "Build onedir first"
     token = secrets.token_urlsafe(32)
+    reused = token in SEEN_TOKENS
+    assert not reused, "Launch token was reused"
+    SEEN_TOKENS.add(token)
     proc = subprocess.Popen(
         [str(electron), str(ROOT / "ui/electron/sidecar.cjs")],
         stdin=subprocess.PIPE,
@@ -115,6 +119,12 @@ def launch() -> Iterator[tuple[subprocess.Popen[str], str, int, queue.Queue[str]
         proc.wait(timeout=10)
         leaked = token in "".join(list(errors.queue))
         assert not leaked, "Token leaked to stderr"
+        leaked_artifact = any(
+            token.encode() in path.read_bytes()
+            for path in (ROOT / "artifacts").rglob("*")
+            if path.is_file()
+        )
+        assert not leaked_artifact, "Token leaked to generated artifacts"
 
 
 @pytest.mark.parametrize("force", [False, True])
@@ -129,12 +139,17 @@ def test_packaged_electron_lifetime(
     assert httpx.get(url, headers={"Authorization": "Bearer " + token}).status_code == 200
     children = psutil.Process(proc.pid).children(recursive=True)
     engines = [p for p in children if p.name() == "sidecar.exe"]
-    owned = [p for p in children if p.name() in {"sidecar.exe", "python.exe"}]
+    owned = [p for p in children if p.name() in {"sidecar.exe", "job_launcher.exe"}]
+    assert any(p.name() == "job_launcher.exe" for p in owned)
     assert len(engines) >= 2, "Must observe engine and its descendant"
     connections = [c for p in engines for c in p.net_connections(kind="inet")]
     assert any(c.laddr and c.laddr.ip == "127.0.0.1" and c.laddr.port == port for c in connections)
     assert all(not c.laddr or c.laddr.ip == "127.0.0.1" for c in connections)
     assert all(token not in " ".join(p.cmdline()) for p in children)
+    leaked_to_child_env = any(token in p.environ().values() for p in owned)
+    assert not leaked_to_child_env
+    assert httpx.post(url.replace("/health", "/quit")).status_code == 401
+    shutdown_started = time.monotonic()
     if force:
         proc.kill()  # Only Electron main; the job must kill its own descendants.
     else:
@@ -155,6 +170,24 @@ def test_packaged_electron_lifetime(
     proc.wait(timeout=5)
     captured = "".join(list(lines.queue))
     assert token not in captured
+    artifacts = ROOT / "artifacts"
+    artifacts.mkdir(exist_ok=True)
+    (artifacts / f"sidecar-{'force' if force else 'normal'}.json").write_text(
+        json.dumps(
+            {
+                "engine_pids": [p.pid for p in engines],
+                "owned_pids": [p.pid for p in owned],
+                "port": port,
+                "loopback_only": True,
+                "auth": [401, 401, 200],
+                "shutdown_seconds": time.monotonic() - shutdown_started,
+                "all_owned_processes_gone": True,
+                "descendant_env_scrubbed": True,
+            },
+            indent=2,
+        ),
+        encoding="utf8",
+    )
 
 
 def test_watchdog_start_failure() -> None:
