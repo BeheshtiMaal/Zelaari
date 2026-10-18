@@ -13,3 +13,11 @@
 spikes/artifacts/
 spikes/ui/electron/*.cjs
 spikes/python/*.spec
+/electron-dist/
+/artifacts/
+/.harness/
+!/build/
+/build/engine/
+/build/work/
+*.env
+.env*

@@ -1,0 +1,26 @@
+name: Checks
+on: [push, pull_request]
+jobs:
+  phase1:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --project backend --frozen
+      - run: npm ci
+      - run: uv run --project backend ruff check backend scripts/export_schema.py
+      - run: uv run --project backend mypy --strict backend
+      - run: npm run test:engine
+      - run: npm run generate:protocol
+      - run: npm run generate:genui
+      - run: git diff --exit-code -- src/lib/protocol.ts backend/agent/genui_prompt.txt
+      - run: npm run typecheck
+      - run: npm run test:ui
+      - run: npm run build
+      - run: npm run build:electron
+      - run: npm run build:engine
+      - run: npm run test:desktop
