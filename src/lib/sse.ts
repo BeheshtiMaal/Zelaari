@@ -38,6 +38,7 @@ export async function subscribe(
         receive(event); seq = event.seq; attempts = 0;
         if (event.type === "run.finished") return;
       }
+      throw new Error("Event stream ended before completion");
     } catch (error) { if (signal.aborted) return; if (++attempts > 5) throw error; }
     await new Promise<void>(resolve => {
       const timer = setTimeout(resolve, 250);

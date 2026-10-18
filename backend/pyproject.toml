@@ -4,7 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "deepagents==0.7.28", "langchain-openai==1.7.2",
-  "fastapi==0.146.0", "uvicorn==0.54.0", "langgraph-checkpoint-sqlite",
+  "fastapi==0.146.0", "uvicorn==0.54.0", "langgraph-checkpoint-sqlite==3.1.2",
   "pywin32==312; sys_platform == 'win32'",
 ]
 

@@ -20,7 +20,7 @@ export function TaskScreen() {
     setLocale(language); document.documentElement.lang = language;
     document.documentElement.dir = language === "fa" ? "rtl" : "ltr";
   }, []);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [run.seq]);
+  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [run.seq]);
   const t = dictionary(locale);
   const running = run.runId !== null;
   const submit = () => { if (task.trim() && !session.busy) void session.start(task.trim(), model); };

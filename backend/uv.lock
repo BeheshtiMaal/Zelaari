@@ -235,7 +235,7 @@ requires-dist = [
     { name = "deepagents", specifier = "==0.7.28" },
     { name = "fastapi", specifier = "==0.146.0" },
     { name = "langchain-openai", specifier = "==1.7.2" },
-    { name = "langgraph-checkpoint-sqlite" },
+    { name = "langgraph-checkpoint-sqlite", specifier = "==3.1.2" },
     { name = "pywin32", marker = "sys_platform == 'win32'", specifier = "==312" },
     { name = "uvicorn", specifier = "==0.54.0" },
 ]

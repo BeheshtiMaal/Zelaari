@@ -1,4 +1,9 @@
-import { GearIcon, FolderIcon, PlusCircleIcon, TrayIcon, SparkleIcon, AlarmIcon } from "@phosphor-icons/react";
+import { GearIcon } from "@phosphor-icons/react/dist/csr/Gear";
+import { FolderIcon } from "@phosphor-icons/react/dist/csr/Folder";
+import { PlusCircleIcon } from "@phosphor-icons/react/dist/csr/PlusCircle";
+import { TrayIcon } from "@phosphor-icons/react/dist/csr/Tray";
+import { SparkleIcon } from "@phosphor-icons/react/dist/csr/Sparkle";
+import { AlarmIcon } from "@phosphor-icons/react/dist/csr/Alarm";
 import type { Dictionary } from "../../i18n";
 
 export function Sidebar({ t, reset, disabled }: { t: Dictionary; reset(): void; disabled: boolean }) {

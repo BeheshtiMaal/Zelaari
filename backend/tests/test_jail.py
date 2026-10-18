@@ -2,7 +2,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from store.secrets import Redactor
 from tools.jail import ReadOnlyBackend, storage_path, workspace_root
 
@@ -16,6 +15,7 @@ def test_read_and_deny_escapes(tmp_path: Path) -> None:
     backend = ReadOnlyBackend(root, Redactor())
     result = backend.read("src/a.txt")
     assert result.file_data is not None and result.file_data["content"] == "real content"
+    assert backend.read("/src/a.txt").file_data == result.file_data
     for path in [
         "../secret.txt",
         str(secret),

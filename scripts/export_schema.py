@@ -7,7 +7,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "backend"))
 
-from agent.events import Protocol
+from agent.events import Protocol  # noqa: E402 - bootstrap the standalone script's import path
 
 target = root / "artifacts" / "protocol.schema.json"
 target.parent.mkdir(exist_ok=True)

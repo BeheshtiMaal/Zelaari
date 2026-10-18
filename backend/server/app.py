@@ -5,11 +5,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Protocol
 
+from agent.events import Event, HealthResponse, RunRequest, RunResponse
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.sse import EventSourceResponse, ServerSentEvent
-
-from agent.events import Event, HealthResponse, RunRequest, RunResponse
 
 
 class RunService(Protocol):

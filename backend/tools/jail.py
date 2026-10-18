@@ -5,7 +5,6 @@ from pathlib import Path, PureWindowsPath
 
 from deepagents.backends import FilesystemBackend
 from deepagents.backends.protocol import EditResult, ReadResult, WriteResult
-
 from store.secrets import Redactor
 
 
@@ -22,7 +21,7 @@ def contained(root: Path, value: str) -> Path:
         raise ValueError("UNC, device and drive-relative paths are unsupported")
     if windows.root and not windows.drive:
         raise ValueError("Root-relative paths are unsupported; use a relative path")
-    if any(part in {"..", ".harness"} for part in windows.parts):
+    if any(part.casefold() in {"..", ".harness"} for part in windows.parts):
         raise ValueError("Traversal and engine storage are protected")
     if any(":" in part for part in windows.parts[1:] if windows.drive) or (
         not windows.drive and ":" in value
@@ -34,6 +33,8 @@ def contained(root: Path, value: str) -> Path:
     target = (path if path.is_absolute() else root / path).resolve()
     if not target.is_relative_to(root):
         raise ValueError("Path escapes workspace")
+    if any(part.casefold() == ".harness" for part in target.relative_to(root).parts):
+        raise ValueError("Engine storage is protected")
     return target
 
 
@@ -52,7 +53,14 @@ class ReadOnlyBackend(FilesystemBackend):
 
     def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> ReadResult:
         try:
-            target = contained(self.root, file_path)
+            # FilesystemMiddleware canonicalizes relative tool paths to virtual
+            # /paths. Interpret that prefix inside the jail, never as an OS root.
+            virtual = (
+                file_path[1:]
+                if file_path.startswith("/") and not file_path.startswith("//")
+                else file_path
+            )
+            target = contained(self.root, virtual)
             if target.stat().st_size > 2_000_000:
                 return ReadResult(error="File exceeds Phase 1 text read limit (2 MB)")
             text = self.redactor.text(target.read_text(encoding="utf-8"))

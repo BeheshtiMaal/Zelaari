@@ -1,4 +1,9 @@
-import { ArrowUpIcon, CaretDownIcon, FolderIcon, GitBranchIcon, PlusIcon, ShieldCheckIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
+import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
+import { FolderIcon } from "@phosphor-icons/react/dist/csr/Folder";
+import { GitBranchIcon } from "@phosphor-icons/react/dist/csr/GitBranch";
+import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
+import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import type { Dictionary } from "../i18n";
 import type { RunRequest } from "../lib/protocol";

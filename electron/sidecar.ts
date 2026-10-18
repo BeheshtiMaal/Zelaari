@@ -42,18 +42,18 @@ export function startSidecar(root: string, packaged: boolean, onExit: () => void
     }, 30000);
     const fail = () => { clearTimeout(timer); reject(new Error("Engine unavailable")); };
     if (process.platform !== "win32" || !existsSync(python) && !useBundle) { fail(); return; }
-    const executable = existsSync(watchdog) ? watchdog : python;
-    const args = existsSync(watchdog) ? [] : [resolve(root, "backend/server/watchdog.py")];
+    const executable = useBundle ? watchdog : python;
+    const args = useBundle ? [] : [resolve(root, "backend/server/watchdog.py")];
     args.push(...(useBundle ? [engine] : [python, "-m", "server"]));
     child = spawn(executable, args, {
-      cwd: resolve(root, "backend"), env: childEnvironment(),
+      cwd: useBundle ? root : resolve(root, "backend"), env: childEnvironment(),
       stdio: ["pipe", "pipe", "pipe"], windowsHide: true,
     });
     child.stdin.on("error", fail);
     child.on("error", fail);
     // Engine logs can include provider diagnostics. Do not forward stderr or persist it.
     child.stderr.resume();
-    child.stdin.write(JSON.stringify({ token, provider }) + "\n");
+    child.stdin.write(JSON.stringify({ token, provider, parent_pid: process.pid }) + "\n");
     let first = true;
     createInterface({ input: child.stdout }).on("line", (line) => {
       if (!first) return;

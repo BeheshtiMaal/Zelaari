@@ -8,14 +8,14 @@ from uuid import uuid4
 
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-
-from agent.events import Event, RunRequest
-from agent.factory import build_agent
 from providers.demo import DemoModel
 from providers.openai_compat import configured_model
 from store.eventlog import EventBus
 from store.secrets import Redactor, StreamRedactor
 from tools.jail import storage_path, workspace_root
+
+from agent.events import Event, RunRequest
+from agent.factory import build_agent
 
 
 @dataclass
@@ -120,15 +120,11 @@ class RunManager:
 
     async def stop(self, run_id: str) -> None:
         run = self.runs[run_id]
-        if not run.task.done():
+        if not run.bus.finished:
             run.task.cancel()
-            try:
-                await run.task
-            except asyncio.CancelledError:
-                # Cancellation before execute() starts has no coroutine handler yet.
-                pass
-            if not run.bus.finished:
-                await run.bus.emit("run.finished", status="stopped")
+            # Report cancellation before SQLite/HTTP cleanup. Terminal buses reject
+            # late events, so cleanup cannot append results or another finish.
+            await run.bus.emit("run.finished", status="stopped")
 
     def events(self, run_id: str, after: int) -> AsyncIterator[Event]:
         return self.runs[run_id].bus.events(after)
@@ -136,3 +132,4 @@ class RunManager:
     async def close(self) -> None:
         for run_id in self.runs:
             await self.stop(run_id)
+        await asyncio.gather(*(run.task for run in self.runs.values()), return_exceptions=True)

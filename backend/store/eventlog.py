@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from agent.events import Event, event_adapter
+
 from store.secrets import Redactor
 
 
@@ -21,6 +22,8 @@ class EventBus:
 
     async def emit(self, kind: str, **payload: Any) -> None:
         async with self.changed:
+            if self.finished:
+                return
             event = event_adapter.validate_python(
                 {
                     **payload,
@@ -29,7 +32,9 @@ class EventBus:
                     "seq": len(self.history) + 1,
                 }
             )
-            event = event_adapter.validate_json(self.redactor.text(event.model_dump_json()))
+            event = event_adapter.validate_python(
+                self.redactor.value(event.model_dump(mode="json"))
+            )
             with self.path.open("a", encoding="utf-8", newline="\n") as log:
                 log.write(event.model_dump_json() + "\n")
                 log.flush()

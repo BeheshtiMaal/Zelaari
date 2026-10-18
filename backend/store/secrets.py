@@ -2,6 +2,8 @@
 
 import os
 
+from pydantic import JsonValue
+
 
 class Redactor:
     def __init__(self, values: list[str] | None = None) -> None:
@@ -18,6 +20,15 @@ class Redactor:
     def text(self, value: str) -> str:
         for secret in self.values:
             value = value.replace(secret, "[REDACTED]")
+        return value
+
+    def value(self, value: JsonValue) -> JsonValue:
+        if isinstance(value, str):
+            return self.text(value)
+        if isinstance(value, list):
+            return [self.value(item) for item in value]
+        if isinstance(value, dict):
+            return {self.text(key): self.value(item) for key, item in value.items()}
         return value
 
 

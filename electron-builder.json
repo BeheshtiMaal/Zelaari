@@ -1,0 +1,10 @@
+{
+  "appId": "local.codeharness.desktop",
+  "productName": "CodeHarness",
+  "directories": { "output": "dist" },
+  "files": ["electron-dist/**", "package.json"],
+  "extraResources": [
+    { "from": "out", "to": "out" },
+    { "from": "build/engine", "to": "build/engine" }
+  ]
+}

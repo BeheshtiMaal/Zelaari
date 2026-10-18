@@ -1,9 +1,10 @@
 """A watchdog holding a kill-on-close job; Electron holds its stdin open.
 
-Start the child suspended, assign the job, then resume it. EOF after Electron
-death closes the job, terminating all descendants without polling parent PIDs.
+Start the child suspended, assign the job, then resume it. Pipe EOF or the owner's
+process handle closing ends the job, without polling potentially reused PIDs.
 """
 
+import json
 import subprocess
 import sys
 from collections.abc import Callable
@@ -11,10 +12,37 @@ from typing import cast
 
 import pywintypes
 import win32api
+import win32con
+import win32event
 import win32file
 import win32job
 import win32pipe
 import win32process
+
+
+def wait_for_owner(bootstrap: str) -> None:
+    """Watch the original process handle as well as pipe EOF.
+
+    Chromium or debugger descendants may retain pipe handles after main dies;
+    a handle to the original main process remains authoritative in that case.
+    """
+    parent_pid = json.loads(bootstrap).get("parent_pid") if bootstrap.startswith("{") else None
+    if parent_pid is None:
+        sys.stdin.read(1)
+        return
+    if not isinstance(parent_pid, int) or parent_pid <= 0:
+        raise ValueError("Invalid owner process")
+    owner = win32api.OpenProcess(win32con.SYNCHRONIZE, False, parent_pid)
+    try:
+        while win32event.WaitForSingleObject(owner, 100) == win32event.WAIT_TIMEOUT:
+            try:
+                win32pipe.PeekNamedPipe(win32api.GetStdHandle(-10), 0)
+            except pywintypes.error as error:
+                if error.winerror in {109, 232}:
+                    return
+                raise
+    finally:
+        win32api.CloseHandle(owner)
 
 
 def main() -> None:
@@ -54,7 +82,7 @@ def main() -> None:
         win32file.WriteFile(token_writer, token.encode())
         win32api.CloseHandle(token_writer)
         win32api.CloseHandle(child_input)
-        sys.stdin.read(1)
+        wait_for_owner(token)
     except BaseException:
         # Assignment failure must not leave a suspended, unowned process.
         win32api.TerminateProcess(process, 2)

@@ -12,7 +12,7 @@ def test_plain_python_engine_bound_loopback_and_auth() -> None:
     env = {
         key: value
         for key, value in os.environ.items()
-        if key in {"SystemRoot", "WINDIR", "PATH", "TEMP", "TMP", "USERPROFILE"}
+        if key.upper() in {"SYSTEMROOT", "WINDIR", "PATH", "TEMP", "TMP", "USERPROFILE"}
     }
     env["PYTHONUTF8"] = "1"
     process = subprocess.Popen(
@@ -29,8 +29,14 @@ def test_plain_python_engine_bound_loopback_and_auth() -> None:
         assert process.stdin is not None and process.stdout is not None
         process.stdin.write("process-canary-token\n")
         process.stdin.flush()
-        port = json.loads(process.stdout.readline())["port"]
-        connections = psutil.Process(process.pid).net_connections(kind="inet")
+        line = process.stdout.readline()
+        assert line, "Standalone engine failed to announce its bound port"
+        port = json.loads(line)["port"]
+        children = [
+            psutil.Process(process.pid),
+            *psutil.Process(process.pid).children(recursive=True),
+        ]
+        connections = [item for child in children for item in child.net_connections(kind="inet")]
         assert any(item.laddr.ip == "127.0.0.1" and item.laddr.port == port for item in connections)
         assert all(item.laddr.ip == "127.0.0.1" for item in connections if item.status == "LISTEN")
         with httpx.Client(base_url=f"http://127.0.0.1:{port}") as client:

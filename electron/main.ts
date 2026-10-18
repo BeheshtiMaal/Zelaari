@@ -3,7 +3,9 @@ import { existsSync, statSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { startSidecar, type Sidecar } from "./sidecar";
+import { loadProviderConfig } from "./provider-config";
 
+app.disableHardwareAcceleration();
 protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: {
   standard: true, secure: true, supportFetchAPI: true,
 } }]);
@@ -12,12 +14,17 @@ const root = app.isPackaged ? process.resourcesPath : resolve(__dirname, "..");
 let sidecar: Sidecar | undefined;
 
 app.whenReady().then(async () => {
-  sidecar = startSidecar(root, app.isPackaged, () => {
-    for (const window of BrowserWindow.getAllWindows()) window.destroy();
-    app.quit();
-  });
+  loadProviderConfig();
   // Keep the native window responsive during cold Python imports.
   ipcMain.on("engine-connection", (event) => {
+    if (!event.senderFrame?.url.startsWith("app://codeharness/")) {
+      event.returnValue = { baseUrl: "", token: "" };
+      return;
+    }
+    sidecar ??= startSidecar(root, app.isPackaged, () => {
+      for (const window of BrowserWindow.getAllWindows()) window.destroy();
+      app.quit();
+    });
     void sidecar!.ready.then(connection => { event.returnValue = connection; }, () => {
       event.returnValue = { baseUrl: "", token: "" };
     });
