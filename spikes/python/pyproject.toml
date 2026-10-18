@@ -3,8 +3,8 @@ name = "codeharness-spikes"
 version = "0.0.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "deepagents", "langchain-openai", "langchain-anthropic",
-  "fastapi", "uvicorn", "httpx", "pyinstaller", "psutil", "pywin32",
+  "deepagents==0.7.28", "langchain-openai==1.7.2", "langchain-anthropic==1.7.6",
+  "fastapi==0.146.0", "uvicorn==0.54.0", "httpx==0.28.1", "pyinstaller==6.22.3", "psutil==7.2.2", "pywin32==312",
 ]
 
 [dependency-groups]
@@ -19,6 +19,7 @@ select = ["E", "F", "I", "UP"]
 
 [tool.mypy]
 strict = true
+exclude = ["build/", "dist/", "\\.spec$"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -223,15 +223,15 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "deepagents" },
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "langchain-anthropic" },
-    { name = "langchain-openai" },
-    { name = "psutil" },
-    { name = "pyinstaller" },
-    { name = "pywin32" },
-    { name = "uvicorn" },
+    { name = "deepagents", specifier = "==0.7.28" },
+    { name = "fastapi", specifier = "==0.146.0" },
+    { name = "httpx", specifier = "==0.28.1" },
+    { name = "langchain-anthropic", specifier = "==1.7.6" },
+    { name = "langchain-openai", specifier = "==1.7.2" },
+    { name = "psutil", specifier = "==7.2.2" },
+    { name = "pyinstaller", specifier = "==6.22.3" },
+    { name = "pywin32", specifier = "==312" },
+    { name = "uvicorn", specifier = "==0.54.0" },
 ]
 
 [package.metadata.requires-dev]

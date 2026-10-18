@@ -11,3 +11,5 @@
 **/*.egg-info/
 **/*.tsbuildinfo
 spikes/artifacts/
+spikes/ui/electron/*.cjs
+spikes/python/*.spec
