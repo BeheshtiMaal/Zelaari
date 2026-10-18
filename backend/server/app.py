@@ -1,0 +1,92 @@
+"""Authenticated REST and SSE transport. No engine work runs at import time."""
+
+import secrets
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Annotated, Protocol
+
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.sse import EventSourceResponse, ServerSentEvent
+
+from agent.events import Event, HealthResponse, RunRequest, RunResponse
+
+
+class RunService(Protocol):
+    async def start(self, request: RunRequest) -> str: ...
+    async def stop(self, run_id: str) -> None: ...
+    def events(self, run_id: str, after: int) -> AsyncIterator[Event]: ...
+    def contains(self, run_id: str) -> bool: ...
+    async def close(self) -> None: ...
+
+
+def create_app(token: str, service: RunService | None = None, *, dev: bool = False) -> FastAPI:
+    if not token and not dev:
+        raise ValueError("A per-launch token is required")
+
+    def runs() -> RunService:
+        nonlocal service
+        if service is None:
+            from agent.bridge import RunManager
+
+            service = RunManager(secrets_to_redact=[token])
+        return service
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        yield
+        if service is not None:
+            await service.close()
+
+    def authorize(authorization: Annotated[str | None, Header()] = None) -> None:
+        if not dev and not secrets.compare_digest(authorization or "", f"Bearer {token}"):
+            raise HTTPException(401, "Unauthorized")
+
+    app = FastAPI(
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        dependencies=[Depends(authorize)],
+        lifespan=lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["app://codeharness", "http://localhost:3000"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Authorization", "Last-Event-ID", "Content-Type"],
+    )
+
+    @app.get("/health")
+    def health() -> HealthResponse:
+        return HealthResponse()
+
+    @app.post("/runs", status_code=201)
+    async def create_run(request: RunRequest) -> RunResponse:
+        try:
+            return RunResponse(run_id=await runs().start(request))
+        except (ValueError, OSError):
+            raise HTTPException(
+                400, "Select an accessible workspace and configured model"
+            ) from None
+
+    def require_run(run_id: str) -> RunService:
+        manager = runs()
+        if not manager.contains(run_id):
+            raise HTTPException(404, "Unknown run")
+        return manager
+
+    @app.post("/runs/{run_id}/stop")
+    async def stop_run(run_id: str) -> dict[str, str]:
+        await require_run(run_id).stop(run_id)
+        return {"status": "ok"}
+
+    @app.get("/runs/{run_id}/events", response_class=EventSourceResponse)
+    async def events(
+        run_id: str,
+        manager: Annotated[RunService, Depends(require_run)],
+        last_event_id: Annotated[int, Header(ge=0)] = 0,
+    ) -> AsyncIterator[ServerSentEvent]:
+        async for event in manager.events(run_id, last_event_id):
+            yield ServerSentEvent(raw_data=event.model_dump_json(), id=str(event.seq))
+
+    return app
