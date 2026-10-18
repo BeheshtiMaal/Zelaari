@@ -119,6 +119,15 @@ Eight checks pass: internal/new targets, case/separator variants, traversal, out
 
 The real symlink fixture fails during creation with `WinError 1314`; its containment behavior is **unresolved**. The user plans to enable Developer Mode. Rerun `uv run pytest tests/test_containment.py -v` after that is effective. The failure is not skipped, mocked, or counted as passing.
 
+Follow-up diagnosis: this session is not elevated and its process token does not
+contain `SeCreateSymbolicLinkPrivilege`. A direct `CreateSymbolicLinkW` probe with
+flags `0x1 | 0x2` (directory plus allow-unprivileged creation) also returns 1314,
+independently of Python's `Path.symlink_to()`. The probe uses a disposable local
+directory and removes its fixtures. This establishes an OS prerequisite failure,
+not a failure of the containment check. The test now reports the required Windows
+setup explicitly while remaining failed. Microsoft documents that the
+[unprivileged creation flag requires Developer Mode](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createsymboliclinkw).
+
 `containment.py` resolves paths and checks `is_relative_to()`, explicitly rejecting ambiguous path forms first. Temporary links are removed directly, never by recursively traversing their targets. This candidate is not race resistant: a reparse point can change between resolution and access. Phase 3 needs operation-boundary checks plus alias/device/reparse/root/protected-path review; this experiment establishes neither shell isolation nor a sandbox.
 
 ## Proposed constitution changes

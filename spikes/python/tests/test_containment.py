@@ -51,7 +51,19 @@ def test_link_escape(workspace: Path, kind: str) -> None:
     link = workspace / "linked"
     if kind == "symlink":
         # Permission errors intentionally fail this validation, never skip it.
-        link.symlink_to(outside, target_is_directory=True)
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except OSError as error:
+            if error.winerror != 1314:
+                raise
+            pytest.fail(
+                "Windows refused the real symlink fixture (WinError 1314). "
+                "Enable Developer Mode in Windows Settings > Update & Security > "
+                "For developers, or run this test from a session with "
+                "SeCreateSymbolicLinkPrivilege. Containment has not been tested "
+                "for symlinks; this check remains failed until creation succeeds.",
+                pytrace=False,
+            )
     else:
         result = subprocess.run(
             ["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(outside)],
