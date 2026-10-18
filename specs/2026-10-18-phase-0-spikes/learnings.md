@@ -1,6 +1,6 @@
 # Phase 0 spike evidence
 
-Implementation experiments are complete; validation is pending. The real symlink test fails with Windows error 1314, and constitution amendments await approval. Do not start Phase 1 yet.
+Implementation experiments and technical validation pass. After the user enabled Developer Mode, the real symlink test passed and the full Python suite passed all 25 tests. Constitution amendments and the roadmap update still await approval. Do not start Phase 1 yet.
 
 ## Environment
 - Windows 10 x64 build 19045, repository `E:\Agentic\Harness`.
@@ -113,19 +113,19 @@ Anthropic's private client slot is injected with a real SDK using mocked transpo
 
 Early runs inherited host LangSmith tracing settings and attempted telemetry for synthetic data. The test bootstrap now removes host API-key/tracing entries and disables tracing before test-module imports. Subsequent agent/provider runs pass without those attempts. Product environment isolation must also be explicit. No real credentials were added to source, fixtures, or workspace files.
 
-## Windows containment — partially verified
+## Windows containment — verified for the spike matrix
 
-Eight checks pass: internal/new targets, case/separator variants, traversal, outside absolute paths, sibling-prefix collisions, drive-relative and UNC/root-relative rejection, and a real junction escape. The junction check rejects existing content and missing files under its outside target. No network share is contacted.
+All nine containment checks pass: internal/new targets, case/separator variants, traversal, outside absolute paths, sibling-prefix collisions, drive-relative and UNC/root-relative rejection, and real symlink/junction escapes. Both link checks reject existing content and missing files under their outside targets. No network share is contacted.
 
-The real symlink fixture fails during creation with `WinError 1314`; its containment behavior is **unresolved**. The user plans to enable Developer Mode. Rerun `uv run pytest tests/test_containment.py -v` after that is effective. The failure is not skipped, mocked, or counted as passing.
+The symlink fixture initially failed at creation with `WinError 1314`. After the user enabled Developer Mode, `uv run pytest tests/test_containment.py -v` passed all nine checks, including real symlink creation and escape rejection. No skip, mock, or containment-code workaround was used.
 
-Follow-up diagnosis: this session is not elevated and its process token does not
+Initial diagnosis: the session was not elevated and its process token did not
 contain `SeCreateSymbolicLinkPrivilege`. A direct `CreateSymbolicLinkW` probe with
-flags `0x1 | 0x2` (directory plus allow-unprivileged creation) also returns 1314,
+flags `0x1 | 0x2` (directory plus allow-unprivileged creation) also returned 1314,
 independently of Python's `Path.symlink_to()`. The probe uses a disposable local
 directory and removes its fixtures. This establishes an OS prerequisite failure,
 not a failure of the containment check. The test now reports the required Windows
-setup explicitly while remaining failed. Microsoft documents that the
+setup explicitly if that prerequisite is absent. Developer Mode resolved this prerequisite without a containment-code change. Microsoft documents that the
 [unprivileged creation flag requires Developer Mode](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createsymboliclinkw).
 
 `containment.py` resolves paths and checks `is_relative_to()`, explicitly rejecting ambiguous path forms first. Temporary links are removed directly, never by recursively traversing their targets. This candidate is not race resistant: a reparse point can change between resolution and access. Phase 3 needs operation-boundary checks plus alias/device/reparse/root/protected-path review; this experiment establishes neither shell isolation nor a sandbox.
@@ -136,6 +136,6 @@ Concrete proposed text is in `proposed-constitution-changes.md`: explicit todo m
 ## Outstanding work
 - ruff and strict mypy pass (11 Python source files); TypeScript, Next static export, and Electron launcher builds pass.
 - Both Electron protocol/stream/fallback tests pass; corrected final-card screenshots were inspected.
-- Latest complete pytest run: **24 passed, 1 failed**, solely the real symlink privilege prerequisite. The full pytest quality gate is therefore not green.
-- Remaining: enable symlink creation and rerun its real test; approve/apply constitution amendments; finish the validation/roadmap update only after every check passes.
-- Phase 1 handoff: pinned APIs, explicit todo middleware, app protocol, packaged job/watchdog lifetime, scripted demo, stream/interrupt mapping, reasoning limits, and honest partial jail evidence above. All code is isolated under `spikes/`.
+- Latest complete pytest run: **25 passed in 18.34 seconds**, with no skipped tests. Ruff and strict mypy also passed on this rerun.
+- Remaining: approve/apply constitution amendments and finish the roadmap update. Technical validation is green; approval remains pending.
+- Phase 1 handoff: pinned APIs, explicit todo middleware, app protocol, packaged job/watchdog lifetime, scripted demo, stream/interrupt mapping, reasoning limits, and the verified spike containment matrix with its documented limitations. All code is isolated under `spikes/`.
