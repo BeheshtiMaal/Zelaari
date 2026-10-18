@@ -1,0 +1,25 @@
+[project]
+name = "codeharness-spikes"
+version = "0.0.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "deepagents", "langchain-openai", "langchain-anthropic",
+  "fastapi", "uvicorn", "httpx", "pyinstaller", "psutil", "pywin32",
+]
+
+[dependency-groups]
+dev = ["ruff", "mypy", "pytest", "types-psutil", "types-pywin32"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
