@@ -1,0 +1,6 @@
+body { background: #151618; color: #E8EAED; font-family: sans-serif; margin: 0; }
+main { padding-block: 32px; padding-inline: 32px; }
+button { margin-inline-end: 12px; padding-block: 8px; padding-inline: 16px; }
+aside, dl { background: #1E2024; border: 1px solid #2C2F36; border-radius: 16px; padding: 20px; }
+section { display: grid; gap: 12px; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; }
