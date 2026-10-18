@@ -32,7 +32,7 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | # | Phase | Outcome | Mock screens |
 |---|---|---|---|
 | 0 | **Spikes — complete** | Verified spikes: see `2026-10-18-phase-0-spikes/`. Both static-export protocols work; recommend `app://`; packaged Windows job/watchdog lifetime verified; deepagents 0.7.28 needs explicit todo middleware for the demo; stock Windows shell unsuitable; demo and reasoning-adapter behavior recorded; containment matrix verified. All 25 Python tests pass. | none |
-| 1 | **Walking skeleton — live validation pending** | Implemented Electron <-> engine <-> deepagents demo `read_file` run, generated wire types, durable SSE/replay and OpenUI in the Persian/English shell. Local quality, desktop and packaged lifecycle checks pass. Exit awaits a successful real provider run; see `2026-10-18-phase-1-walking-skeleton/validation.md`. | shell, sidebar |
+| 1 | **Walking skeleton — complete** | Implemented Electron <-> engine <-> deepagents `read_file` runs with offline demo and a verified live OpenAI-compatible provider, generated wire types, durable SSE/replay and OpenUI in the Persian/English shell. All phase validation checks pass; see `2026-10-18-phase-1-walking-skeleton/validation.md`. | shell, sidebar |
 | 2 | Models + workspace | Add/test models (dialog, presets, auto context detection), keys in safeStorage, workspace picker, demo model, token meter, minimal Settings > Appearance (language switch) | New task (home), Settings: models, Add model |
 | 3 | Tools + permission layer | fs tools + `run_command`, workspace jail, atomic writes, snapshots/undo, rules.json, modes, risk classifier, branch chip (`git switch` via approval), Worktree option, Workspace page | Workspace (files + tasks) |
 | 4 | Approvals inbox | interrupts, ApprovalCard + DiffView, approve/edit/reject, allow-rule checkbox, resume after restart, Rules tab | Approvals inbox |
@@ -52,7 +52,7 @@ record the pinned APIs, examples, and evidence. Phase 1 must use explicit `TodoL
 the packaged Windows job/watchdog lifetime pattern, and disabled inherited tracing. The demo model and captured stream/interrupt
 shapes are available under `spikes/`. Preserve the containment candidate's documented race/alias limitations when designing the
 product jail. Custom command execution remains Phase 3; live provider reasoning validation remains Phase 2. Phase order and scope
-are unchanged. Phase 1 implementation and local validation are complete; its exit remains pending the live-provider check. Phase 2 has not started.
+are unchanged. Phase 1 is complete, including the live-provider check using the user's external configuration file. Phase 2 has not started; it inherits the generated protocol, tested reducer and lifecycle, temporary environment/file provider configuration, and the documented jail limitations.
 
 ## Audit log (D20): the mock wins
 The mock was left exactly as sketched. These spec statements were changed to match it:

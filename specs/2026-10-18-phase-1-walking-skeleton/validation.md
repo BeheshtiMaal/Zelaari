@@ -21,16 +21,16 @@ Done only when every box is checked.
 - [x] First launch opens in Persian (RTL) regardless of Windows language. The English dictionary is checked with a dev flag (`?lang=en`) because the Settings language switch arrives in Phase 2; layout flips correctly with no broken alignment. Fresh Electron profiles for both locales, actual `?lang=en`, direction and sidebar position asserted; screenshots inspected.
 - [x] After normal quit and after force-killing Electron, Task Manager shows no leftover engine process. Actual engine/watchdog PIDs checked with psutil, including forced actual main-process termination for both development and packaged engine paths; `artifacts/desktop.json` records passing results. No cleanup is performed before the assertions.
 - [x] `netstat -ano` shows the engine bound to 127.0.0.1 only. Desktop invokes `netstat -ano -p tcp`, filters owned engine listeners and asserts loopback only; captured in `artifacts/desktop.json`.
-- [ ] With a real OpenAI-compatible key set in env vars, the same task works.
+- [x] With a real OpenAI-compatible key set in env vars, the same task works. After the user populated the external provider file and requested a check, `uv run --project backend python scripts/check_live.py` exited 0: real `read_file` tool result contains the `amber-orbit` fixture marker, final response contains OpenUI `Stack` and `Callout`, run finishes completed, and no credential appears in persisted run files or SQLite.
 
-Pending live check: the existing AvalAI key returned HTTP 429. User requested an
-alternate provider file, created at `%APPDATA%/CodeHarness/phase1-provider.env`.
-Awaiting the user's confirmation that it is ready; never print or commit its
-contents. Run `uv run --project backend python scripts/check_live.py`, then check
-this final box only after a successful real tool call and OpenUI response.
+Live check resolved: the earlier AvalAI key returned HTTP 429. The user supplied
+alternate configuration through `%APPDATA%/CodeHarness/phase1-provider.env` and
+requested validation. The live run passed without printing configuration values
+or committing the file. It remains outside the workspace.
 
 ## Exit criteria
 All boxes checked, `learnings.md` written (Phase 0 spike results, deepagents kwargs actually used), `roadmap.md` updated.
 
-Status: implementation and local checks complete; **phase exit pending the live
-provider check**. Phase 2 must not start yet.
+Status: **Phase 1 complete**. Every validation box passes, learnings are recorded,
+and the roadmap is updated. Phase 2 is ready for its separate spec approval and
+implementation session.

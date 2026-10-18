@@ -107,17 +107,25 @@ disabled and no mock approval counts or sample workspace data are presented as
 real state. Native window visibility was observed at roughly 0.25–0.42 seconds
 of main-process uptime in an earlier passing desktop run.
 
-## Live provider check — pending
+## Live provider check — passed
 
 The user's existing AvalAI environment key could fetch model metadata (HTTP 200,
-including `gpt-4.1-mini`), but a tiny live chat request returned HTTP 429. No
-successful live tool call is claimed. The user requested a file for an alternate
-provider; created `%APPDATA%/CodeHarness/phase1-provider.env` with empty
+including `gpt-4.1-mini`), but a tiny live chat request returned HTTP 429. The user
+requested a file for an alternate provider; created
+`%APPDATA%/CodeHarness/phase1-provider.env` with initially empty
 `CODEHARNESS_BASE_URL`, `CODEHARNESS_MODEL`, `CODEHARNESS_API_KEY` fields. Both
 Electron and `scripts/check_live.py` read it. It is outside the workspace and
-never committed or printed. Awaiting the user's “ready” before using it.
+never committed or printed. After populating the file, the user requested a check.
+All three fields were confirmed present without printing their values.
 
-Phase 1 cannot be marked complete until that live validation passes. Phase 2
+`uv run --project backend python scripts/check_live.py` then exited 0. The real
+agent emitted tool calls/results, read the fixture's `amber-orbit` marker,
+streamed an OpenUI response containing `Stack` and `Callout`, and finished with
+status `completed`. The script scanned all persisted run files, including SQLite,
+and found no credential. No live provider configuration values were logged or
+added to repository files.
+
+Phase 1 is complete: every validation check now passes. Phase 2
 should replace this temporary environment/file setup with provider records and
 safeStorage, preserve the protocol/reducer and lifecycle tests, and add the
 Settings language switch. Jev/Metis presets and the web backend remain unchanged
