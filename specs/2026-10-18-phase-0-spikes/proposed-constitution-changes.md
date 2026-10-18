@@ -1,6 +1,6 @@
-# Proposed constitution amendments — approval pending
+# Constitution amendments — approved and applied
 
-These are reviewable proposals only. `tech-stack.md` and `roadmap.md` have not been changed.
+The user explicitly approved these amendments after all 25 Python tests passed. They are now applied to `tech-stack.md` and `roadmap.md`. The reviewed text below is retained as the approval record; its conditional pending instructions are historical.
 
 ## 1. Explicit planning middleware (`tech-stack.md`, Engine)
 

@@ -38,32 +38,49 @@ Single-user, fully local, no server, no account. The only network traffic is the
 - Diff view: `diff` library + custom component. Terminal output: xterm.js, read-only.
 
 ## Engine: built on deepagents
-We use `deepagents.create_deep_agent(...)` as the harness instead of writing a bare LangGraph. It already provides, and we reuse:
-planning (`write_todos`), filesystem tools (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`), shell (`execute`),
-sub-agents (`task`), context management (offload + summarization), memory, skills, and human-in-the-loop interrupts, all on LangGraph
-with SQLite checkpointing.
+We use `deepagents.create_deep_agent(...)` as the harness instead of writing a bare LangGraph. The pinned Phase 0 version is
+deepagents 0.7.28. It provides filesystem tools (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`), delegation (`task`),
+context management (offload + summarization), memory, skills, and human-in-the-loop infrastructure, all on LangGraph with SQLite
+checkpointing in the product. Planning uses LangChain's `TodoListMiddleware`, passed explicitly so the offline demo and arbitrary
+compatible models receive `write_todos` independently of model-specific harness profiles. Product shell execution uses our custom
+`run_command` tool; stock `execute` must be excluded.
 
 Wiring:
 ```python
 agent = create_deep_agent(
     model=<chat model from provider record>,
-    system_prompt=<ours; fully replaces the default>,
-    backend=<workspace-jailed filesystem + local shell backend>,
-    tools=[ask_user_question, submit_plan, render_ui, load_skill?],
+    system_prompt=<ours; replaces the authored base prompt>,
+    backend=<workspace-jailed filesystem backend>,
+    tools=[run_command, ask_user_question, submit_plan, render_ui, load_skill?],
     subagents=[reviewer (read-only), researcher (read-only)],
     skills=[workspace .harness/skills, user skills, bundled skills],
     memory=[workspace .harness/memory.md],
-    middleware=[PermissionMiddleware, PlanGateMiddleware, VerifyGateMiddleware, BudgetMiddleware, EventMiddleware],
+    middleware=[TodoListMiddleware(), PermissionMiddleware, PlanGateMiddleware, VerifyGateMiddleware, BudgetMiddleware, EventMiddleware],
     checkpointer=SqliteSaver(...),
 )
 ```
-Notes to confirm in the Phase 0 spike (do not assume): exact `create_deep_agent` kwargs for skills/memory/middleware in the installed
-version; whether the stock local shell backend behaves on Windows (PowerShell). If not, we ship our own `run_command` tool and disable `execute`.
+Phase 0 verified the factory parameters and effective authored prompt; enabled middleware still appends tool, memory, and skills
+instructions. See [spike learnings](2026-10-18-phase-0-spikes/learnings.md) for exact versions, runnable examples, and stream/interrupt shapes.
+Stock `LocalShellBackend` runs cmd and explicitly invoked PowerShell, but Windows timeouts leave descendants alive and can return
+later than the requested deadline. Phase 3 ships the custom command tool and excludes stock `execute` before product command execution.
+Use Windows Job Objects with kill-on-close ownership, assigning processes before resuming them. A packaged watchdog must preserve
+application lifetime cleanup after forced Electron termination, including in Phase 1. The spike verifies the mechanism, not production permissions.
+
+The engine binds an OS-assigned loopback socket with port 0 and announces the port only after binding; do not probe and rebind.
+Keep tokens out of renderer URLs and command arguments. The Windows spike used a temporary launcher environment value, removed
+before child creation, followed by private stdin pipes to the packaged watchdog and engine. Product Electron generates its own token.
 deepagents follows a "trust the LLM" model, so **all boundaries are enforced in our tool layer, never by prompting**.
 
 Providers (`backend/providers/`): a provider record is `{name, base_url, api_key_ref, model, kind (inferred), context_window (auto-detected), supports_tools}`.
 `langchain-openai` and `langchain-anthropic` back them. DeepSeek, GLM, AvalAI and any other OpenAI-compatible service are records with a different base URL.
 There are **no price fields, no manual context field and no kind toggle**; the meter shows tokens only.
+
+Reasoning transport: generic `ChatOpenAI` in langchain-openai 1.7.2 discards DeepSeek-style `reasoning_content` in both full responses
+and streamed deltas. Phase 2 must verify a provider-aware adapter or explicit conversion; the generic adapter alone cannot promise
+DeepSeek reasoning. Native Anthropic thinking survives langchain-anthropic 1.7.6 as structured `thinking` blocks and normalized
+`reasoning` content blocks. These are synthetic adapter results; live endpoint validation remains Phase 2 work. Never relabel ordinary
+answer text as reasoning.
+
 - **Add-model dialog** (dimmed backdrop, rounded card): name, Base URL, preset buttons under the URL box (OpenAI, Anthropic, Jev, AvalAI, Metis) that fill the URL,
   API key, model name. `kind` is inferred: the Anthropic preset or an `api.anthropic.com` URL means native Anthropic; anything else is OpenAI-compatible.
   Presets live in `backend/providers/presets.json`. Verified: AvalAI `https://api.avalai.ir/v1`; OpenAI `https://api.openai.com/v1` and Anthropic
@@ -87,6 +104,8 @@ There are **no price fields, no manual context field and no kind toggle**; the m
 - **Workspace jail**: resolve real paths (symlinks and junctions) and reject escapes. Whole drives or the home folder cannot be a workspace.
 - **Secrets**: API keys live in Electron `safeStorage` (DPAPI), handed to the engine in memory, never in the workspace, scrubbed from the environment
   of every spawned command. Executables inside the workspace are never run by a UI click.
+- **Environment and telemetry isolation**: build child environments from an allowlist and explicitly disable inherited tracing so host
+  development settings cannot enable telemetry in the app.
 - **Atomic writes**: files are written to a temp file and renamed, so an API error or a crash never leaves a half-written file.
 - **Crash safety**: after an engine crash, a tool call that was in flight is never replayed automatically; it is marked interrupted, shown to the user, and reported to the model.
 - **Undo**: every write snapshots the previous content to `.harness/snapshots/` so any change can be reverted from the UI.

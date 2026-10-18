@@ -31,7 +31,7 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 ## Phases
 | # | Phase | Outcome | Mock screens |
 |---|---|---|---|
-| 0 | Spikes | OpenUI renders in Next-static-in-Electron; PyInstaller engine boots from Electron; deepagents version/kwargs confirmed; Windows shell backend verified; demo model works with tool binding | none |
+| 0 | **Spikes — complete** | Verified spikes: see `2026-10-18-phase-0-spikes/`. Both static-export protocols work; recommend `app://`; packaged Windows job/watchdog lifetime verified; deepagents 0.7.28 needs explicit todo middleware for the demo; stock Windows shell unsuitable; demo and reasoning-adapter behavior recorded; containment matrix verified. All 25 Python tests pass. | none |
 | 1 | **Walking skeleton** | Electron <-> engine <-> one deepagents run (demo model) with `read_file`, streamed and rendered via OpenUI, inside the real app shell. See `2026-10-18-phase-1-walking-skeleton/` | shell, sidebar |
 | 2 | Models + workspace | Add/test models (dialog, presets, auto context detection), keys in safeStorage, workspace picker, demo model, token meter, minimal Settings > Appearance (language switch) | New task (home), Settings: models, Add model |
 | 3 | Tools + permission layer | fs tools + `run_command`, workspace jail, atomic writes, snapshots/undo, rules.json, modes, risk classifier, branch chip (`git switch` via approval), Worktree option, Workspace page | Workspace (files + tasks) |
@@ -43,6 +43,16 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | 9 | `render_ui` + polish | model-composed GenUI, themes, fa/en, empty/error states, shortcuts, accessibility, remaining settings | Settings: appearance, permissions, data, about; Empty; Errors |
 | 9b | Schedule | scheduler in engine (app-open only), Schedule tab, add dialog, templates, queued approvals, missed-run prompt | Schedule, Add schedule |
 | 10 | Packaging + evals | PyInstaller + electron-builder (installer + zip, D4), CI, eval suite, README, SECURITY.md | none |
+
+## Phase 0 handoff to Phase 1
+
+Phase 0 is complete following technical validation and user approval of its constitution amendments. The
+[learnings](2026-10-18-phase-0-spikes/learnings.md) and [validation](2026-10-18-phase-0-spikes/validation.md)
+record the pinned APIs, examples, and evidence. Phase 1 must use explicit `TodoListMiddleware`, the custom `app://` protocol,
+the packaged Windows job/watchdog lifetime pattern, and disabled inherited tracing. The demo model and captured stream/interrupt
+shapes are available under `spikes/`. Preserve the containment candidate's documented race/alias limitations when designing the
+product jail. Custom command execution remains Phase 3; live provider reasoning validation remains Phase 2. Phase order and scope
+are unchanged; Phase 1 has not started.
 
 ## Audit log (D20): the mock wins
 The mock was left exactly as sketched. These spec statements were changed to match it:

@@ -1,6 +1,6 @@
 # Phase 0 spike evidence
 
-Implementation experiments and technical validation pass. After the user enabled Developer Mode, the real symlink test passed and the full Python suite passed all 25 tests. Constitution amendments and the roadmap update still await approval. Do not start Phase 1 yet.
+Phase 0 is complete. After the user enabled Developer Mode, the real symlink test passed and the full Python suite passed all 25 tests. The user subsequently approved the constitution amendments; they are applied and the roadmap marks Phase 0 complete. Phase 1 has not started.
 
 ## Environment
 - Windows 10 x64 build 19045, repository `E:\Agentic\Harness`.
@@ -76,7 +76,7 @@ agent = create_deep_agent(
 )
 ```
 
-The model-neutral default configuration did **not** expose `write_todos`. Passing LangChain's `TodoListMiddleware` explicitly makes it available independently of model-specific profiles. This is a verified spike workaround; constitution adoption is still proposed. Captured model messages contain the caller's authored prompt and fixture memory/skills metadata, without the legacy authored base prompt. Enabled middleware still appends tool/memory/skills instructions.
+The model-neutral default configuration did **not** expose `write_todos`. Passing LangChain's `TodoListMiddleware` explicitly makes it available independently of model-specific profiles. This verified spike workaround is now adopted in the constitution with user approval. Captured model messages contain the caller's authored prompt and fixture memory/skills metadata, without the legacy authored base prompt. Enabled middleware still appends tool/memory/skills instructions.
 
 With `stream_mode=["messages", "updates"]`, `subgraphs=True`, v1 items are `(namespace, mode, payload)`. Message payloads contain a chunk and metadata including `langgraph_node`; updates map node names to state changes. Todos produce model calls, a `tools` update, and `TodoListMiddleware.after_model`. Delegated model activity appears beneath a `tools:<id>` namespace; the parent `task` result completes the delegate. CodeHarness must map this to its own typed events; the library does not emit CodeHarness `subagent.started` objects. Actual summaries are in `agent-stream.json`.
 
@@ -131,11 +131,11 @@ setup explicitly if that prerequisite is absent. Developer Mode resolved this pr
 `containment.py` resolves paths and checks `is_relative_to()`, explicitly rejecting ambiguous path forms first. Temporary links are removed directly, never by recursively traversing their targets. This candidate is not race resistant: a reparse point can change between resolution and access. Phase 3 needs operation-boundary checks plus alias/device/reparse/root/protected-path review; this experiment establishes neither shell isolation nor a sandbox.
 
 ## Proposed constitution changes
-Concrete proposed text is in `proposed-constitution-changes.md`: explicit todo middleware, verified stock-shell fallback, reasoning preservation limits, sidecar/token/tracing isolation, and the Phase 0 roadmap/handoff entry. No constitution file has been edited.
+The user approved `proposed-constitution-changes.md`: explicit todo middleware, verified stock-shell fallback, reasoning preservation limits, sidecar/token/tracing isolation, and the Phase 0 roadmap/handoff entry. These amendments are now applied to `tech-stack.md` and `roadmap.md`; the proposal file retains the approval record.
 
-## Outstanding work
+## Final validation and handoff
 - ruff and strict mypy pass (11 Python source files); TypeScript, Next static export, and Electron launcher builds pass.
 - Both Electron protocol/stream/fallback tests pass; corrected final-card screenshots were inspected.
 - Latest complete pytest run: **25 passed in 18.34 seconds**, with no skipped tests. Ruff and strict mypy also passed on this rerun.
-- Remaining: approve/apply constitution amendments and finish the roadmap update. Technical validation is green; approval remains pending.
+- Constitution amendments are approved and applied, and the roadmap marks Phase 0 complete. No Phase 0 work remains.
 - Phase 1 handoff: pinned APIs, explicit todo middleware, app protocol, packaged job/watchdog lifetime, scripted demo, stream/interrupt mapping, reasoning limits, and the verified spike containment matrix with its documented limitations. All code is isolated under `spikes/`.
