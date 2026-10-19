@@ -4,6 +4,8 @@ import asyncio
 from pathlib import Path
 from typing import Any, TypedDict
 
+import pytest
+
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, START, StateGraph
@@ -68,7 +70,8 @@ def test_sqlite_interrupt_id_batch_mapping_and_reconstruction(tmp_path: Path) ->
     asyncio.run(scenario())
 
 
-def test_mixed_barrier_sqlite_reconstruction(tmp_path: Path) -> None:
+@pytest.mark.parametrize("reviewed_tool", ["write_file", "submit_plan"])
+def test_mixed_barrier_sqlite_reconstruction(tmp_path: Path, reviewed_tool: str) -> None:
     request = QuestionRequest.model_validate(
         {
             "run_id": "run",
@@ -89,7 +92,7 @@ def test_mixed_barrier_sqlite_reconstruction(tmp_path: Path) -> None:
     batch = HumanBatch(
         questions=[request],
         approvals=[
-            ApprovalRequest(approval_id="write", run_id="run", kind="tool", tool="write_file")
+            ApprovalRequest(approval_id="write", run_id="run", kind="tool", tool=reviewed_tool)
         ],
     )
 

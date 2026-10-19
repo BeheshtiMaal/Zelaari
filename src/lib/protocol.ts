@@ -13,6 +13,15 @@ export type Event =
   | QuestionAnswered
   | RunFinished
   | RunError
+  | PlanCreated
+  | PlanStepUpdated
+  | ActivityStarted
+  | ActivityFinished
+  | SubagentStarted
+  | SubagentFinished
+  | ContextSummarized
+  | ContextUpdated
+  | SteeringUpdated
   | FutureEvent;
 export type RunId = string;
 export type Seq = number;
@@ -26,6 +35,12 @@ export type Ts1 = string;
 export type Type1 = "message.delta";
 export type MessageId = string;
 export type Text = string;
+export type ScopeId = string;
+export type StepId = string | null;
+export type ParentScopeId = string | null;
+export type TurnId = string | null;
+export type Agent = "parent" | "reviewer" | "researcher";
+export type Model1 = string | null;
 export type RunId2 = string;
 export type Seq2 = number;
 export type Ts2 = string;
@@ -154,37 +169,181 @@ export type Message = string;
 export type RunId15 = string;
 export type Seq12 = number;
 export type Ts12 = string;
-export type Type13 =
-  | "plan.created"
-  | "plan.step.updated"
-  | "subagent.started"
-  | "subagent.finished"
-  | "context.summarized"
-  | "ui.render"
-  | "test.result";
-export type Task1 = string;
+export type Type13 = "plan.created";
+export type RunId16 = string;
+export type PlanId = string;
+export type Revision1 = string;
+/**
+ * @minItems 1
+ * @maxItems 64
+ */
+export type BaselineIds = [string, ...string[]];
+/**
+ * @minItems 1
+ * @maxItems 64
+ */
+export type Steps = [PlanStep, ...PlanStep[]];
+export type Id2 = string;
+export type Title = string;
+/**
+ * @maxItems 64
+ */
+export type ExpectedFiles = string[];
+export type VerifyCommand = string | null;
+export type HighRisk = boolean;
+/**
+ * @minItems 1
+ * @maxItems 64
+ */
+export type Progress = [StepProgress, ...StepProgress[]];
+export type StepId1 = string;
+export type Status3 = "pending" | "in_progress" | "completed" | "failed";
+export type StartedAt = string | null;
+export type EndedAt = string | null;
+export type Adoption = "pending" | "automatic" | "approved" | "rejected";
+/**
+ * @maxItems 16
+ */
+export type GateReasons =
+  | []
+  | [string]
+  | [string, string]
+  | [string, string, string]
+  | [string, string, string, string]
+  | [string, string, string, string, string]
+  | [string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string, string, string, string, string]
+  | [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string
+    ]
+  | [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string
+    ];
+/**
+ * @maxItems 10000
+ */
+export type KnownFiles = string[];
+export type Uncertain = boolean;
+export type Revision2 = string;
+export type StepThreshold = number;
+export type FileThreshold = number;
+export type DeviationGate = boolean;
+export type RunId17 = string;
+export type Seq13 = number;
+export type Ts13 = string;
+export type Type14 = "plan.step.updated";
+export type PlanId1 = string;
+export type Revision3 = string;
+export type RunId18 = string;
+export type Seq14 = number;
+export type Ts14 = string;
+export type Type15 = "activity.started";
+export type Task1 = string | null;
+export type RunId19 = string;
+export type Seq15 = number;
+export type Ts15 = string;
+export type Type16 = "activity.finished";
+export type Status4 = "completed" | "failed" | "cancelled" | "interrupted";
+export type RunId20 = string;
+export type Seq16 = number;
+export type Ts16 = string;
+export type Type17 = "subagent.started";
+export type Task2 = string;
+export type ReadOnly = true;
+export type RunId21 = string;
+export type Seq17 = number;
+export type Ts17 = string;
+export type Type18 = "subagent.finished";
+export type Status5 = "completed" | "failed" | "cancelled" | "interrupted";
+export type Result = string | null;
+export type RunId22 = string;
+export type Seq18 = number;
+export type Ts18 = string;
+export type Type19 = "context.summarized";
+export type OperationId = string;
+export type Source = "deepagents.summarization";
+export type AffectedMessages = number | null;
+export type RunId23 = string;
+export type Seq19 = number;
+export type Ts19 = string;
+export type Type20 = "context.updated";
+export type InputTokens1 = number;
+export type ContextWindow = number | null;
+export type Estimated1 = boolean;
+export type RunId24 = string;
+export type Seq20 = number;
+export type Ts20 = string;
+export type Type21 = "steering.updated";
+export type SubmissionId = string;
+export type Text4 = string;
+export type RunId25 = string;
+export type Ordinal = number;
+export type Status6 = "queued" | "delivered" | "cancelled";
+export type QueuedAt = string;
+export type DeliveredAt = string | null;
+export type RunId26 = string;
+export type Seq21 = number;
+export type Ts21 = string;
+export type Type22 = "ui.render" | "test.result";
+export type Task3 = string;
 export type Workspace1 = string;
-export type Model1 = string;
+export type Model2 = string;
 export type Mode = "read-only" | "ask" | "auto";
 export type Worktree = boolean;
 export type WorktreeApproved = boolean;
-export type RunId16 = string;
-export type Status3 = "ok";
-export type Id2 = string;
+export type RunId27 = string;
+export type Status7 = "ok";
+export type Id3 = string;
 export type Name1 = string;
 export type BaseUrl = string;
-export type Model2 = string;
-export type Id3 = string;
-export type Name2 = string;
 export type Model3 = string;
+export type Id4 = string;
+export type Name2 = string;
+export type Model4 = string;
 export type Kind3 = "demo" | "openai-compatible" | "anthropic";
 export type BaseUrl1 = string | null;
 export type ApiKeyRef = string | null;
 export type KeySuffix = string;
 export type Tokens = number;
-export type Source = "metadata" | "table" | "error" | "fallback";
-export type Estimated1 = boolean;
-export type Status4 = "untested" | "testing" | "retrying" | "ok" | "error";
+export type Source1 = "metadata" | "table" | "error" | "fallback";
+export type Estimated2 = boolean;
+export type Status8 = "untested" | "testing" | "retrying" | "ok" | "error";
 export type Code = ("unauthorized" | "rate_limit" | "no_tools" | "network" | "vault") | null;
 export type Attempt = number;
 export type RetrySeconds = number;
@@ -199,12 +358,12 @@ export type Branch = string | null;
 export type Recent = Workspace2[];
 export type Selected = string | null;
 export type WaitingOn = ("approval" | "question")[];
-export type Id4 = string;
+export type Id5 = string;
 export type Workspace3 = string;
-export type Title = string;
-export type Model4 = string;
+export type Title1 = string;
+export type Model5 = string;
 export type Mode1 = "read-only" | "ask" | "auto";
-export type Status5 = "running" | "completed" | "stopped" | "error" | "interrupted";
+export type Status9 = "running" | "completed" | "stopped" | "error" | "interrupted";
 export type Worktree1 = string | null;
 export type Tasks = TaskRecord[];
 export type Decision1 = "approve" | "reject";
@@ -213,22 +372,22 @@ export type EditedArgs = {
   [k: string]: JsonValue;
 } | null;
 export type AllowGlob = string | null;
-export type Revision1 = string | null;
+export type Revision4 = string | null;
 export type InterruptId2 = string;
-export type Status6 = "pending" | "approved" | "rejected" | "cancelled";
+export type Status10 = "pending" | "approved" | "rejected" | "cancelled";
 export type Decision2 = "approve" | "reject";
 export type Reason3 = string | null;
 export type EditedArgs1 = {
   [k: string]: JsonValue;
 } | null;
 export type AllowGlob1 = string | null;
-export type Revision2 = string | null;
+export type Revision5 = string | null;
 export type ApprovalId2 = string;
 export type ResolvedAt1 = string | null;
 export type ExecutionStatus = "not_started" | "running" | "completed" | "interrupted";
-export type Result = string | null;
-export type Status7 = "ok";
-export type RunId17 = string | null;
+export type Result1 = string | null;
+export type Status11 = "ok";
+export type RunId28 = string | null;
 export type Command1 = string;
 export type Shell = "powershell" | "cmd";
 export type ExitCode = number | null;
@@ -249,7 +408,7 @@ export type Size = number;
 export type Changed = boolean;
 export type Entries = FileEntry[];
 export type Path4 = string;
-export type Text4 = string;
+export type Text5 = string;
 export type Binary = boolean;
 export type Truncated1 = boolean;
 export type ChangedLines = [unknown, unknown][];
@@ -257,11 +416,11 @@ export type PendingApproval = boolean;
 export type Path5 = string;
 export type SnapshotId = string;
 export type CreatedSnapshotId = string;
-export type Id5 = string;
+export type Id6 = string;
 export type Path6 = string;
 export type Existed = boolean;
-export type Ts13 = string;
-export type RunId18 = string | null;
+export type Ts22 = string;
+export type RunId29 = string | null;
 export type CallId4 = string | null;
 export type Bytes = number;
 export type Tool1 = string;
@@ -282,7 +441,7 @@ export type Mode4 = "read-only" | "ask" | "auto";
 export type AlwaysAsk = string[];
 export type Kind6 = "question";
 export type InterruptId3 = string;
-export type Status8 = "answered" | "declined";
+export type Status12 = "answered" | "declined";
 /**
  * @maxItems 3
  */
@@ -291,6 +450,8 @@ export type Answers1 =
   | [QuestionSelection]
   | [QuestionSelection, QuestionSelection]
   | [QuestionSelection, QuestionSelection, QuestionSelection];
+export type SubmissionId1 = string;
+export type Text6 = string;
 
 /**
  * Schema-generation envelope only; never sent over the wire.
@@ -321,6 +482,7 @@ export interface Protocol {
   question_request: QuestionRequest;
   question_record: QuestionRecord;
   question_decision: QuestionDecision;
+  steering_submission: SteeringSubmission;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -337,6 +499,15 @@ export interface MessageDelta {
   type?: Type1;
   message_id: MessageId;
   text: Text;
+  scope?: ActivityScope | null;
+}
+export interface ActivityScope {
+  scope_id: ScopeId;
+  step_id?: StepId;
+  parent_scope_id?: ParentScopeId;
+  turn_id?: TurnId;
+  agent?: Agent;
+  model?: Model1;
 }
 export interface ReasoningDelta {
   run_id: RunId2;
@@ -345,6 +516,7 @@ export interface ReasoningDelta {
   type?: Type2;
   message_id: MessageId1;
   text: Text1;
+  scope?: ActivityScope | null;
 }
 export interface UsageUpdated {
   run_id: RunId3;
@@ -363,6 +535,7 @@ export interface ToolCall {
   call_id: CallId;
   name: Name;
   args: Args;
+  scope?: ActivityScope | null;
 }
 export interface Args {
   [k: string]: JsonValue;
@@ -374,6 +547,7 @@ export interface ToolResult {
   type?: Type5;
   call_id: CallId1;
   text: Text2;
+  scope?: ActivityScope | null;
 }
 /**
  * One tool call needs a human decision before it runs.
@@ -502,43 +676,167 @@ export interface RunError {
   type?: Type12;
   message: Message;
 }
+export interface PlanCreated {
+  run_id: RunId15;
+  seq: Seq12;
+  ts?: Ts12;
+  type?: Type13;
+  plan: PlanRecord;
+}
+export interface PlanRecord {
+  run_id: RunId16;
+  plan_id: PlanId;
+  revision: Revision1;
+  baseline_ids: BaselineIds;
+  submission: PlanSubmission;
+  progress: Progress;
+  adoption: Adoption;
+  gate_reasons?: GateReasons;
+  file_scope: FileScope;
+  settings: PlanningSettings;
+}
+export interface PlanSubmission {
+  steps: Steps;
+}
+export interface PlanStep {
+  id: Id2;
+  title: Title;
+  expected_files?: ExpectedFiles;
+  verify_command?: VerifyCommand;
+  high_risk?: HighRisk;
+}
+export interface StepProgress {
+  step_id: StepId1;
+  status?: Status3;
+  started_at?: StartedAt;
+  ended_at?: EndedAt;
+}
+export interface FileScope {
+  known_files?: KnownFiles;
+  uncertain?: Uncertain;
+  revision: Revision2;
+}
+export interface PlanningSettings {
+  step_threshold?: StepThreshold;
+  file_threshold?: FileThreshold;
+  deviation_gate?: DeviationGate;
+}
+export interface PlanStepUpdated {
+  run_id: RunId17;
+  seq: Seq13;
+  ts?: Ts13;
+  type?: Type14;
+  plan_id: PlanId1;
+  revision: Revision3;
+  progress: StepProgress;
+}
+export interface ActivityStarted {
+  run_id: RunId18;
+  seq: Seq14;
+  ts?: Ts14;
+  type?: Type15;
+  scope: ActivityScope;
+  task?: Task1;
+}
+export interface ActivityFinished {
+  run_id: RunId19;
+  seq: Seq15;
+  ts?: Ts15;
+  type?: Type16;
+  scope: ActivityScope;
+  status: Status4;
+}
+export interface SubagentStarted {
+  run_id: RunId20;
+  seq: Seq16;
+  ts?: Ts16;
+  type?: Type17;
+  scope: ActivityScope;
+  task: Task2;
+  read_only?: ReadOnly;
+}
+export interface SubagentFinished {
+  run_id: RunId21;
+  seq: Seq17;
+  ts?: Ts17;
+  type?: Type18;
+  scope: ActivityScope;
+  status: Status5;
+  result?: Result;
+}
+export interface ContextSummarized {
+  run_id: RunId22;
+  seq: Seq18;
+  ts?: Ts18;
+  type?: Type19;
+  scope: ActivityScope;
+  operation_id: OperationId;
+  source?: Source;
+  affected_messages?: AffectedMessages;
+}
+export interface ContextUpdated {
+  run_id: RunId23;
+  seq: Seq19;
+  ts?: Ts19;
+  type?: Type20;
+  scope: ActivityScope;
+  input_tokens: InputTokens1;
+  context_window?: ContextWindow;
+  estimated: Estimated1;
+}
+export interface SteeringUpdated {
+  run_id: RunId24;
+  seq: Seq20;
+  ts?: Ts20;
+  type?: Type21;
+  message: SteeringRecord;
+}
+export interface SteeringRecord {
+  submission_id: SubmissionId;
+  text: Text4;
+  run_id: RunId25;
+  ordinal: Ordinal;
+  status?: Status6;
+  queued_at: QueuedAt;
+  delivered_at?: DeliveredAt;
+}
 /**
  * Reserved events: not emitted by the Phase 3 bridge.
  */
 export interface FutureEvent {
-  run_id: RunId15;
-  seq: Seq12;
-  ts?: Ts12;
-  type: Type13;
+  run_id: RunId26;
+  seq: Seq21;
+  ts?: Ts21;
+  type: Type22;
   data: Data;
 }
 export interface Data {
   [k: string]: JsonValue;
 }
 export interface RunRequest {
-  task: Task1;
+  task: Task3;
   workspace: Workspace1;
-  model?: Model1;
+  model?: Model2;
   mode?: Mode;
   worktree?: Worktree;
   worktree_approved?: WorktreeApproved;
 }
 export interface RunResponse {
-  run_id: RunId16;
+  run_id: RunId27;
 }
 export interface HealthResponse {
-  status?: Status3;
+  status?: Status7;
 }
 export interface ModelInput {
-  id: Id2;
+  id: Id3;
   name: Name1;
   base_url: BaseUrl;
-  model: Model2;
+  model: Model3;
 }
 export interface ProviderRecord {
-  id?: Id3;
+  id?: Id4;
   name: Name2;
-  model: Model3;
+  model: Model4;
   kind: Kind3;
   base_url?: BaseUrl1;
   api_key_ref?: ApiKeyRef;
@@ -549,11 +847,11 @@ export interface ProviderRecord {
 }
 export interface Context1 {
   tokens?: Tokens;
-  source?: Source;
-  estimated?: Estimated1;
+  source?: Source1;
+  estimated?: Estimated2;
 }
 export interface Probe {
-  status?: Status4;
+  status?: Status8;
   code?: Code;
   attempt?: Attempt;
   retry_seconds?: RetrySeconds;
@@ -578,12 +876,12 @@ export interface Workspace2 {
 }
 export interface TaskRecord {
   waiting_on?: WaitingOn;
-  id: Id4;
+  id: Id5;
   workspace: Workspace3;
-  title: Title;
-  model: Model4;
+  title: Title1;
+  model: Model5;
   mode?: Mode1;
-  status?: Status5;
+  status?: Status9;
   worktree?: Worktree1;
 }
 export interface ApprovalDecision {
@@ -591,16 +889,16 @@ export interface ApprovalDecision {
   reason?: Reason2;
   edited_args?: EditedArgs;
   allow_glob?: AllowGlob;
-  revision?: Revision1;
+  revision?: Revision4;
 }
 export interface ApprovalRecord {
   request: ApprovalRequest;
   interrupt_id: InterruptId2;
-  status?: Status6;
+  status?: Status10;
   answer?: ApprovalAnswer | null;
   resolved_at?: ResolvedAt1;
   execution_status?: ExecutionStatus;
-  result?: Result;
+  result?: Result1;
 }
 /**
  * The resume value for one interrupt.
@@ -613,12 +911,12 @@ export interface ApprovalAnswer {
   reason?: Reason3;
   edited_args?: EditedArgs1;
   allow_glob?: AllowGlob1;
-  revision?: Revision2;
+  revision?: Revision5;
   approval_id: ApprovalId2;
 }
 export interface ApprovalResolution {
-  status?: Status7;
-  run_id?: RunId17;
+  status?: Status11;
+  run_id?: RunId28;
 }
 /**
  * What `run_command` returns to the model and what the timeout card reads.
@@ -654,7 +952,7 @@ export interface FileEntry {
 }
 export interface FileContent {
   path: Path4;
-  text: Text4;
+  text: Text5;
   binary?: Binary;
   truncated?: Truncated1;
   changed_lines?: ChangedLines;
@@ -666,11 +964,11 @@ export interface RevertResult {
   created_snapshot_id: CreatedSnapshotId;
 }
 export interface SnapshotEntry {
-  id: Id5;
+  id: Id6;
   path: Path6;
   existed: Existed;
-  ts: Ts13;
-  run_id?: RunId18;
+  ts: Ts22;
+  run_id?: RunId29;
   call_id?: CallId4;
   bytes?: Bytes;
   tool?: Tool1;
@@ -729,8 +1027,12 @@ export interface Defaults {
 export interface QuestionDecision {
   kind?: Kind6;
   interrupt_id: InterruptId3;
-  status: Status8;
+  status: Status12;
   answers?: Answers1;
+}
+export interface SteeringSubmission {
+  submission_id: SubmissionId1;
+  text: Text6;
 }
 
 export type HarnessEvent = Protocol["event"];

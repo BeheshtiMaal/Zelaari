@@ -12,6 +12,13 @@ from permissions.types import (
     ApprovalResolution,
     RulesFile,
 )
+from planning.types import (
+    ActivityScope,
+    PlanRecord,
+    SteeringRecord,
+    SteeringSubmission,
+    StepProgress,
+)
 from providers.base import ModelInput, Preset, ProviderRecord, Settings, WorkspaceState
 from questions.types import QuestionAnswer, QuestionDecision, QuestionRecord, QuestionRequest
 from tools.types import (
@@ -46,6 +53,7 @@ class MessageDelta(EventBase):
     type: Literal["message.delta"] = "message.delta"
     message_id: str
     text: str
+    scope: ActivityScope | None = None
 
 
 class ToolCall(EventBase):
@@ -53,12 +61,14 @@ class ToolCall(EventBase):
     call_id: str
     name: str
     args: dict[str, JsonValue]
+    scope: ActivityScope | None = None
 
 
 class ToolResult(EventBase):
     type: Literal["tool.result"] = "tool.result"
     call_id: str
     text: str
+    scope: ActivityScope | None = None
 
 
 class RunFinished(EventBase):
@@ -99,21 +109,76 @@ class FutureEvent(EventBase):
     """Reserved events: not emitted by the Phase 3 bridge."""
 
     type: Literal[
-        "plan.created",
-        "plan.step.updated",
-        "subagent.started",
-        "subagent.finished",
-        "context.summarized",
         "ui.render",
         "test.result",
     ]
     data: dict[str, JsonValue]
 
 
+class PlanCreated(EventBase):
+    type: Literal["plan.created"] = "plan.created"
+    plan: PlanRecord
+
+
+class PlanStepUpdated(EventBase):
+    type: Literal["plan.step.updated"] = "plan.step.updated"
+    plan_id: str
+    revision: str
+    progress: StepProgress
+
+
+class ActivityStarted(EventBase):
+    type: Literal["activity.started"] = "activity.started"
+    scope: ActivityScope
+    task: str | None = None
+
+
+class ActivityFinished(EventBase):
+    type: Literal["activity.finished"] = "activity.finished"
+    scope: ActivityScope
+    status: Literal["completed", "failed", "cancelled", "interrupted"]
+
+
+class SubagentStarted(EventBase):
+    type: Literal["subagent.started"] = "subagent.started"
+    scope: ActivityScope
+    task: str
+    read_only: Literal[True] = True
+
+
+class SubagentFinished(EventBase):
+    type: Literal["subagent.finished"] = "subagent.finished"
+    scope: ActivityScope
+    status: Literal["completed", "failed", "cancelled", "interrupted"]
+    result: str | None = None
+
+
+class ContextSummarized(EventBase):
+    type: Literal["context.summarized"] = "context.summarized"
+    scope: ActivityScope
+    operation_id: str
+    source: Literal["deepagents.summarization"] = "deepagents.summarization"
+    affected_messages: int | None = Field(default=None, ge=1)
+
+
+class ContextUpdated(EventBase):
+    type: Literal["context.updated"] = "context.updated"
+    scope: ActivityScope
+    input_tokens: int = Field(ge=0)
+    context_window: int | None = Field(default=None, ge=1)
+    estimated: bool
+
+
+class SteeringUpdated(EventBase):
+    type: Literal["steering.updated"] = "steering.updated"
+    message: SteeringRecord
+
+
 class ReasoningDelta(EventBase):
     type: Literal["reasoning.delta"] = "reasoning.delta"
     message_id: str
     text: str
+    scope: ActivityScope | None = None
 
 
 class UsageUpdated(EventBase):
@@ -136,6 +201,15 @@ Event = Annotated[
     | QuestionAnswered
     | RunFinished
     | RunError
+    | PlanCreated
+    | PlanStepUpdated
+    | ActivityStarted
+    | ActivityFinished
+    | SubagentStarted
+    | SubagentFinished
+    | ContextSummarized
+    | ContextUpdated
+    | SteeringUpdated
     | FutureEvent,
     Field(discriminator="type"),
 ]
@@ -193,3 +267,4 @@ class Protocol(WireModel):
     question_request: QuestionRequest
     question_record: QuestionRecord
     question_decision: QuestionDecision
+    steering_submission: SteeringSubmission
