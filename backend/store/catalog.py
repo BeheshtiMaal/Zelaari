@@ -1,5 +1,6 @@
 """Atomic app-data metadata and memory-only credentials."""
 
+from hashlib import sha256
 from pathlib import Path
 
 from pydantic import Field, SecretStr
@@ -17,6 +18,7 @@ from store.secrets import Redactor
 
 
 class CatalogData(Record):
+    key_digests: dict[str, str] = Field(default_factory=dict)
     models: dict[str, ProviderRecord] = Field(default_factory=dict)
     settings: Settings = Field(default_factory=Settings)
     workspaces: WorkspaceState = Field(default_factory=WorkspaceState)
@@ -54,14 +56,16 @@ class Catalog:
         key = value.key.get_secret_value()
         if not key or len(key) > 16384 or value.id == "demo":
             raise ValueError("Invalid credential")
-        old = self.keys.get(value.id)
+        old_digest = self.data.key_digests.get(value.id)
+        digest = sha256(key.encode()).hexdigest()
         self.redactor.add(key)
         self.keys[value.id] = value.key
+        self.data.key_digests[value.id] = digest
         model = self.data.models.get(value.id)
         if model:
             model.key_suffix = key[-4:] if len(key) > 4 else ""
             # A restart restore retains test status; a changed key invalidates it.
-            if old and old != value.key:
+            if old_digest != digest:
                 model.probe = Probe()
                 model.supports_tools = False
             self.persist()

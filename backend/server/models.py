@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from providers.base import ModelInput, Preset, ProviderRecord, Settings
+from providers.probe import test_connection
 from store.catalog import Catalog, Credential
 
 
@@ -35,6 +36,13 @@ def model_routes(catalog: Catalog) -> APIRouter:
     def presets() -> list[Preset]:
         path = Path(__file__).parents[1] / "providers" / "presets.json"
         return [Preset.model_validate(item) for item in json.loads(path.read_text())]
+
+    @router.post("/models/{identifier}/test")
+    async def probe(identifier: str) -> ProviderRecord:
+        try:
+            return await test_connection(catalog, identifier)
+        except (ValueError, OSError):
+            raise HTTPException(400, "Model test unavailable") from None
 
     @router.get("/settings")
     def settings() -> Settings:
