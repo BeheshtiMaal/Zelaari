@@ -4,6 +4,7 @@ export interface DesktopBridge {
   pickWorkspace(): Promise<string | null>;
   saveModel(value: import("./protocol").ModelInput & { api_key?: string }): Promise<{ok: boolean}>;
   vaultStatus(): Promise<boolean>;
+  testModelDraft(value: import("./protocol").ModelInput & { api_key?: string }): Promise<import("./protocol").ProviderRecord | null>;
 }
 declare global { interface Window { harness?: DesktopBridge } }
 

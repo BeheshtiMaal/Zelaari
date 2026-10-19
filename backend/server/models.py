@@ -8,10 +8,22 @@ from fastapi import APIRouter, HTTPException
 from providers.base import ModelInput, Preset, ProviderRecord, Settings
 from providers.probe import test_connection
 from store.catalog import Catalog, Credential
+from pydantic import SecretStr
+
+
+class DraftModel(ModelInput):
+    key: SecretStr
 
 
 def model_routes(catalog: Catalog) -> APIRouter:
     router = APIRouter()
+
+    @router.post("/internal/probe")
+    async def draft_probe(value: DraftModel) -> ProviderRecord:
+        temporary = Catalog(redactor=catalog.redactor)
+        temporary.credential(Credential(id=value.id, key=value.key))
+        temporary.save(ModelInput.model_validate(value.model_dump(exclude={"key"})))
+        return await test_connection(temporary, value.id)
 
     @router.get("/models")
     def models() -> list[ProviderRecord]:

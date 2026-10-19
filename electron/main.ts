@@ -50,6 +50,19 @@ app.whenReady().then(async () => {
     });
   });
   ipcMain.handle("vault-status", event => trustedFrame(event.senderFrame?.url) && !vaultError);
+  ipcMain.handle("test-model-draft", async (event, input: unknown) => {
+    if (!trustedFrame(event.senderFrame?.url)) return null;
+    try {
+      const { api_key, ...metadata } = modelSubmission.parse(input);
+      const key = api_key ?? (await vault.all())[metadata.id];
+      if (!key) return null;
+      const connection = await connect();
+      const response = await fetch(connection.baseUrl + "/internal/probe", {
+        method: "POST", headers: { Authorization: `Bearer ${connection.token}`, "Content-Type": "application/json" }, body: JSON.stringify({ ...metadata, key }),
+      });
+      return response.ok ? await response.json() : null;
+    } catch { return null; }
+  });
   let saveQueue: Promise<unknown> = Promise.resolve();
   ipcMain.handle("save-model", (event, input: unknown) => {
     if (!trustedFrame(event.senderFrame?.url)) return { ok: false };
