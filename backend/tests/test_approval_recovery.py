@@ -53,7 +53,6 @@ def test_pending_batch_partial_answer_restart_and_exactly_once(
         await manager.close()
         restarted = RunManager(catalog=Catalog(catalog_path))
         await restarted.recover()
-        await wait_for(lambda: restarted.runs[run_id].barrier)
         assert len(restarted.approvals("pending")) == 1
         assert len(restarted.approvals("rejected")) == 1
         with pytest.raises(UnknownApproval):
@@ -137,6 +136,65 @@ def test_edit_preview_revalidates_and_stages_allow_rule(
             linked.request.run_id, linked.request.approval_id, ApprovalDecision(decision="approve")
         )
         assert RulesEngine.load(tmp_path).rules.tools["write_file"][0].glob == "src/**"
+        await manager.close()
+
+    asyncio.run(scenario())
+
+
+def test_fresh_command_retry_can_be_edited_rejected_or_approved(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = ScriptedModel(
+        replies=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "run_command",
+                        "args": {"command": "Add-Content launches.txt original"},
+                        "id": "command-one",
+                    }
+                ],
+            ),
+            FINAL,
+        ]
+    )
+    monkeypatch.setattr("agent.bridge.DemoModel", lambda **kwargs: model)
+
+    async def scenario() -> None:
+        manager = RunManager()
+        run_id = await manager.start(RunRequest(task="command", workspace=str(tmp_path)))
+        await wait_for(lambda: manager.approvals("pending"))
+        await manager.resolve(run_id, "command-one", ApprovalDecision(decision="approve"))
+        await wait_for(lambda: manager.runs[run_id].bus.finished)
+        proposal = manager.retry_command(run_id, "command-one", 300)
+        assert proposal.request.args["timeout"] == 300
+        await manager.resolve(
+            proposal.request.run_id,
+            proposal.request.approval_id,
+            ApprovalDecision(decision="reject"),
+        )
+        assert (tmp_path / "launches.txt").read_text().splitlines() == ["original"]
+        proposal = manager.retry_command(run_id, "command-one", 300)
+        preview = manager.preview(
+            proposal.request.run_id,
+            proposal.request.approval_id,
+            ApprovalDecision(
+                decision="approve",
+                edited_args={
+                    "command": "Add-Content launches.txt edited",
+                    "timeout": 300,
+                    "mode": "ask",
+                },
+            ),
+        )
+        await manager.resolve(
+            preview.run_id,
+            preview.approval_id,
+            ApprovalDecision(decision="approve", revision=preview.revision),
+        )
+        assert (tmp_path / "launches.txt").read_text().splitlines() == ["original", "edited"]
         await manager.close()
 
     asyncio.run(scenario())

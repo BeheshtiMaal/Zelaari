@@ -166,6 +166,8 @@ export type ApprovalId2 = string;
 export type ResolvedAt = string | null;
 export type ExecutionStatus = "not_started" | "running" | "completed" | "interrupted";
 export type Result = string | null;
+export type Status5 = "ok";
+export type RunId13 = string | null;
 export type Command1 = string;
 export type Shell = "powershell" | "cmd";
 export type ExitCode = number | null;
@@ -198,7 +200,7 @@ export type Id3 = string;
 export type Path6 = string;
 export type Existed = boolean;
 export type Ts11 = string;
-export type RunId13 = string | null;
+export type RunId14 = string | null;
 export type CallId2 = string | null;
 export type Bytes = number;
 export type Tool1 = string;
@@ -234,6 +236,7 @@ export interface Protocol {
   approval_request: ApprovalRequest;
   approval_decision: ApprovalDecision;
   approval_record: ApprovalRecord;
+  approval_resolution: ApprovalResolution;
   command_result: CommandResult;
   file_listing: FileListing;
   revert_result: RevertResult;
@@ -475,6 +478,10 @@ export interface ApprovalAnswer {
   revision?: Revision2;
   approval_id: ApprovalId2;
 }
+export interface ApprovalResolution {
+  status?: Status5;
+  run_id?: RunId13;
+}
 /**
  * What `run_command` returns to the model and what the timeout card reads.
  */
@@ -525,7 +532,7 @@ export interface SnapshotEntry {
   path: Path6;
   existed: Existed;
   ts: Ts11;
-  run_id?: RunId13;
+  run_id?: RunId14;
   call_id?: CallId2;
   bytes?: Bytes;
   tool?: Tool1;

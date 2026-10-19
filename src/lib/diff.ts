@@ -4,7 +4,7 @@ export function diffLines(source: string): DiffLine[] {
   return source.split("\n").filter((line, index, all) => line || index < all.length - 1).map(text => {
     const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
     if (hunk) { old = Number(hunk[1]); next = Number(hunk[2]); inHunk = true; }
-    if (hunk || (!inHunk && (text.startsWith("---") || text.startsWith("+++"))) || text.startsWith("\\")) return { kind: "header", old: null, next: null, text };
+    if (hunk || (!inHunk && (text.startsWith("---") || text.startsWith("+++") || text.startsWith("Binary files "))) || text.startsWith("\\")) return { kind: "header", old: null, next: null, text };
     if (text.startsWith("+")) return { kind: "add", old: null, next: next++, text };
     if (text.startsWith("-")) return { kind: "remove", old: old++, next: null, text };
     return { kind: "context", old: old++, next: next++, text };

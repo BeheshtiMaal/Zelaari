@@ -299,6 +299,7 @@ def test_a_worktree_run_needs_approval_then_runs_in_the_worktree(tmp_path: Path)
         run_id = catalog.data.workspaces.tasks[-1].id
 
         worktree = tmp_path / ".harness" / "worktrees" / run_id
+        assert worktree.relative_to(tmp_path).as_posix() == approval["path"]
         assert worktree.is_dir()
         assert branch_name(worktree) == f"harness/{run_id}"
 

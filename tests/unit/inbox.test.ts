@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { diffLines } from "../../src/lib/diff";
-import { filteredApprovals, pendingCount, suggestedGlob, waitingRunIds } from "../../src/lib/inbox";
+import { filteredApprovals, pendingCount, suggestedGlob, waitingRunIds, taskNeedsAttention } from "../../src/lib/inbox";
 import { reviewShortcut } from "../../src/lib/approvals";
 import type { ApprovalRecord } from "../../src/lib/protocol";
 
@@ -18,6 +18,14 @@ test("inbox filters approvals and counts pending decisions independently across 
   assert.ok(waitingRunIds(records).has("a"));
   assert.equal(suggestedGlob(records[0].request), "src/**");
   assert.equal(suggestedGlob({ ...records[0].request, path: ".harness/rules.json" }), null);
+});
+test("question waiting survives resolved approvals and schedule metadata counts only approvals", () => {
+  const scheduled = record("schedule", "scheduled-run"); scheduled.request.source_kind = "schedule";
+  const resolved = record("answered", "task", "approved");
+  const task = { id: "task", workspace: "second-workspace", model: "demo", title: "Question", waiting_on: ["question" as const] };
+  assert.equal(pendingCount([scheduled, resolved]), 1);
+  assert.equal(taskNeedsAttention(task, [scheduled, resolved]), true);
+  assert.equal(taskNeedsAttention({ ...task, waiting_on: [] }, [scheduled, resolved]), false);
 });
 test("diff line numbers track independent old/new positions over multiple hunks", () => {
   const lines = diffLines("--- a\n+++ a\n@@ -12,2 +12,3 @@\n def f():\n-old\n+new\n+extra\n@@ -30 +31 @@\n---content\n+++content\n");

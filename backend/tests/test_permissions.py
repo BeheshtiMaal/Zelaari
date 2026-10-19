@@ -428,6 +428,9 @@ class FakeService:
     def __init__(self) -> None:
         self.resolved: list[tuple[str, str, str]] = []
 
+    async def recover(self) -> None:
+        return None
+
     async def start(self, request: RunRequest) -> str:
         return "r1"
 

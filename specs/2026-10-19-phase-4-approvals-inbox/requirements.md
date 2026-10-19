@@ -1,6 +1,6 @@
 # Phase 4: Approvals inbox. Requirements
 
-Status: **Draft — awaiting user approval. No product implementation authorized yet.**
+Status: **Approved by the user on 2026-10-19. Implemented; final validation recorded separately.**
 
 ## Goal
 Turn sensitive actions into durable, reviewable approvals: approve, edit then approve, or reject without crashing the run. Preserve pending decisions across app restarts and never automatically replay an interrupted command.

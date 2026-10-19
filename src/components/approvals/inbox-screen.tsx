@@ -19,7 +19,7 @@ export function InboxScreen({ locale }: { locale: Locale }) {
       <div className="inbox-row-heading">{request.kind === "command" ? <ShieldCheckIcon size={18} /> : <FileIcon size={18} />}<strong>{request.tool === "rules_update" ? t.rules : request.kind === "command" ? t.command : t.file} <bdi>{request.path}</bdi></strong><time dateTime={request.created_at}>{request.created_at && new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(request.created_at))}</time></div>
       <p className="muted">{request.source_kind === "schedule" ? t.schedule : request.source_kind === "configuration" ? t.configuration : t.task}: {request.source_title}</p>
       {request.command && <pre dir="ltr" className="command-preview">{request.command}</pre>}
-      <span className={`risk-badge ${request.risk?.level ?? "low"}`}>{record.status === "pending" ? request.risk?.level === "high" ? t.high : t.low : t[record.status ?? "pending"]}</span>
+      <span className={`risk-badge ${request.risk?.level ?? "low"} ${record.status ?? "pending"}`}>{record.status === "pending" ? request.risk?.level === "high" ? t.high : t.low : t[record.status ?? "pending"]}</span>
     </button>;
   }
   return <div className="inbox-screen">

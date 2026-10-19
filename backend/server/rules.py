@@ -1,10 +1,4 @@
-"""Rules routes (R18).
-
-The grid is the person's own configuration, so a save here is consent in itself: no
-approval is raised. It is still a write into `.harness/`, which means the engine
-validates the whole file before anything reaches disk and an unreadable file is
-reported rather than silently replaced.
-"""
+"""Rules reads and staged changes. A save always requires a separate reviewed decision."""
 
 from pathlib import Path
 
@@ -50,7 +44,9 @@ def rules_routes(actions: ActionApprovals) -> APIRouter:
         root = _root(workspace)
         try:
             return actions.propose_rules(root, value)
-        except (OSError, ValueError) as error:
-            raise HTTPException(409, f"Could not write rules: {error}") from None
+        except (OSError, ValueError):
+            raise HTTPException(
+                409, "Could not propose rules; check the workspace rules file"
+            ) from None
 
     return router

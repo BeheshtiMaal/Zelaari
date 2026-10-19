@@ -32,10 +32,27 @@ class DemoModel(BaseChatModel):
 
     def answer(self, messages: list[BaseMessage]) -> AIMessage:
         results = [message for message in messages if isinstance(message, ToolMessage)]
+        task = next((str(message.content) for message in messages if message.type == "human"), "")
+        edit = re.fullmatch(r"demo edit ([\w./\\-]+): (.+?) => (.+)", task, re.DOTALL)
+        if edit and results and results[-1].name == "read_file":
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "edit_file",
+                        "args": {
+                            "file_path": edit[1],
+                            "old_string": edit[2],
+                            "new_string": edit[3],
+                        },
+                        "id": "demo-edit",
+                        "type": "tool_call",
+                    }
+                ],
+            )
         if not results:
-            task = str(messages[-1].content)
             match = re.search(r"[\w./\\-]+\.(?:md|txt|py|json|ts|tsx)\b", task)
-            path = match.group(0) if match else "README.md"
+            path = edit[1] if edit else match.group(0) if match else "README.md"
             return AIMessage(
                 content="در حال خواندن فایل…",
                 tool_calls=[

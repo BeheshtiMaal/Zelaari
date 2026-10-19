@@ -73,8 +73,8 @@ for (const language of ["fa", "en"] as const) {
     await page.unroute("**/health");
     assert.equal(await page.evaluate(() => document.documentElement.dir), language === "fa" ? "rtl" : "ltr");
     assert.equal(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require), "undefined");
-    assert.deepEqual(await page.evaluate(() => Object.keys(window.harness ?? {}).sort()), ["baseUrl", "pickWorkspace", "saveModel", "testModelDraft", "token", "vaultStatus"]);
-    await expect(page.locator(".sidebar button:disabled")).toHaveCount(3);
+    assert.deepEqual(await page.evaluate(() => Object.keys(window.harness ?? {}).sort()), ["baseUrl", "pickWorkspace", "revealWorkspace", "saveModel", "testModelDraft", "token", "vaultStatus"]);
+    await expect(page.locator(".sidebar button:disabled")).toHaveCount(1);
     await page.screenshot({ path: resolve(artifacts, `home-${language}.png`) });
     const body = await page.locator("body").boundingBox();
     const sidebar = await page.locator(".sidebar").boundingBox();

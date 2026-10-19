@@ -33,7 +33,9 @@
 .inbox-list { inline-size: 360px; max-inline-size: 100%; flex: none; display: flex; flex-direction: column; gap: 10px; }
 .inbox-row { display: block; text-align: start; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding-block: 12px; padding-inline: 14px; }
 .inbox-row.selected { border: 2px solid var(--accent); background: #172A2D; }
+.inbox-row.selected:not(:disabled):hover { background-color: #172A2D; }
 .inbox-row.decided { opacity: .6; }
+.risk-badge.rejected { background: #3A1A1A; color: #FCA5A5; }
 .inbox-row p { margin-block: 2px 8px; }
 .inbox-row-heading { display: flex; gap: 10px; align-items: center; }
 .inbox-row-heading svg { flex: none; color: var(--text-muted); }
@@ -57,7 +59,7 @@
 .diff-line.add { background: #12301F; color: #86EFAC; }
 .diff-line.remove { background: #3A1A1A; color: #FCA5A5; }
 .diff-line.header { color: var(--text-dim); }
-.diff-line code { white-space: pre; }
+.diff-view .diff-line code { white-space: pre; background: transparent; border: 0; border-radius: 0; padding: 0; font-size: inherit; }
 .line-number { inline-size: 22px; text-align: end; flex: none; color: var(--text-dim); user-select: none; }
 .allow-rule { display: flex; gap: 10px; align-items: center; font-size: 13.5px; }
 .allow-rule input { accent-color: var(--accent); inline-size: 16px; block-size: 16px; }

@@ -10,6 +10,7 @@ import { InboxScreen } from "./approvals/inbox-screen";
 import { ApprovalCard } from "./approvals/approval-card";
 import { recordKey, useInbox } from "../lib/inbox";
 import { RulesScreen } from "./approvals/rules-screen";
+import { approvalCopy } from "../i18n/approvals";
 import { ToolErrorCard } from "./tool-error-card";
 import { toolFailure } from "../lib/errors";
 import { SettingsScreen } from "./settings/settings-screen";
@@ -23,6 +24,13 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
   const [view, setView] = useState<"home" | "settings" | "add-model" | "inbox" | "rules">(initialView);
   const session = useSession(), run = useRun();
   const approvals = useInbox(state => state.records);
+  const decisionError = useInbox(state => state.decisionError);
+  const startedRunId = useInbox(state => state.startedRunId);
+  useEffect(() => {
+    if (!startedRunId) return;
+    useInbox.setState({ startedRunId: null });
+    setView("home"); void session.openTask(startedRunId);
+  }, [startedRunId]);
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [run.seq]);
   const t = dictionary(session.locale), running = run.runId !== null;
@@ -44,7 +52,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
           {run.items.map((item, index) => item.kind === "message" ?
             <Message key={item.id} text={item.text} streaming={session.busy && index === run.items.length - 1} /> :
             item.result && toolFailure(item.result) ?
-              <ToolErrorCard key={item.id} text={item.result} t={t} locale={session.locale} onRetry={command => void session.retryWithLongerTimeout(command)} /> :
+              <ToolErrorCard key={item.id} text={item.result} t={t} locale={session.locale} command={typeof item.args.command === "string" ? item.args.command : undefined} onRetry={command => void session.retryWithLongerTimeout(command).then(() => setView("inbox"))} /> :
               <details className="tool-line" key={item.id} data-testid="tool-line"><summary><span className="status-dot" />{t.reading} <code>{String(item.args.file_path ?? item.name)}</code></summary><pre className="readable" dir="auto">{item.result ?? "…"}</pre></details>)}
           {approvals.filter(record => record.status === "pending" && record.request.run_id === run.runId).map(record => <ApprovalCard key={recordKey(record.request)} record={record} locale={session.locale} inline />)}
           <div ref={end} />
@@ -54,6 +62,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
           <Composer t={t} task={task} setTask={setTask} session={session} submit={submit} />
           {approvals.filter(record => record.status === "pending" && [session.branchApproval?.approval_id, session.worktreeApproval?.approval_id].includes(record.request.approval_id)).map(record => <ApprovalCard key={recordKey(record.request)} record={record} locale={session.locale} inline />)}
           {session.branchError && <pre className="error" role="alert" dir="ltr" data-testid="branch-error">{session.branchError}</pre>}
+          {decisionError && <p className="error" role="alert" data-testid="branch-error">{decisionError === "review_failed" ? approvalCopy(session.locale).error : decisionError}</p>}
           {!running && session.ready && (!session.workspace || !selected) && <div className="empty-states">
             {!session.workspace && <section className="empty-state"><div className="empty-state-label">{t.emptyWorkspaceLabel}</div><div className="empty-state-body"><span className="empty-icon"><FolderIcon size={26} /></span><strong>{t.noWorkspace}</strong><p>{t.noWorkspaceHelp}</p><button onClick={() => void session.pickWorkspace()}>{t.workspace}</button></div></section>}
             {!selected && <section className="empty-state"><div className="empty-state-label">{t.emptyModelLabel}</div><div className="empty-state-body"><span className="empty-icon"><GearIcon size={26} /></span><strong>{t.noModel}</strong><p>{t.noModelHelp}</p><div className="button-row"><button onClick={() => setView("add-model")}>{t.addModel}</button><button onClick={() => void session.makeDefault("demo")}>{t.demo}</button></div></div></section>}

@@ -2,19 +2,20 @@
 import { useState } from "react";
 import type { Dictionary } from "../i18n";
 import { commandTimeout, fill, jailBlock } from "../lib/errors";
+import { approvalCopy } from "../i18n/approvals";
 
 /**
  * The two Phase 3 error cards (R30, R31). Both keep the raw tool output one click
  * away, because the card is a summary and the person may need the detail.
  */
-export function ToolErrorCard({ text, t, locale, onRetry }: {
-  t: Dictionary; text: string; locale: string; onRetry(command: string): void;
+export function ToolErrorCard({ text, t, locale, command, onRetry }: {
+  t: Dictionary; text: string; locale: string; command?: string; onRetry(command: string): void;
 }) {
   const [dismissed, setDismissed] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
   const timeout = commandTimeout(text);
   const block = jailBlock(text);
-  if (text.startsWith("Interrupted:")) return <section className="tool-error-card amber" data-testid="interrupted-card"><strong>{locale === "fa" ? "اجرای اقدام قطع شد" : "Action interrupted"}</strong><p>{locale === "fa" ? "ممکن است این اقدام پیش از توقف اجرا شده باشد. خودکار تکرار نشد. پیش از تلاش دوباره، نتیجه را بررسی کنید." : "This action may have run before the engine stopped. It was not replayed. Inspect its effects before retrying."}</p></section>;
+  if (text.startsWith("Interrupted:")) return <section className="tool-error-card amber" data-testid="interrupted-card"><strong>{locale === "fa" ? "اجرای اقدام قطع شد" : "Action interrupted"}</strong><p>{locale === "fa" ? "ممکن است این اقدام پیش از توقف اجرا شده باشد. خودکار تکرار نشد. پیش از تلاش دوباره، نتیجه را بررسی کنید." : "This action may have run before the engine stopped. It was not replayed. Inspect its effects before retrying."}</p>{command && <button onClick={() => onRetry(command)}>{approvalCopy(locale === "fa" ? "fa" : "en").retry}</button>}</section>;
   if (dismissed || (!timeout && !block)) return null;
 
   if (timeout) {

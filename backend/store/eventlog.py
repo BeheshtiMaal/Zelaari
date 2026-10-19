@@ -1,6 +1,7 @@
 """One ordered durable event stream per run, with race-free live subscriptions."""
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -17,8 +18,23 @@ class EventBus:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.history: list[Event] = []
         if path.exists():
-            for line in path.read_text(encoding="utf-8").splitlines():
-                self.history.append(event_adapter.validate_json(line))
+            payload = path.read_bytes()
+            lines = payload.splitlines(keepends=True)
+            valid = 0
+            for index, line in enumerate(lines):
+                try:
+                    event = event_adapter.validate_json(line)
+                except ValueError:
+                    if index == len(lines) - 1 and not line.endswith(b"\n"):
+                        # A killed append can leave only the final record incomplete.
+                        with path.open("r+b") as stream:
+                            stream.truncate(valid)
+                        break
+                    raise
+                if event.run_id != run_id or event.seq != len(self.history) + 1:
+                    raise ValueError("Event log identity or sequence mismatch")
+                self.history.append(event)
+                valid += len(line)
         self.changed = asyncio.Condition()
         self.finished = bool(self.history and self.history[-1].type == "run.finished")
 
@@ -40,6 +56,7 @@ class EventBus:
             with self.path.open("a", encoding="utf-8", newline="\n") as log:
                 log.write(event.model_dump_json() + "\n")
                 log.flush()
+                os.fsync(log.fileno())
             self.history.append(event)
             self.finished = kind == "run.finished"
             self.changed.notify_all()

@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import type { Locale } from "../../i18n";
 import { approvalCopy } from "../../i18n/approvals";
 import { recordKey, suggestedGlob, useInbox } from "../../lib/inbox";
@@ -9,7 +10,9 @@ import { reviewShortcut } from "../../lib/approvals";
 
 export function ApprovalCard({ record, locale, inline = false }: { record: ApprovalRecord; locale: Locale; inline?: boolean }) {
   const t = approvalCopy(locale), request = record.request, editor = useApprovalEditor(record);
+  const [compact, setCompact] = useState(false);
   const pending = record.status === "pending", glob = suggestedGlob(request);
+  if (inline && compact) return <section className="approval-card inline" data-testid="approval-card"><div className="approval-chips"><strong>{t.needsYou}</strong><span className={`risk-badge ${request.risk?.level ?? "low"}`}>{request.risk?.level === "high" ? t.high : t.low}</span></div><code dir="ltr">{request.tool} · {request.path ?? request.command}</code><div className="approval-actions"><button onClick={() => setCompact(false)}>{t.reviewOpen}</button><a href={`/approvals/?approval=${encodeURIComponent(recordKey(request))}`}>{t.open}</a></div></section>;
   return <section className={`approval-card ${inline ? "inline" : ""}`} tabIndex={0} data-testid="approval-card"
     aria-label={t.needsYou} onKeyDown={event => {
       if (!pending || editor.busy || editor.editing) return;
@@ -21,12 +24,14 @@ export function ApprovalCard({ record, locale, inline = false }: { record: Appro
       <span className={`risk-badge ${request.risk?.level ?? "low"}`}>{request.risk?.level === "high" ? t.high : t.low}</span>
       {!pending && <span className="type-chip">{t[record.status ?? "pending"]}</span>}
       <span className="approval-source" dir="auto">{request.source_title}</span>
+      {inline && <button onClick={() => setCompact(true)}>{t.collapse}</button>}
     </div>
-    <h2>{inline ? t.needsYou : request.kind === "command" ? t.command : request.tool === "rules_update" ? t.rules : t.file} <code dir="ltr">{request.path}</code></h2>
+    <h2>{inline ? t.needsYou : request.kind === "command" ? t.command : request.tool === "rules_update" ? t.rules : t.changeStart} {request.path && <code dir="ltr">{request.path}</code>} {!inline && request.kind !== "command" && request.tool !== "rules_update" ? t.changeEnd : ""}</h2>
+    {inline && <code dir="ltr">{request.tool}{request.path ? ` · ${request.path}` : ""}</code>}
     {request.command && <pre className="command-preview" dir="ltr">{request.command}{request.args?.timeout ? `\n${request.args.timeout}s` : ""}</pre>}
     <div className="approval-explanation"><strong>{request.agent_reason ? t.reason : t.policy}</strong> {request.agent_reason ?? (request.policy_code === "rules_change" ? t.rulePolicy : t.policyRequired)}</div>
     {request.diff && <DiffView diff={request.diff} />}
-    {request.diff && <p className="muted">{t.snapshot}</p>}
+    {request.diff && <p className="muted">{t.snapshot.split(".harness/snapshots")[0]}<bdi dir="ltr">.harness/snapshots</bdi>{t.snapshot.split(".harness/snapshots")[1]}</p>}
     {record.result && <div><strong>{t.result}</strong><pre dir="ltr" className="command-preview">{record.result}</pre></div>}
     {pending && <>
       {glob && <label className="allow-rule"><input type="checkbox" checked={editor.allow} disabled={editor.busy} onChange={event => editor.setAllow(event.target.checked)} /><span>{t.allow} <code dir="ltr">{glob}</code> {t.allowSuffix}</span></label>}
@@ -37,9 +42,9 @@ export function ApprovalCard({ record, locale, inline = false }: { record: Appro
       {editor.error && <p className="error" role="alert">{t.error} <button onClick={() => void editor.preview()}>{t.refresh}</button></p>}
       <div className="approval-actions">
         {editor.editing ? <button className="approve" disabled={editor.busy} onClick={() => void editor.preview()}>{t.review}</button> : <button className="approve" data-testid="approval-approve" disabled={editor.busy} onClick={() => void editor.decide("approve")}>{editor.busy ? t.loading : t.approve}</button>}
-        {!request.run_id.startsWith("configuration-") && <button disabled={editor.busy} onClick={() => editor.setEditing(!editor.editing)}>{t.edit}</button>}
+        {request.tool !== "worktree_create" && <button disabled={editor.busy} onClick={() => editor.setEditing(!editor.editing)}>{t.edit}</button>}
         <button className="reject" data-testid="approval-reject" disabled={editor.busy || editor.editing} onClick={() => void editor.decide("reject")}>{t.reject}</button>
-        {inline ? <a href={`/approvals/?approval=${encodeURIComponent(recordKey(request))}`}>{t.open}</a> : <span className="muted shortcuts">{t.shortcuts}</span>}
+        {inline ? <a href={`/approvals/?approval=${encodeURIComponent(recordKey(request))}`}>{t.open}</a> : <span className="muted shortcuts" dir="ltr">{t.shortcuts}</span>}
       </div>
     </>}
     {record.answer?.reason && !pending && <p dir="auto">{record.answer.reason}</p>}

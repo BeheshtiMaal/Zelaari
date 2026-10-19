@@ -1,50 +1,53 @@
 # Phase 4: Approvals inbox. Validation
 
-Status: **Draft — not executed.** Every box needs evidence before completion.
+Implementation approved on 2026-10-19. Product evidence is below; the exact constitution update in `roadmap-proposal.md` was approved by the user on 2026-10-19 and applied.
 
 ## Automated
-- [ ] `uv run --project backend ruff check backend` passes.
-- [ ] `uv run --project backend mypy --strict backend` passes.
-- [ ] `uv run --project backend pytest backend/tests` passes, including prior phase regressions.
-- [ ] `npm run typecheck` (`tsc --noEmit`) and `npm run test:ui` pass.
-- [ ] Protocol/GenUI generation is reproducible; `npm run generate:protocol`, `npm run generate:genui`, `npm run build` and `npm run build:electron` pass.
-- [ ] Installed-contract proofs exercise real SQLite checkpoints, exact interrupt IDs and per-call answer mapping (R1–R3).
-- [ ] Real graph approve executes exactly once; reject with/without reason returns a tool result and permits model continuation (R5/R6).
-- [ ] Parallel gated calls produce distinct approvals; no gated effect occurs until all answers exist; each call uses its own answer and allowed calls do not repeat (R2).
-- [ ] Kill/restart engine while waiting, including after one of several answers: pending IDs, decisions, history and SSE sequences survive; final answer resumes the original run once (R1–R3).
-- [ ] Graceful shutdown preserves waiting runs; explicit Stop prevents later execution; missing model/key/workspace blocks safely and restoration permits recovery (R3).
-- [ ] Fault injection at approval/checkpoint/event reconciliation boundaries creates no lost decision, duplicate approval or repeated side effect (R1–R4).
-- [ ] Kill after command intent, during command execution, and after process completion before durable result: original command never launches again; UI/model receive interrupted outcome; completed sibling effects are not repeated (R4).
-- [ ] Explicit command retry, including longer timeout, creates a new reviewed call with visible timeout; reject leaves it unexecuted (R4/R6).
-- [ ] Missing/wrong auth, foreign run/interrupt IDs, duplicate/racing submissions, invalid actions/arguments and resolved/stopped decisions cannot execute tools (R5/R14).
-- [ ] Edited command/file inputs execute the approved valid arguments; traversal, symlink/junction escape, protected paths, explicit deny, Read-only and increased risk cannot inherit prior approval (R6/R14).
-- [ ] Unified diff handles create/edit/delete, multiple hunks, empty files, CRLF and absent trailing newline; line numbers/tints are correct; stale contents force refreshed review; snapshots/undo preserve prior bytes (R7).
-- [ ] Checkbox stages an exact tool/path allow-rule proposal; rules remain unchanged until linked approval; approve writes atomically, reject does not; stale revision refreshes; boundaries remain enforced in Ask/Auto/Read-only (R10).
-- [ ] GET/PUT Rules grid supports validated add/edit/remove; direct PUT cannot bypass approval; save/reject/refresh preserves correct effective permissions and malformed-file protections (R11).
-- [ ] Branch/worktree actions remain gated after temporary modal removal; restart and duplicate decisions cannot repeat their effects (R9).
-- [ ] Inbox status filters, dimmed history, source metadata, selection and empty/error states reflect actual durable data (R8).
-- [ ] OpenUI renders ApprovalCard/DiffView and routes actions by validated identity; inline and inbox resolve the same record once (R9).
-- [ ] Badge counts pending approvals across multiple tasks/workspaces and synthetic future schedule metadata; questions excluded; mixed waiting-kind fixtures retain amber dot; replay/reconnect adds no duplicates (R12).
-- [ ] UI tests cover input edit/review, rejected submissions, button locking, labeled controls, focus and shortcuts; typing Enter/Esc in editable controls never submits (R13).
-- [ ] Canary credentials, including edited inputs/rejection reasons, do not leak into API approval data, logs, events, checkpoint SQLite, journal or fixtures; existing environment/telemetry isolation tests stay green (R14).
+- [x] `uv run --project backend ruff check backend` passes.
+- [x] Final `uv run --project backend mypy --strict backend` and `uv run --project backend pytest backend/tests` after snapshot credential hardening: **278 passed**, strict mypy **84 files**.
+- [x] `npm run typecheck` (`tsc --noEmit`) and `npm run test:ui`: **33 passed**.
+- [x] Active `npm run test:desktop` baseline passes: Persian/English, real Demo read/OpenUI, replay, authentication, loopback binding, normal shutdown and forced development/packaged-engine cleanup. Run serially after builds; the earlier concurrent launch timeout was not reproduced.
+- [x] `npm run generate:protocol`, `npm run generate:genui`, `npm run build`, `npm run build:electron` pass. Generated records/decisions/resolutions/RulesFile and `/approvals`, `/customize` static routes exist. Existing unsupported `outputFileTracing` option warns but does not fail the build; unrelated config is unchanged.
+- [x] Installed SQLite/interrupt contracts and exact resume identity: `test_sqlite_interrupt_id_batch_mapping_and_reconstruction`.
+- [x] Real graph approve/reject and continuation: `test_ask_interrupts_then_approve_writes`, `test_ask_then_reject_feeds_the_reason_back`; all three decisions also exercised in Electron.
+- [x] Independent decisions, no effects before all answers, partial answers, original run reconstruction, monotonic replay and no duplicate publication: `test_pending_batch_partial_answer_restart_and_exactly_once`.
+- [x] Actual engine process kills during a multi-call approval batch, during execution, and after command completion before durable result: `test_force_kill_engine_does_not_replay_effects[pending/executing/after-result]`. Observable launch count remains one; command PID is gone before recovery.
+- [x] Graceful shutdown preserves pending work; Stop cannot execute after restart: recovery test above and `test_stopped_pending_run_cannot_execute_after_recovery`. Missing credential preserves pending records and restoration resumes: `test_missing_credential_preserves_pending_and_redacts_all_persistence`.
+- [x] Approval/checkpoint/event reconciliation and torn final append: SQLite/recovery tests and `test_event_log_recovers_only_incomplete_last_append`. Completed/uncertain intents never redispatch: `test_journal_prevents_dispatch_after_uncertain_or_completed_effect`.
+- [x] Fresh call-level retry, visible timeout, edit preview, reject and approved execution: `test_fresh_command_retry_can_be_edited_rejected_or_approved`; Electron retries the killed command with edited arguments through a new approval.
+- [x] Auth and forged/stale/duplicate IDs: `test_approval_routes_require_auth`, `test_interrupt_route_reports_unknown_and_resolved_ids`, `test_resolve_records_the_answer_and_refuses_a_second_one`, stopped-run and concurrent recovery tests. Invalid schemas are refused before dispatch.
+- [x] Edited arguments, traversal refusal and linked rule review: `test_edit_preview_revalidates_and_stages_allow_rule`. Existing permissions/rules/jail/Git tests cover Read-only, deny, protected paths, real symlinks/junctions, high-risk commands and mode ceilings; retained in the full suite.
+- [x] Diffs/revisions for create/edit/delete, empty files, multiple hunks, CRLF, missing final newline and binary deletion: `test_diff_revision_binds_bytes_arguments_and_no_trailing_newline`, `test_unified_review_for_create_delete_empty_and_multiple_hunks`, `test_binary_delete_review_binds_original_bytes_without_decoding`; UI diff unit verifies old/new numbering. Electron checks stale review and byte-exact undo.
+- [x] Checkbox rule is a separately reviewed proposal; reject/stale revision leaves rules unchanged: linked-rule regression above and `test_rules_proposal_reject_and_stale_revision_never_write`.
+- [x] Rules API/grid, add/edit/remove validation, malformed-file protection, PUT staging and Auto review: `test_rules_routes`, `tests/unit/rules.test.ts`, files desktop script. Threaded proposals retain every record: `test_configuration_proposals_from_route_threads_do_not_overwrite_each_other`.
+- [x] Branch/worktree gating and client-flag bypass prevention: `test_git`; actual worktree path equals reviewed path. Duplicate decisions cannot repeat effects. Electron covers branch failure and worktree-to-edit continuation.
+- [x] Inbox filters, dimmed history, source metadata, selection, empty/error states: main desktop script against real engine data; no production mock rows.
+- [x] ApprovalCard/DiffView OpenUI registration and shared deterministic views: generation/static export pass; actual cards/diffs render in Electron. Model-composed cards only resolve an existing engine-owned record by both IDs; unknown IDs expose no controls.
+- [x] Badge/waiting state: inbox/rules unit tests include independent tasks, future schedule metadata, a remaining question after approval, partial decisions and duplicate replay. Electron covers two tasks/two workspaces and restart restoration.
+- [x] Editing, rejected submissions, submission locking, labels/focus and safe Enter/Esc: UI unit tests plus desktop editor, shortcut and network-failure scenarios.
+- [x] Canary model/edited inputs, rejection reasons, events and SQLite: `test_missing_credential_preserves_pending_and_redacts_all_persistence`. Diff/policy/Rules ledger: `test_review_redacts_current_file_diff_and_policy_before_checkpoint_payload`, `test_rules_diff_never_copies_existing_credential_into_approval_ledger`. Existing environment/tracing isolation tests remain green.
+- [x] Final snapshot credential guard and regressions: `test_snapshots_refuse_registered_credentials_before_capture_and_restore`, guarded Rules-save failure and existing snapshot tests. Wired into graph snapshots, Rules saves and Undo; **30 targeted tests** and the full **278-test** suite pass. Metadata/content symlink escapes are refused; Rules Undo reviews exact prior bytes or prior absence.
 
-## Manual (Windows Electron, real engine and static export)
-- [ ] Offline demo proposes a file edit: amber inline card, real diff, review and inbox navigation work; no temporary approval modal remains.
-- [ ] Inbox at reference 1440×900 matches Inbox.dc.html hierarchy, copy, colors, list/detail proportions, chips, snapshot note, checkbox and actions. Inspect saved screenshots.
-- [ ] Compare inline expanded/compact cards with Main.dc.html and Run.dc.html; no fake plan status, reason, step counts or schedule rows appear.
-- [ ] Approve, edit then approve, and reject with an optional reason through actual UI; verify filesystem/command result and model continuation. Duplicate clicks do not duplicate effects.
-- [ ] Queue multiple approvals across two tasks/workspaces; decide in reverse order using inline and inbox. Tabs/history, global badge and per-task waiting dots remain accurate.
-- [ ] Force-kill engine mid-interrupt and reopen app; inspect original pending approvals, answer and finish the original run. Repeat with partial decisions and normal app quit.
-- [ ] Force-kill engine during a harmless long-running command with an observable launch marker; reopen, confirm interrupted card/model result and unchanged launch count. Retry explicitly with a fresh approval. No orphan process survives.
-- [ ] Check the allow-rule box for an edit under src/**; review the separate linked rules diff, approve, inspect rules and test a later matching edit. Reject another rule proposal and confirm unchanged rules.
-- [ ] Customize Rules chrome matches Skills.dc.html; edit tool/path rules, approve/reject, reload and verify actual enforcement, including rule changes in Auto.
-- [ ] Branch switch/worktree creation and snapshot undo still work through real desktop flows without bypassing review.
-- [ ] Persian first launch and remembered English setting both render correctly; logical layout mirrors, code stays LTR, policy reasons localize, keyboard/focus are usable and narrow windows keep both panes accessible.
-- [ ] Empty inbox, missing workspace/model credential, changed file/rules revision, decision API failure and stopped run show actionable states without losing history.
+## Manual / automated Windows Electron walkthroughs
+
+Real Electron/preload vault/authenticated loopback API/SQLite graph/processes/filesystem. Provider fixture is local/offline; built-in Demo is also exercised. Generated evidence: `artifacts/phase4/`.
+
+- [x] Built-in Demo `demo edit src/demo.txt: before => after` reads, requests edit, renders actual diff, and applies only after approval. Expanded/compact cards work; temporary modal removed. `phase4-desktop.ts`, `inline-fa.png`, `inline-compact-fa.png`.
+- [x] Final reference-size visual rerun after selected-row hover fix passes. **1440×900** fa/en images inspected; `phase4-visual.ts` asserts selected hover color, 360px list, 240px sidebar, diff tints and narrow stacking. `reference-inbox-{fa,en}.png`, `reference-inbox-narrow-en.png`. Repeated runs distinguish pending fixtures from historical decisions. No invented plan metadata or agent reason.
+- [x] Approve/edit/reject, optional reason returned to model, safe editor Enter/Esc, active-card Esc, shared inline/inbox resolution, dimmed history and all four tabs: main desktop script, `inbox-fa.png`, `history-fa.png`.
+- [x] Multiple approvals across **two tasks/two workspaces**, newest-first decisions, badge and amber dots survive restart: main desktop script.
+- [x] Force-kill while approvals wait; reopen without vault key, retain records and show actionable failure; restore key, quit normally, reopen and complete original runs. Subprocess case also kills after a partial answer in one barrier.
+- [x] Force-kill running command after marker, reopen, inspect interrupted UI/model result and unchanged launch count. Explicit retry gets new 300-second review and edited arguments execute once. Main desktop script, `interrupted-fa.png`; process cleanup asserted by engine-kill tests.
+- [x] Allow checkbox stages precise `src/**` rule; separate diff approved before save. Another rule proposal rejected unchanged. Backend regression verifies persisted matching rule behavior. Main desktop script and linked-rule test.
+- [x] Customize chrome/Rules editing/refresh; actual Auto workspace still asks before another rule save and rejection preserves rules. Files desktop script, `rules-fa.png`, `rules-auto-en.png`.
+- [x] Rules Undo routes through the inbox; rejection preserves current rules, approval restores prior absence. Files desktop script, `rules-undo-en.png`; backend tests also verify exact prior CRLF bytes.
+- [x] Branch approve/reject/dirty-tree failure preserve expected HEAD/content. Worktree approval opens its run and separately gates edit; main checkout unchanged. UI undo restores original CRLF bytes. Files desktop script, `undo-en.png`, `worktree-en.png`.
+- [x] Persian default, remembered English, mirrored shell, LTR paths/code, focus/keyboard and narrow view: desktop scripts and inspected images; logical-CSS unit passes.
+- [x] Temporarily unavailable workspace remains in history and works after restoration. Missing key, empty inbox, stale file, API 503 and Stop exercised in main/files scripts. Stale rules revision covered by engine test. History retained.
 
 ## Exit criteria
-- [ ] Every requirement R1–R14 has passing test/manual evidence above; no unchecked items or unsupported completion claims.
-- [ ] learnings.md records verified installed APIs/versions, recovery guarantees, deviations, limitations and every deferred TODO.
-- [ ] Exact roadmap completion/handoff change approved by the user, applied and committed with phase work; one clear commit per ordered plan step.
+- [x] Final quality/snapshot/visual checks above complete; every R1–R14 has passing evidence. No unsupported completion claim.
+- [x] `learnings.md` records installed versions, persistence ordering, recovery races, intentional choices, limits and handoff. No new unresolved TODO markers.
+- [x] Exact roadmap row/handoff approved by the user on 2026-10-19, applied and committed with final phase changes. Steps 1 through 5 have separate commits; Step 6 fixes/tests/docs and the approved constitution update share the final commit under AGENTS.md.
 
-No checks are claimed complete at spec time. Live-provider access is not required: deterministic offline graph/desktop fixtures cover this phase's permission and durability behavior.
+No live provider key or external endpoint is required. Only the approved Phase 4 completion row and handoff changed in the constitution.

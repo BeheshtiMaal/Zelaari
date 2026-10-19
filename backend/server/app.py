@@ -14,7 +14,13 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, Field
 
 from agent.events import Event, HealthResponse, RunRequest, RunResponse
-from permissions.types import ApprovalDecision, ApprovalRecord, ApprovalRequest, UnknownApproval
+from permissions.types import (
+    ApprovalDecision,
+    ApprovalRecord,
+    ApprovalRequest,
+    ApprovalResolution,
+    UnknownApproval,
+)
 from server.files import file_routes
 from server.git import git_routes
 from server.models import model_routes
@@ -35,7 +41,9 @@ class RunService(Protocol):
     def approvals(self, status: str | None = None) -> list[ApprovalRecord]: ...
     async def start(self, request: RunRequest) -> str: ...
     async def stop(self, run_id: str) -> None: ...
-    async def resolve(self, run_id: str, approval_id: str, decision: ApprovalDecision) -> None: ...
+    async def resolve(
+        self, run_id: str, approval_id: str, decision: ApprovalDecision
+    ) -> str | None: ...
     def events(self, run_id: str, after: int) -> AsyncIterator[Event]: ...
     def contains(self, run_id: str) -> bool: ...
     def pending_paths(self) -> set[str]: ...
@@ -87,7 +95,7 @@ def create_app(
     )
     app.include_router(model_routes(catalog))
     app.include_router(workspace_routes(catalog))
-    app.include_router(snapshot_routes())
+    app.include_router(snapshot_routes(catalog.redactor, ActionApprovals(catalog)))
     app.include_router(git_routes(ActionApprovals(catalog)))
     app.include_router(file_routes(lambda: service.pending_paths() if service else set()))
     app.include_router(rules_routes(ActionApprovals(catalog)))
@@ -129,15 +137,16 @@ def create_app(
             ) from None
         return JSONResponse(status_code=201, content=RunResponse(run_id=run_id).model_dump())
 
-    def require_run(run_id: str) -> RunService:
+    async def require_run(run_id: str) -> RunService:
         manager = runs()
+        await manager.recover()
         if not manager.contains(run_id):
             raise HTTPException(404, "Unknown run")
         return manager
 
     @app.post("/runs/{run_id}/stop")
     async def stop_run(run_id: str) -> dict[str, str]:
-        await require_run(run_id).stop(run_id)
+        await (await require_run(run_id)).stop(run_id)
         return {"status": "ok"}
 
     @app.post("/runs/{run_id}/interrupts/{approval_id}")
@@ -145,10 +154,10 @@ def create_app(
         run_id: str,
         approval_id: str,
         decision: ApprovalDecision,
-    ) -> dict[str, str]:
-        manager = require_run(run_id)
+    ) -> ApprovalResolution:
+        manager = await require_run(run_id)
         try:
-            await manager.resolve(run_id, approval_id, decision)
+            resumed_run_id = await manager.resolve(run_id, approval_id, decision)
         except UnknownApproval:
             # Already answered, or never pending: the caller must re-read the stream
             # rather than have a decision silently applied twice.
@@ -157,14 +166,14 @@ def create_app(
             raise HTTPException(
                 409, "Review is stale or invalid; refresh before deciding"
             ) from None
-        return {"status": "ok"}
+        return ApprovalResolution(run_id=resumed_run_id)
 
     @app.post("/runs/{run_id}/interrupts/{approval_id}/preview")
     async def preview_approval(
         run_id: str, approval_id: str, decision: ApprovalDecision
     ) -> ApprovalRequest:
         try:
-            return require_run(run_id).preview(run_id, approval_id, decision)
+            return (await require_run(run_id)).preview(run_id, approval_id, decision)
         except (UnknownApproval, ValueError, OSError):
             raise HTTPException(
                 409, "Input cannot be reviewed; refresh and check permissions"

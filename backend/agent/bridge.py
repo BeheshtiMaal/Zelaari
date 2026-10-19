@@ -28,7 +28,7 @@ from permissions.types import (
     UnknownApproval,
 )
 from providers.adapters import chat_model
-from providers.base import TaskRecord
+from providers.base import ProviderRecord, TaskRecord
 from providers.context import detect_context
 from providers.demo import DemoModel
 from store.actions import ActionApprovals
@@ -62,6 +62,7 @@ class Run:
     barrier: list[str] = field(default_factory=list)
     interrupt_id: str = ""
     preserving: bool = False
+    available: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 class RunManager:
@@ -78,6 +79,7 @@ class RunManager:
         self.catalog = catalog or Catalog(redactor=self.redactor)
         self.redactor = self.catalog.redactor
         self.actions = ActionApprovals(self.catalog)
+        self.actions.recover()
 
     def contains(self, run_id: str) -> bool:
         return run_id in self.runs or any(
@@ -89,7 +91,7 @@ class RunManager:
         paths = {
             run.pending.path.replace("\\", "/")
             for run in self.runs.values()
-            if run.pending is not None and run.pending.path
+            if run.ledger is None and run.pending is not None and run.pending.path
         }
         for run in self.runs.values():
             if run.ledger:
@@ -101,16 +103,30 @@ class RunManager:
         return paths
 
     async def start(
-        self, request: RunRequest, *, restore_id: str | None = None, worktree_consent: bool = False
+        self,
+        request: RunRequest,
+        *,
+        restore_id: str | None = None,
+        worktree_consent: bool = False,
+        allocated_id: str | None = None,
     ) -> str:
         workspace = workspace_root(request.workspace)
         record = self.catalog.require(request.model)
+        if restore_id:
+            provider_path = storage_path(workspace, f"runs/{restore_id}/provider.json")
+            saved_provider = ProviderRecord.model_validate_json(provider_path.read_bytes())
+            if (record.base_url, record.model, record.kind) != (
+                saved_provider.base_url,
+                saved_provider.model,
+                saved_provider.kind,
+            ):
+                raise ValueError("Restore the original model configuration before resuming")
         model = (
             DemoModel(delay=self.demo_delay)
             if record.kind == "demo"
             else chat_model(record, self.catalog.keys[request.model])
         )
-        run_id = restore_id or uuid4().hex
+        run_id = restore_id or allocated_id or uuid4().hex
         # History and checkpoints stay in the selected workspace even when the agent
         # works in a worktree, so one task list and one replay log cover both.
         root = workspace
@@ -147,6 +163,10 @@ class RunManager:
         safe_task = self.redactor.text(request.task)
         if not restore_id:
             from tools.atomic import atomic_write
+
+            atomic_write(
+                storage_path(workspace, f"runs/{run_id}/provider.json"), record.model_dump_json()
+            )
 
             atomic_write(
                 storage_path(workspace, f"runs/{run_id}/request.json"),
@@ -189,7 +209,7 @@ class RunManager:
                         permissions=PermissionMiddleware(
                             rules, run_id=run_id, redactor=self.redactor
                         ),
-                        snapshots=SnapshotStore(root, run_id=run_id),
+                        snapshots=SnapshotStore(root, run_id=run_id, redactor=self.redactor),
                         extra_tools=[
                             build_run_command(runner),
                             build_git_switch(root),
@@ -202,6 +222,8 @@ class RunManager:
                     payload: Any = {"messages": [{"role": "user", "content": safe_task}]}
                     if restore_id:
                         snapshot = await graph.aget_state(config)
+                        if not snapshot.values:
+                            raise ValueError("Checkpoint is unavailable; refusing a new invocation")
                         if snapshot.interrupts:
                             await self._announce(run, snapshot.interrupts)
                             payload = Command(resume=await self._resume(run))
@@ -300,6 +322,8 @@ class RunManager:
                 if not run.preserving:
                     await bus.emit("run.finished", status="stopped")
             except Exception as error:
+                if run.ledger:
+                    run.ledger.cancel()
                 if record.kind != "demo" and record.context.source == "fallback":
                     context = detect_context(record.model, error=str(error))
                     current = self.catalog.data.models.get(record.id)
@@ -318,6 +342,7 @@ class RunManager:
                 )
                 await bus.emit("run.finished", status="error")
             finally:
+                run.available.set()
                 final = bus.history[-1]
                 if final.type == "run.finished":
                     task_record.status = final.status
@@ -412,6 +437,7 @@ class RunManager:
                 ):
                     await run.bus.emit("approval.requested", approval=request)
             self.catalog.persist()
+            run.available.set()
 
     async def _resume(self, run: Run) -> dict[str, Any]:
         if run.ledger is None:
@@ -430,6 +456,7 @@ class RunManager:
             if len(answers) > 1
             else next(answer.model_dump(mode="json") for answer in answers.values() if answer)
         )
+        run.pending = None
         return {run.interrupt_id: value}
 
     async def _answer(self, run: Run) -> ApprovalAnswer | None:
@@ -440,14 +467,15 @@ class RunManager:
         run.pending = None
         return answer
 
-    async def resolve(self, run_id: str, approval_id: str, decision: ApprovalDecision) -> None:
+    async def resolve(
+        self, run_id: str, approval_id: str, decision: ApprovalDecision
+    ) -> str | None:
         if run_id not in self.runs:
             ledger, record = self.actions.find(run_id, approval_id)
             self.actions.resolve(run_id, approval_id, decision)
             if record.request.tool == "run_command" and decision.decision == "approve":
-                ledger, record = self.actions.find(run_id, approval_id)
-                record.execution_status = "running"
-                ledger.save()
+                _, record = self.actions.find(run_id, approval_id)
+                self.actions.execution(run_id, approval_id, "running")
                 runner = CommandRunner(
                     Path(record.request.workspace), self.redactor, secrets=self.redactor.values
                 )
@@ -456,19 +484,28 @@ class RunManager:
                     str(record.request.command),
                     timeout=float(str(record.request.args.get("timeout") or 120)),
                 )
-                record.execution_status = "completed"
-                record.result = self.redactor.text(result.model_dump_json())
-                ledger.save()
+                self.actions.execution(run_id, approval_id, "completed", result.model_dump_json())
             if record.request.tool == "worktree_create" and decision.decision == "approve":
-                await self.start(
-                    RunRequest.model_validate(record.request.args), worktree_consent=True
+                self.actions.execution(run_id, approval_id, "running")
+                created_id = await self.start(
+                    RunRequest.model_validate(record.request.args),
+                    worktree_consent=True,
+                    allocated_id=Path(str(record.request.path)).name,
                 )
-            return
+                self.actions.execution(
+                    run_id, approval_id, "completed", f"Worktree: {record.request.path}"
+                )
+                return created_id
+            return None
         run = self.runs[run_id]
         if run.ledger:
+            if not run.barrier and not run.bus.finished:
+                await asyncio.wait_for(run.available.wait(), timeout=30)
             if run.bus.finished or approval_id not in run.barrier:
                 raise UnknownApproval(approval_id)
             record = run.ledger.records[approval_id]
+            if record.status != "pending":
+                raise UnknownApproval(approval_id)
             if decision.decision == "approve":
                 review = prepare_review(Path(record.request.workspace), record.request)
                 if decision.edited_args is not None and decision.edited_args != record.request.args:
@@ -513,7 +550,7 @@ class RunManager:
                 reason=answer.reason,
             )
             run.ready.set()
-            return
+            return None
         pending = run.pending
         if pending is None or pending.approval_id != approval_id or run.answer is not None:
             raise UnknownApproval(approval_id)
@@ -530,6 +567,7 @@ class RunManager:
             reason=decision.reason,
         )
         run.ready.set()
+        return None
 
     def retry_command(self, run_id: str, call_id: str, timeout: float) -> ApprovalRecord:
         task = next(
@@ -578,6 +616,8 @@ class RunManager:
         )
 
     def preview(self, run_id: str, approval_id: str, decision: ApprovalDecision) -> ApprovalRequest:
+        if run_id not in self.runs:
+            return self.actions.preview(run_id, approval_id, decision)
         run = self.runs[run_id]
         if run.ledger is None or approval_id not in run.ledger.records:
             raise UnknownApproval(approval_id)
@@ -586,10 +626,15 @@ class RunManager:
             raise UnknownApproval(approval_id)
         request = record.request
         args = decision.edited_args if decision.edited_args is not None else request.args
+        if self.redactor.value(args) != args:
+            raise ValueError("Secret in edited arguments")
         from permissions.middleware import tool_target
 
         path, command, timeout = tool_target(request.tool, args)
-        rules = RulesEngine.load(Path(request.workspace))
+        task = next(
+            (item for item in self.catalog.data.workspaces.tasks if item.id == run_id), None
+        )
+        rules = RulesEngine.load(Path(request.workspace), task.mode if task else None)
         verdict = rules.decide(request.tool, path=path, command=command, timeout=timeout)
         if verdict.action == "deny":
             raise ValueError("Current permissions deny this input")
@@ -603,6 +648,9 @@ class RunManager:
                     "risk": verdict.risk,
                 }
             ),
+        )
+        request = ApprovalRequest.model_validate(
+            self.redactor.value(request.model_dump(mode="json"))
         )
         record.request = request
         run.ledger.save()

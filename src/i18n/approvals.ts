@@ -1,7 +1,10 @@
 import type { Locale } from ".";
 
 const en = {
-  title: "Approvals inbox", waiting: "Waiting for your decision. The agent pauses until you decide.",
+  changeStart: "The agent wants to change", changeEnd: "",
+  collapse: "Collapse", reviewOpen: "Review and approve",
+  retry: "Retry command",
+  title: "Approvals inbox", waiting: "items waiting for your decision. The agent pauses until you decide.",
   pending: "Pending", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled", all: "All",
   recent: "Recent decisions", empty: "No approvals waiting", select: "Select an approval to review",
   approve: "Approve", edit: "Edit input", reject: "Reject with reason", review: "Review edited input",
@@ -11,7 +14,7 @@ const en = {
   allow: "Don’t ask again for editing files in", allowSuffix: "in this workspace (new rule in Customize › Rules)",
   allowNote: "The new rule will have its own approval and diff before it is saved.",
   rejection: "Rejection reason (optional; returned to the agent)", input: "Tool arguments (JSON)",
-  error: "Could not apply this decision. Refresh the review and check the workspace and permissions.",
+  error: "Could not apply this decision. Refresh the review, check the workspace and permissions, and restore the model key in Settings if needed.",
   refresh: "Refresh review", loading: "Saving…", shortcuts: "Enter approve · Esc reject", open: "Open in inbox",
   needsYou: "Waiting for your approval", command: "Run command", file: "File change", rules: "Rules and permissions",
   low: "Low risk", high: "High risk", task: "Task", schedule: "Scheduled task", configuration: "Workspace settings",
@@ -23,6 +26,9 @@ const en = {
   chooseWorkspace: "Select a workspace to edit its rules.", staged: "Changes are waiting for approval in the inbox.",
 };
 const fa: typeof en = {
+  changeStart: "عامل می‌خواهد", changeEnd: "را تغییر دهد",
+  collapse: "جمع‌کردن", reviewOpen: "بررسی و تأیید",
+  retry: "تلاش دوباره‌ی دستور",
   title: "صندوق تأیید", waiting: "مورد منتظر تصمیم شماست. عامل تا تصمیم شما متوقف می‌ماند.",
   pending: "منتظر", approved: "تأییدشده", rejected: "ردشده", cancelled: "لغوشده", all: "همه",
   recent: "تصمیم‌های اخیر", empty: "موردی منتظر تأیید نیست", select: "یک مورد را برای بررسی انتخاب کنید",
@@ -33,7 +39,7 @@ const fa: typeof en = {
   allow: "برای ویرایش فایل‌های", allowSuffix: "در این فضای کاری دیگر نپرس (قانون جدید در سفارشی‌سازی › قوانین)",
   allowNote: "قانون جدید پیش از ذخیره با نمایش تغییرات، جداگانه تأیید می‌شود.",
   rejection: "دلیل رد کردن (اختیاری): به عامل گفته می‌شود تا مسیر دیگری انتخاب کند",
-  input: "ورودی ابزار (JSON)", error: "تصمیم اعمال نشد. بررسی را تازه کنید و فضای کاری و مجوزها را بررسی کنید.",
+  input: "ورودی ابزار (JSON)", error: "تصمیم اعمال نشد. بررسی را تازه کنید؛ فضای کاری و مجوزها را بررسی کنید و در صورت نیاز، کلید مدل را در تنظیمات بازیابی کنید.",
   refresh: "تازه‌کردن بررسی", loading: "در حال ذخیره…", shortcuts: "Enter تأیید · Esc رد", open: "باز کردن در صندوق",
   needsYou: "منتظر تأیید شما", command: "اجرای دستور", file: "ویرایش فایل", rules: "قوانین و مجوزها",
   low: "ریسک کم", high: "ریسک زیاد", task: "کار", schedule: "کار زمان‌بندی‌شده", configuration: "تنظیمات فضای کاری",

@@ -1,6 +1,6 @@
 # Phase 4: Approvals inbox. Plan
 
-Status: **Draft — implement only after approval.**
+Status: **Approved on 2026-10-19. All six steps complete; final validation passes and the roadmap completion update is approved.**
 
 Work in order; commit each completed step separately with its relevant tests. If verified behavior contradicts this spec, stop implementation and update the spec first. Constitution changes require explicit user approval.
 

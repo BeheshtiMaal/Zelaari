@@ -100,6 +100,11 @@ class ApprovalBatch(PermissionModel):
     approvals: list[ApprovalRequest]
 
 
+class ApprovalResolution(PermissionModel):
+    status: Literal["ok"] = "ok"
+    run_id: str | None = None
+
+
 class ApprovalBatchAnswer(PermissionModel):
     answers: dict[str, ApprovalAnswer]
 

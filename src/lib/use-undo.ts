@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api } from "./api";
-import type { SnapshotEntry } from "./protocol";
+import type { SnapshotEntry, ApprovalRecord, RevertResult } from "./protocol";
+import { recordKey, useInbox } from "./inbox";
 
 /** Snapshot lookup and user-initiated undo for the selected workspace file. */
 export function useUndo(workspace: string, path: string | undefined) {
@@ -21,7 +22,12 @@ export function useUndo(workspace: string, path: string | undefined) {
     if (!snapshot || busy) return null;
     setBusy(true); setFailed(false);
     try {
-      await api(`/snapshots/${encodeURIComponent(snapshot.id)}/revert`, "POST", { workspace });
+      const response = await api<RevertResult | ApprovalRecord>(`/snapshots/${encodeURIComponent(snapshot.id)}/revert`, "POST", { workspace });
+      if ("request" in response) {
+        await useInbox.getState().refresh();
+        window.location.assign(`/approvals/?approval=${encodeURIComponent(recordKey(response.request))}`);
+        return null;
+      }
       const result = { existed: snapshot.existed };
       setSnapshot(null);
       return result;

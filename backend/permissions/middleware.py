@@ -114,9 +114,12 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             ),
         )
         try:
-            return prepare_review(self.rules.root, request)
+            request = prepare_review(self.rules.root, request)
         except (ValueError, OSError):
-            return request
+            pass
+        return ApprovalRequest.model_validate(
+            self.redactor.value(request.model_dump(mode="json"))
+        )
 
     def _ask(self, call: ToolCall, outcome: PermissionOutcome) -> PermissionOutcome:
         """Pause for one decision and fold the answer back into an outcome."""
@@ -204,7 +207,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
     def refusal(self, call: ToolCall, reason: str) -> ToolMessage:
         return ToolMessage(
             content=(
-                f"Permission denied: {reason}. The tool did not run. "
+                f"Permission denied: {self.redactor.text(reason)}. The tool did not run. "
                 "Do not retry the same call; adjust the plan or ask the user."
             ),
             tool_call_id=call_key(call),
@@ -272,6 +275,10 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             )
             if verdict.action == "deny":
                 return self.refusal(call, verdict.reason)
+            if verdict.action == "ask" and (
+                not recorded or recorded.get("reason") != "approved by the user"
+            ):
+                return self.refusal(call, "Permissions changed; request a fresh approval")
             if recorded and recorded.get("revision"):
                 review = prepare_review(self.rules.root, self.approval(call, verdict))
                 if review.revision != recorded["revision"]:

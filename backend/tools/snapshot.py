@@ -8,8 +8,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+from store.secrets import Redactor
 from tools.atomic import atomic_write
-from tools.jail import Resolved, storage_path
+from tools.jail import Resolved, resolve, storage_path
 from tools.types import RevertResult, SnapshotMeta
 
 MAX_SNAPSHOT_BYTES = 20_000_000
@@ -37,11 +38,21 @@ class SnapshotStore:
         run_id: str | None = None,
         max_entries: int = MAX_ENTRIES,
         max_bytes: int = MAX_TOTAL_BYTES,
+        redactor: Redactor | None = None,
     ) -> None:
         self.root = root
         self.run_id = run_id
         self.max_entries = max_entries
         self.max_bytes = max_bytes
+        self.redactor = redactor
+
+    def _check_credentials(self, payload: bytes) -> None:
+        if self.redactor and any(
+            secret.encode(encoding) in payload
+            for secret in self.redactor.values
+            for encoding in ("utf-8", "utf-16-le", "utf-16-be")
+        ):
+            raise SnapshotError("Snapshot would contain a protected credential; action refused")
 
     @property
     def directory(self) -> Path:
@@ -51,6 +62,10 @@ class SnapshotStore:
         if not snapshot_id or any(mark in snapshot_id for mark in ("/", "\\", "..")):
             raise SnapshotError("Invalid snapshot id")
         return storage_path(self.root, f"snapshots/{snapshot_id}")
+
+    def _artifact(self, snapshot_id: str, name: str) -> Path:
+        self._entry(snapshot_id)
+        return storage_path(self.root, f"snapshots/{snapshot_id}/{name}")
 
     # -- write -------------------------------------------------------------
     def capture(self, target: Resolved, *, tool: str, call_id: str | None = None) -> str:
@@ -64,6 +79,7 @@ class SnapshotStore:
                     f"File is {size} bytes; the undo limit is {MAX_SNAPSHOT_BYTES} bytes"
                 )
             payload = target.path.read_bytes()
+        self._check_credentials(payload)
 
         snapshot_id = _new_id()
         directory = self._entry(snapshot_id)
@@ -90,11 +106,28 @@ class SnapshotStore:
 
     # -- read --------------------------------------------------------------
     def meta(self, snapshot_id: str) -> SnapshotMeta:
-        path = self._entry(snapshot_id) / "meta.json"
         try:
-            return SnapshotMeta.model_validate_json(path.read_text(encoding="utf-8"))
+            path = self._artifact(snapshot_id, "meta.json")
+            meta = SnapshotMeta.model_validate_json(path.read_text(encoding="utf-8"))
+            resolve(
+                self.root,
+                meta.path,
+                allow_protected=(
+                    meta.path.replace("\\", "/").casefold() == ".harness/rules.json"
+                    and meta.tool == "rules_update"
+                ),
+            )
+            return meta
         except (OSError, ValueError) as error:
             raise SnapshotError("Unknown or unreadable snapshot") from error
+
+    def content(self, snapshot_id: str) -> bytes | None:
+        meta = self.meta(snapshot_id)
+        if not meta.existed:
+            return None
+        payload = self._artifact(snapshot_id, "content.bin").read_bytes()
+        self._check_credentials(payload)
+        return payload
 
     def entries(self) -> list[SnapshotMeta]:
         """Newest first."""
@@ -130,8 +163,8 @@ class SnapshotStore:
             count = len(current.splitlines())
             return [(1, count)] if count else []
         try:
-            previous = (self._entry(newest.id) / "content.bin").read_bytes().decode("utf-8")
-        except (OSError, UnicodeError):
+            previous = self._artifact(newest.id, "content.bin").read_bytes().decode("utf-8")
+        except (OSError, ValueError):
             return []
         if previous == current:
             return []
@@ -147,16 +180,25 @@ class SnapshotStore:
     # -- revert ------------------------------------------------------------
     def revert(self, snapshot_id: str) -> RevertResult:
         meta = self.meta(snapshot_id)
-        target = Resolved(self.root / meta.path, meta.path)
+        if meta.path.replace("\\", "/").casefold() == ".harness/rules.json":
+            raise SnapshotError("Rules restoration requires an approval proposal")
+        target = resolve(self.root, meta.path)
         if target.path.is_dir():
             raise SnapshotError("Snapshot target is a directory")
 
         # Record what is being replaced, so a revert is itself revertible.
+        try:
+            previous = (
+                self._artifact(snapshot_id, "content.bin").read_bytes() if meta.existed else b""
+            )
+        except (OSError, ValueError) as error:
+            raise SnapshotError("Snapshot contents are unavailable") from error
+        self._check_credentials(previous)
         restored = self.capture(target, tool="revert", call_id=None)
 
         try:
             if meta.existed:
-                atomic_write(target.path, (self._entry(snapshot_id) / "content.bin").read_bytes())
+                atomic_write(target.path, previous)
             else:
                 target.path.unlink(missing_ok=True)
         except (OSError, UnicodeError) as error:
