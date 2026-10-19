@@ -104,12 +104,12 @@ export type Options =
 export type Id1 = string;
 export type Label = string;
 export type Description = string;
+export type Presentation = "standard" | "exhausted";
+export type Context = string;
 export type Kind1 = "question";
 export type RunId10 = string;
 export type CallId2 = string;
 export type CreatedAt1 = string;
-export type Presentation = "standard" | "exhausted";
-export type Context = string;
 export type InterruptId = string;
 export type Status = "pending" | "answered" | "declined" | "cancelled";
 export type Kind2 = "question";
@@ -129,6 +129,7 @@ export type QuestionId = string;
  */
 export type OptionIds = [] | [string] | [string, string] | [string, string, string] | [string, string, string, string];
 export type Other = string | null;
+export type Hint = string | null;
 export type RunId11 = string;
 export type CallId3 = string;
 export type ResolvedAt = string | null;
@@ -436,12 +437,12 @@ export interface QuestionRecord {
 }
 export interface QuestionRequest {
   questions: Questions;
+  presentation?: Presentation;
+  context?: Context;
   kind?: Kind1;
   run_id: RunId10;
   call_id: CallId2;
   created_at?: CreatedAt1;
-  presentation?: Presentation;
-  context?: Context;
 }
 export interface Question {
   id: Id;
@@ -467,6 +468,7 @@ export interface QuestionSelection {
   question_id: QuestionId;
   option_ids?: OptionIds;
   other?: Other;
+  hint?: Hint;
 }
 export interface QuestionAnswered {
   run_id: RunId12;

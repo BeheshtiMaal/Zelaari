@@ -1,6 +1,7 @@
 """Consume deepagents streams into durable, replayable harness events."""
 
 import asyncio
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -167,6 +168,7 @@ class RunManager:
         ledger = ApprovalLedger(storage_path(workspace, f"runs/{run_id}/approvals.json"))
         questions = QuestionLedger(storage_path(workspace, f"runs/{run_id}/questions.json"))
         safe_task = self.redactor.text(request.task)
+        grill = bool(re.match(r"^/grill(?:\s|$)", safe_task))
         if not restore_id:
             from tools.atomic import atomic_write
 
@@ -213,17 +215,18 @@ class RunManager:
                         saver,
                         self.redactor,
                         permissions=PermissionMiddleware(
-                            rules, run_id=run_id, redactor=self.redactor
+                            rules, run_id=run_id, redactor=self.redactor, grill=grill
                         ),
                         snapshots=SnapshotStore(root, run_id=run_id, redactor=self.redactor),
                         extra_tools=[
                             build_run_command(runner),
                             build_git_switch(root),
                         ],
+                        grill=grill,
                     )
                     config: RunnableConfig = {
                         "configurable": {"thread_id": run_id},
-                        "recursion_limit": 24,
+                        "recursion_limit": 80 if grill else 24,
                     }
                     payload: Any = {"messages": [{"role": "user", "content": safe_task}]}
                     if restore_id:

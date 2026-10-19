@@ -13,7 +13,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
 from permissions.middleware import PermissionMiddleware
-from questions.tools import build_ask_question
+from questions.tools import build_ask_question, build_finish_interview
 from store.secrets import Redactor
 from tools.fs import SnapshotSink, WorkspaceBackend
 
@@ -61,6 +61,7 @@ def build_agent(
     snapshots: SnapshotSink | None = None,
     extra_tools: list[Any] | None = None,
     extra_middleware: list[AgentMiddleware[Any, Any, Any]] | None = None,
+    grill: bool = False,
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
     backend = WorkspaceBackend(root, redactor, snapshots)
     prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
@@ -78,9 +79,23 @@ def build_agent(
             "A call may come back with 'Permission denied': that is a decision, not an "
             "error to retry. Explain it and adjust the plan. "
             "Reply in the user's language. "
-            "Your final response must use this UI library:\n" + prompt
+            + (
+                "This is /grill interview mode. Read project context; ask_user_question one batch "
+                "at a time, using earlier answers. Avoid repeating answered questions. "
+                "When objective, scope, constraints and acceptance are specified, call "
+                "finish_interview with a summary, then continue the original task. Decline ends "
+                "the interview: report and do not implement. "
+                if grill
+                else ""
+            )
+            + "Your final response must use this UI library:\n"
+            + prompt
         ),
-        tools=[build_ask_question(), *(extra_tools or [])],
+        tools=[
+            build_ask_question(),
+            *([build_finish_interview()] if grill else []),
+            *(extra_tools or []),
+        ],
         middleware=cast(
             list[AgentMiddleware[Any, Any, Any]],
             [

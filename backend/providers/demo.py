@@ -13,6 +13,8 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 
+from providers.question_demo import demo_question
+
 
 class DemoModel(BaseChatModel):
     delay: float = 0.012
@@ -33,6 +35,9 @@ class DemoModel(BaseChatModel):
     def answer(self, messages: list[BaseMessage]) -> AIMessage:
         results = [message for message in messages if isinstance(message, ToolMessage)]
         task = next((str(message.content) for message in messages if message.type == "human"), "")
+        question_reply = demo_question(task, results)
+        if question_reply is not None:
+            return question_reply
         edit = re.fullmatch(r"demo edit ([\w./\\-]+): (.+?) => (.+)", task, re.DOTALL)
         if edit and results and results[-1].name == "read_file":
             return AIMessage(

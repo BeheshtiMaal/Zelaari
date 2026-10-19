@@ -40,6 +40,8 @@ class Question(QuestionModel):
 
 class QuestionInput(QuestionModel):
     questions: list[Question] = Field(min_length=1, max_length=3)
+    presentation: Literal["standard", "exhausted"] = "standard"
+    context: str = Field(default="", max_length=12000)
 
     @model_validator(mode="after")
     def distinct_questions(self) -> Self:
@@ -53,14 +55,13 @@ class QuestionRequest(QuestionInput):
     run_id: str
     call_id: str = Field(min_length=1, max_length=256)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    presentation: Literal["standard", "exhausted"] = "standard"
-    context: str = Field(default="", max_length=12000)
 
 
 class QuestionSelection(QuestionModel):
     question_id: Identifier
     option_ids: list[Identifier] = Field(default_factory=list, max_length=4)
     other: str | None = Field(default=None, min_length=1, max_length=4000)
+    hint: str | None = Field(default=None, min_length=1, max_length=4000)
 
 
 class QuestionDecision(QuestionModel):
@@ -89,6 +90,9 @@ class QuestionAnswer(QuestionDecision):
             answer = next(item for item in self.answers if item.question_id == question.id)
             ids = set(answer.option_ids)
             offered = {option.id for option in question.options}
+            if answer.hint is not None and (request.presentation != "exhausted" or ids != {"retry"}
+                                            or not answer.hint.strip()):
+                raise ValueError("Hint belongs to exhausted retry")
             if len(ids) != len(answer.option_ids) or not ids <= offered:
                 raise ValueError("Invalid option identity")
             other = bool(answer.other and answer.other.strip())

@@ -37,6 +37,7 @@ from permissions.types import (
 from questions.types import (
     HumanBatch,
     HumanBatchAnswer,
+    InterviewSummary,
     QuestionAnswer,
     QuestionInput,
     QuestionRequest,
@@ -54,6 +55,9 @@ class PermissionState(AgentState[Any]):
 
     permission_outcomes: NotRequired[Annotated[dict[str, dict[str, Any]], PrivateStateAttr]]
     question_outcomes: NotRequired[Annotated[dict[str, dict[str, Any]], PrivateStateAttr]]
+    interview_phase: NotRequired[str]
+    interview_answered: NotRequired[bool]
+    interview_summary: NotRequired[dict[str, str]]
     """`tool_call_id -> {action, reason}`. Private: the renderer never sees it."""
 
 
@@ -91,16 +95,22 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
     state_schema = PermissionState
 
     def __init__(
-        self, rules: RulesEngine, *, run_id: str, redactor: Redactor | None = None
+        self,
+        rules: RulesEngine,
+        *,
+        run_id: str,
+        redactor: Redactor | None = None,
+        grill: bool = False,
     ) -> None:
         super().__init__()
         self.rules = rules
         self.run_id = run_id
         self.redactor = redactor or Redactor()
+        self.grill = grill
 
     # -- resolution --------------------------------------------------------
     def decide(self, call: ToolCall) -> PermissionOutcome:
-        if call["name"] == "ask_user_question":
+        if call["name"] in {"ask_user_question", "finish_interview"}:
             return PermissionOutcome(action="allow", reason="human information request")
         path, command, timeout = tool_target(call["name"], call.get("args") or {})
         return self.rules.decide(call["name"], path=path, command=command, timeout=timeout)
@@ -162,11 +172,26 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
         if last is None or not last.tool_calls:
             return None
 
+        phase = state.get("interview_phase", "interviewing")
+
+        def decide(call: ToolCall) -> PermissionOutcome:
+            if (
+                self.grill
+                and phase != "ready"
+                and call["name"] not in READ_TOOLS | {"ask_user_question", "finish_interview"}
+            ):
+                return PermissionOutcome(
+                    action="deny", reason="Interview is not ready for implementation"
+                )
+            if self.grill and phase == "declined":
+                return PermissionOutcome(action="deny", reason="Interview was declined")
+            return self.decide(call)
+
         outcomes: dict[str, dict[str, Any]] = {}
         questions: list[QuestionRequest] = []
         invalid: set[str] = set()
         for call in last.tool_calls:
-            if call["name"] == "ask_user_question":
+            if call["name"] == "ask_user_question" and decide(call).action != "deny":
                 try:
                     args = QuestionInput.model_validate(call["args"])
                     request = QuestionRequest(
@@ -180,9 +205,9 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 except ValueError:
                     invalid.add(call_key(call))
         pending = [
-            self.approval(call, self.decide(call))
+            self.approval(call, decide(call))
             for call in last.tool_calls
-            if self.decide(call).action == "ask"
+            if decide(call).action == "ask"
         ]
         answers: dict[str, ApprovalAnswer] = {}
         question_answers: dict[str, QuestionAnswer] = {}
@@ -208,7 +233,21 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 raise ValueError("Approval batch does not match pending calls")
             answers = response.answers
         for call in last.tool_calls:
-            outcome = self.decide(call)
+            outcome = decide(call)
+            if call["name"] == "finish_interview":
+                try:
+                    InterviewSummary.model_validate(call["args"])
+                    if (
+                        not self.grill
+                        or not state.get("interview_answered")
+                        or phase == "declined"
+                        or questions
+                    ):
+                        raise ValueError("Interview requires an answered batch")
+                except ValueError:
+                    outcome = PermissionOutcome(
+                        action="deny", reason="Interview is not fully specified"
+                    )
             if call_key(call) in invalid:
                 outcome = PermissionOutcome(action="deny", reason="Invalid question schema")
             if outcome.action == "ask":
@@ -242,12 +281,27 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 "edited_args": outcome.edited_args,
                 "revision": outcome.revision,
             }
-        return {
+        updates: dict[str, Any] = {
             "permission_outcomes": outcomes,
             "question_outcomes": {
                 key: answer.model_dump(mode="json") for key, answer in question_answers.items()
             },
         }
+        if self.grill:
+            if any(answer.status == "declined" for answer in question_answers.values()):
+                updates["interview_phase"] = "declined"
+            elif question_answers:
+                updates["interview_answered"] = True
+            for call in last.tool_calls:
+                if (
+                    call["name"] == "finish_interview"
+                    and outcomes[call_key(call)]["action"] == "allow"
+                ):
+                    updates["interview_phase"] = "ready"
+                    updates["interview_summary"] = InterviewSummary.model_validate(
+                        call["args"]
+                    ).model_dump()
+        return updates
 
     # -- enforcement -------------------------------------------------------
     def refusal(self, call: ToolCall, reason: str) -> ToolMessage:
@@ -283,6 +337,13 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 content=answer.model_dump_json(), tool_call_id=call_key(call), name=call["name"]
             )
         recorded = (state.get("permission_outcomes") or {}).get(call_key(call))
+        if call["name"] == "finish_interview" and (
+            not self.grill
+            or not recorded
+            or recorded.get("action") != "allow"
+            or state.get("interview_phase") != "ready"
+        ):
+            return self.refusal(call, "No validated readiness transition")
         if recorded and recorded.get("edited_args") is not None:
             call = {**call, "args": recorded["edited_args"]}
             request = request.override(tool_call=call)
