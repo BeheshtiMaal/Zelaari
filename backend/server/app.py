@@ -14,6 +14,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from agent.events import Event, HealthResponse, RunRequest, RunResponse
 from permissions.types import ApprovalDecision, UnknownApproval
+from server.git import git_routes
 from server.models import model_routes
 from server.snapshots import snapshot_routes
 from server.workspaces import workspace_routes
@@ -78,6 +79,7 @@ def create_app(
     app.include_router(model_routes(catalog))
     app.include_router(workspace_routes(catalog))
     app.include_router(snapshot_routes())
+    app.include_router(git_routes())
 
     @app.exception_handler(RequestValidationError)
     async def invalid_input(request: object, error: RequestValidationError) -> JSONResponse:
@@ -89,13 +91,26 @@ def create_app(
         return HealthResponse()
 
     @app.post("/runs", status_code=201)
-    async def create_run(request: RunRequest) -> RunResponse:
+    async def create_run(request: RunRequest) -> JSONResponse:
+        from agent.bridge import WorktreeApprovalRequired
+
         try:
-            return RunResponse(run_id=await runs().start(request))
+            run_id = await runs().start(request)
+        except WorktreeApprovalRequired as pending:
+            # Nothing was created and no run exists yet: the client shows the modal and
+            # repeats the request with `worktree_approved`.
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "detail": "Worktree creation needs approval",
+                    "approval": pending.approval.model_dump(mode="json"),
+                },
+            )
         except (ValueError, OSError):
             raise HTTPException(
                 400, "Select an accessible workspace and configured model"
             ) from None
+        return JSONResponse(status_code=201, content=RunResponse(run_id=run_id).model_dump())
 
     def require_run(run_id: str) -> RunService:
         manager = runs()

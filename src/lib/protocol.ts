@@ -98,6 +98,7 @@ export type Workspace = string;
 export type Model1 = string;
 export type Mode = "read-only" | "ask" | "auto";
 export type Worktree = boolean;
+export type WorktreeApproved = boolean;
 export type RunId12 = string;
 export type Status1 = "ok";
 export type Id = string;
@@ -134,6 +135,7 @@ export type Title = string;
 export type Model4 = string;
 export type Mode1 = "read-only" | "ask" | "auto";
 export type Status3 = "running" | "completed" | "stopped" | "error" | "interrupted";
+export type Worktree1 = string | null;
 export type Tasks = TaskRecord[];
 export type Command1 = string;
 export type Shell = "powershell" | "cmd";
@@ -324,6 +326,7 @@ export interface RunRequest {
   model?: Model1;
   mode?: Mode;
   worktree?: Worktree;
+  worktree_approved?: WorktreeApproved;
 }
 export interface RunResponse {
   run_id: RunId12;
@@ -385,6 +388,7 @@ export interface TaskRecord {
   model: Model4;
   mode?: Mode1;
   status?: Status3;
+  worktree?: Worktree1;
 }
 /**
  * What `run_command` returns to the model and what the timeout card reads.

@@ -82,6 +82,8 @@ class TaskRecord(Record):
     model: str
     mode: Literal["read-only", "ask", "auto"] = "ask"
     status: Literal["running", "completed", "stopped", "error", "interrupted"] = "running"
+    worktree: str | None = None
+    """Where the run actually executed when the Worktree option was used."""
 
 
 class WorkspaceSelection(Record):

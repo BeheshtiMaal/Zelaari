@@ -130,6 +130,13 @@ class RunRequest(WireModel):
     model: str = Field(default="demo", pattern=r"^[a-zA-Z0-9_-]{1,64}$")
     mode: Literal["read-only", "ask", "auto"] = "ask"
     worktree: bool = False
+    worktree_approved: bool = False
+    """Set only after the person confirmed the worktree approval.
+
+    Creating a worktree writes to `.harness/` and adds a branch, so it is a gated
+    action: a run that asks for one without this flag is refused rather than quietly
+    skipped.
+    """
 
 
 class RunResponse(WireModel):

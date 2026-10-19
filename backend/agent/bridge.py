@@ -32,8 +32,17 @@ from store.eventlog import EventBus
 from store.secrets import Redactor, StreamRedactor
 from store.workspaces import add_task, select_workspace
 from tools.command import CommandRunner, build_run_command
+from tools.git import add_worktree, build_git_switch
 from tools.jail import storage_path, workspace_root
 from tools.snapshot import SnapshotStore
+
+
+class WorktreeApprovalRequired(Exception):
+    """The run asked for a worktree without the person confirming it first."""
+
+    def __init__(self, approval: ApprovalRequest) -> None:
+        super().__init__("Worktree creation needs approval")
+        self.approval = approval
 
 
 @dataclass
@@ -63,7 +72,7 @@ class RunManager:
         return run_id in self.runs
 
     async def start(self, request: RunRequest) -> str:
-        root = workspace_root(request.workspace)
+        workspace = workspace_root(request.workspace)
         record = self.catalog.require(request.model)
         model = (
             DemoModel(delay=self.demo_delay)
@@ -71,18 +80,37 @@ class RunManager:
             else chat_model(record, self.catalog.keys[request.model])
         )
         run_id = uuid4().hex
-        path = storage_path(root, f"runs/{run_id}/events.jsonl")
-        checkpoint = storage_path(root, "checkpoints.sqlite")
+        # History and checkpoints stay in the selected workspace even when the agent
+        # works in a worktree, so one task list and one replay log cover both.
+        root = workspace
+        worktree: Path | None = None
+        if request.worktree:
+            if not request.worktree_approved:
+                raise WorktreeApprovalRequired(
+                    ApprovalRequest(
+                        approval_id=f"worktree:{run_id}",
+                        run_id=run_id,
+                        kind="command",
+                        tool="worktree_create",
+                        path=f".harness/worktrees/{run_id}",
+                        reason="creating a worktree writes engine storage and adds a branch",
+                    )
+                )
+            worktree = add_worktree(workspace, run_id)
+            root = worktree
+        path = storage_path(workspace, f"runs/{run_id}/events.jsonl")
+        checkpoint = storage_path(workspace, "checkpoints.sqlite")
         bus = EventBus(path, run_id, self.redactor)
         safe_task = self.redactor.text(request.task)
         await bus.emit("run.started", task=safe_task, model=request.model)
-        select_workspace(self.catalog, str(root))
+        select_workspace(self.catalog, str(workspace))
         task_record = TaskRecord(
             id=run_id,
-            workspace=str(root),
+            workspace=str(workspace),
             title=safe_task[:240],
             model=request.model,
             mode=request.mode,
+            worktree=str(worktree) if worktree else None,
         )
         add_task(self.catalog, task_record)
 
@@ -103,7 +131,10 @@ class RunManager:
                         self.redactor,
                         permissions=PermissionMiddleware(rules, run_id=run_id),
                         snapshots=SnapshotStore(root, run_id=run_id),
-                        extra_tools=[build_run_command(runner)],
+                        extra_tools=[
+                            build_run_command(runner),
+                            build_git_switch(root),
+                        ],
                     )
                     config: RunnableConfig = {
                         "configurable": {"thread_id": run_id},
