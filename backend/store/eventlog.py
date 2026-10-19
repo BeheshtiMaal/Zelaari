@@ -16,8 +16,11 @@ class EventBus:
         self.redactor = redactor
         path.parent.mkdir(parents=True, exist_ok=True)
         self.history: list[Event] = []
+        if path.exists():
+            for line in path.read_text(encoding="utf-8").splitlines():
+                self.history.append(event_adapter.validate_json(line))
         self.changed = asyncio.Condition()
-        self.finished = False
+        self.finished = bool(self.history and self.history[-1].type == "run.finished")
 
     async def emit(self, kind: str, **payload: Any) -> None:
         async with self.changed:

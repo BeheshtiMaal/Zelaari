@@ -49,10 +49,17 @@ def test_sqlite_interrupt_id_batch_mapping_and_reconstruction(tmp_path: Path) ->
             restored = await graph.aget_state(config)
             assert restored.interrupts[0].id == identity
             result = await graph.ainvoke(
-                Command(resume={identity: {"answers": {
-                    "second": {"approval_id": "second", "decision": "reject"},
-                    "first": {"approval_id": "first", "decision": "approve"},
-                }}}), config,
+                Command(
+                    resume={
+                        identity: {
+                            "answers": {
+                                "second": {"approval_id": "second", "decision": "reject"},
+                                "first": {"approval_id": "first", "decision": "approve"},
+                            }
+                        }
+                    }
+                ),
+                config,
             )
             assert result["decisions"] == {"second": "reject", "first": "approve"}
             assert not (await graph.aget_state(config)).next

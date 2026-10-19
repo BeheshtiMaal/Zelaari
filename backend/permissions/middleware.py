@@ -25,7 +25,13 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command, interrupt
 
 from permissions.rules import COMMAND_TOOLS, DELETE_TOOLS, READ_TOOLS, WRITE_TOOLS, RulesEngine
-from permissions.types import ApprovalAnswer, ApprovalRequest, PermissionOutcome
+from permissions.types import (
+    ApprovalAnswer,
+    ApprovalBatch,
+    ApprovalBatchAnswer,
+    ApprovalRequest,
+    PermissionOutcome,
+)
 from tools.jail import JailError, jail_message, resolve_virtual
 
 PATH_KEYS = ("file_path", "path", "target_path", "source_path", "destination_path")
@@ -91,6 +97,8 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             tool=call["name"],
             path=path,
             command=command,
+            args=call.get("args") or {},
+            workspace=str(self.rules.root),
             risk=outcome.risk,
             reason=(
                 f"{outcome.reason}. Requested timeout: {timeout:g}s"
@@ -129,12 +137,38 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             return None
 
         outcomes: dict[str, dict[str, Any]] = {}
+        pending = [
+            self.approval(call, self.decide(call))
+            for call in last.tool_calls
+            if self.decide(call).action == "ask"
+        ]
+        answers: dict[str, ApprovalAnswer] = {}
+        if len(pending) > 1:
+            response = ApprovalBatchAnswer.model_validate(
+                interrupt(ApprovalBatch(approvals=pending).model_dump(mode="json"))
+            )
+            if set(response.answers) != {item.approval_id for item in pending}:
+                raise ValueError("Approval batch does not match pending calls")
+            answers = response.answers
         for call in last.tool_calls:
             outcome = self.decide(call)
             if outcome.action == "ask":
                 # One interrupt per call, so the modal never has to present a batch and
                 # an answer always names exactly one approval id.
-                outcome = self._ask(call, outcome)
+                if answers:
+                    answer = answers[call_key(call)]
+                    if answer.approval_id != call_key(call):
+                        outcome = PermissionOutcome(action="deny", reason="approval mismatch")
+                    else:
+                        outcome = PermissionOutcome(
+                            action="allow" if answer.decision == "approve" else "deny",
+                            reason="approved by the user"
+                            if answer.decision == "approve"
+                            else f"rejected by the user: {answer.reason or ''}",
+                            risk=outcome.risk,
+                        )
+                else:
+                    outcome = self._ask(call, outcome)
             outcomes[call_key(call)] = {
                 "action": outcome.action,
                 "reason": outcome.reason,

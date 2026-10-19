@@ -19,7 +19,9 @@ from permissions.middleware import PermissionMiddleware
 from permissions.rules import RulesEngine
 from permissions.types import (
     ApprovalAnswer,
+    ApprovalBatch,
     ApprovalDecision,
+    ApprovalRecord,
     ApprovalRequest,
     UnknownApproval,
 )
@@ -27,6 +29,7 @@ from providers.adapters import chat_model
 from providers.base import TaskRecord
 from providers.context import detect_context
 from providers.demo import DemoModel
+from store.approvals import ApprovalLedger
 from store.catalog import Catalog
 from store.eventlog import EventBus
 from store.secrets import Redactor, StreamRedactor
@@ -52,6 +55,10 @@ class Run:
     ready: asyncio.Event = field(default_factory=asyncio.Event)
     pending: ApprovalRequest | None = None
     answer: ApprovalAnswer | None = None
+    ledger: ApprovalLedger | None = None
+    barrier: list[str] = field(default_factory=list)
+    interrupt_id: str = ""
+    preserving: bool = False
 
 
 class RunManager:
@@ -73,13 +80,21 @@ class RunManager:
 
     def pending_paths(self) -> set[str]:
         """Paths a paused run is waiting on, so the file viewer can badge them."""
-        return {
+        paths = {
             run.pending.path.replace("\\", "/")
             for run in self.runs.values()
             if run.pending is not None and run.pending.path
         }
+        for run in self.runs.values():
+            if run.ledger:
+                paths.update(
+                    record.request.path.replace("\\", "/")
+                    for record in run.ledger.records.values()
+                    if record.status == "pending" and record.request.path
+                )
+        return paths
 
-    async def start(self, request: RunRequest) -> str:
+    async def start(self, request: RunRequest, *, restore_id: str | None = None) -> str:
         workspace = workspace_root(request.workspace)
         record = self.catalog.require(request.model)
         model = (
@@ -87,12 +102,12 @@ class RunManager:
             if record.kind == "demo"
             else chat_model(record, self.catalog.keys[request.model])
         )
-        run_id = uuid4().hex
+        run_id = restore_id or uuid4().hex
         # History and checkpoints stay in the selected workspace even when the agent
         # works in a worktree, so one task list and one replay log cover both.
         root = workspace
         worktree: Path | None = None
-        if request.worktree:
+        if request.worktree and not restore_id:
             if not request.worktree_approved:
                 raise WorktreeApprovalRequired(
                     ApprovalRequest(
@@ -109,8 +124,16 @@ class RunManager:
         path = storage_path(workspace, f"runs/{run_id}/events.jsonl")
         checkpoint = storage_path(workspace, "checkpoints.sqlite")
         bus = EventBus(path, run_id, self.redactor)
+        ledger = ApprovalLedger(storage_path(workspace, f"runs/{run_id}/approvals.json"))
         safe_task = self.redactor.text(request.task)
-        await bus.emit("run.started", task=safe_task, model=request.model)
+        if not restore_id:
+            from tools.atomic import atomic_write
+
+            atomic_write(
+                storage_path(workspace, f"runs/{run_id}/request.json"),
+                request.model_copy(update={"task": safe_task}).model_dump_json(),
+            )
+            await bus.emit("run.started", task=safe_task, model=request.model)
         select_workspace(self.catalog, str(workspace))
         task_record = TaskRecord(
             id=run_id,
@@ -120,7 +143,14 @@ class RunManager:
             mode=request.mode,
             worktree=str(worktree) if worktree else None,
         )
-        add_task(self.catalog, task_record)
+        if not restore_id:
+            add_task(self.catalog, task_record)
+        else:
+            task_record = next(
+                item for item in self.catalog.data.workspaces.tasks if item.id == run_id
+            )
+            if task_record.worktree:
+                root = workspace_root(task_record.worktree)
 
         async def execute() -> None:
             run = self.runs[run_id]
@@ -149,6 +179,13 @@ class RunManager:
                         "recursion_limit": 24,
                     }
                     payload: Any = {"messages": [{"role": "user", "content": safe_task}]}
+                    if restore_id:
+                        snapshot = await graph.aget_state(config)
+                        if snapshot.interrupts:
+                            await self._announce(run, snapshot.interrupts)
+                            payload = Command(resume=await self._resume(run))
+                        else:
+                            payload = None
                     while True:
                         async for namespace, mode, update in cast(
                             AsyncIterator[tuple[tuple[str, ...], str, Any]],
@@ -157,6 +194,7 @@ class RunManager:
                                 config,
                                 stream_mode=["messages", "updates"],
                                 subgraphs=True,
+                                durability="sync",
                             ),
                         ):
                             if namespace:
@@ -181,7 +219,6 @@ class RunManager:
                                             await bus.emit(kind, message_id=identifier, text=text)
                             elif mode == "updates":
                                 if "__interrupt__" in update:
-                                    await self._announce(run, update["__interrupt__"])
                                     continue
                                 for change in update.values():
                                     if not isinstance(change, dict):
@@ -235,13 +272,12 @@ class RunManager:
                         snapshot = await graph.aget_state(config)
                         if not snapshot.next:
                             break
-                        answer = await self._answer(run)
-                        if answer is None:
-                            break
-                        payload = Command(resume=answer.model_dump(mode="json"))
+                        await self._announce(run, snapshot.interrupts)
+                        payload = Command(resume=await self._resume(run))
                 await bus.emit("run.finished", status="completed")
             except asyncio.CancelledError:
-                await bus.emit("run.finished", status="stopped")
+                if not run.preserving:
+                    await bus.emit("run.finished", status="stopped")
             except Exception as error:
                 if record.kind != "demo" and record.context.source == "fallback":
                     context = detect_context(record.model, error=str(error))
@@ -266,8 +302,41 @@ class RunManager:
                     task_record.status = final.status
                 self.catalog.persist()
 
-        self.runs[run_id] = Run(bus, asyncio.create_task(execute()))
+        self.runs[run_id] = Run(bus, asyncio.create_task(execute()), ledger=ledger)
         return run_id
+
+    async def recover(self) -> None:
+        for item in self.catalog.data.workspaces.tasks:
+            if item.id in self.runs:
+                continue
+            try:
+                path = storage_path(workspace_root(item.workspace), f"runs/{item.id}/request.json")
+                if not path.exists():
+                    continue
+                request = RunRequest.model_validate_json(path.read_bytes())
+                bus = EventBus(path.with_name("events.jsonl"), item.id, self.redactor)
+                if bus.finished:
+                    continue
+                await self.start(request, restore_id=item.id)
+            except (OSError, ValueError):
+                # Keep durable records available while credentials/workspace are unavailable.
+                continue
+
+    def approvals(self, status: str | None = None) -> list[ApprovalRecord]:
+        result: list[ApprovalRecord] = []
+        for task in self.catalog.data.workspaces.tasks:
+            try:
+                ledger = ApprovalLedger(
+                    storage_path(workspace_root(task.workspace), f"runs/{task.id}/approvals.json")
+                )
+                result.extend(
+                    record
+                    for record in ledger.records.values()
+                    if status is None or record.status == status
+                )
+            except (OSError, ValueError):
+                continue
+        return result
 
     # -- approvals ---------------------------------------------------------
     async def _announce(self, run: Run, interrupts: Any) -> None:
@@ -276,9 +345,65 @@ class RunManager:
             value = getattr(item, "value", None)
             if not isinstance(value, dict):
                 continue
-            request = ApprovalRequest.model_validate(value)
-            run.pending = request
-            await run.bus.emit("approval.requested", approval=request)
+            requests = (
+                ApprovalBatch.model_validate(value).approvals
+                if "approvals" in value
+                else [ApprovalRequest.model_validate(value)]
+            )
+            run.interrupt_id = str(item.id)
+            run.barrier = [request.approval_id for request in requests]
+            for request in requests:
+                task = next(
+                    (
+                        task
+                        for task in self.catalog.data.workspaces.tasks
+                        if task.id == request.run_id
+                    ),
+                    None,
+                )
+                if task:
+                    request.source_title = task.title
+                if run.ledger:
+                    record = run.ledger.announce(request, run.interrupt_id)
+                    if record.status != "pending":
+                        if record.answer and not any(
+                            event.type == "approval.resolved"
+                            and event.approval_id == request.approval_id
+                            for event in run.bus.history
+                        ):
+                            await run.bus.emit(
+                                "approval.resolved",
+                                approval_id=request.approval_id,
+                                decision=record.answer.decision,
+                                reason=record.answer.reason,
+                            )
+                        continue
+                run.pending = request
+                if not any(
+                    event.type == "approval.requested"
+                    and event.approval.approval_id == request.approval_id
+                    for event in run.bus.history
+                ):
+                    await run.bus.emit("approval.requested", approval=request)
+
+    async def _resume(self, run: Run) -> dict[str, Any]:
+        if run.ledger is None:
+            answer = await self._answer(run)
+            return answer.model_dump(mode="json") if answer else {}
+        while any(run.ledger.records[key].answer is None for key in run.barrier):
+            await run.ready.wait()
+            run.ready.clear()
+        answers = {key: run.ledger.records[key].answer for key in run.barrier}
+        value: Any = (
+            {
+                "answers": {
+                    key: answer.model_dump(mode="json") for key, answer in answers.items() if answer
+                }
+            }
+            if len(answers) > 1
+            else next(answer.model_dump(mode="json") for answer in answers.values() if answer)
+        )
+        return {run.interrupt_id: value}
 
     async def _answer(self, run: Run) -> ApprovalAnswer | None:
         """Block until the person decides. Returns None if the run was stopped first."""
@@ -290,6 +415,22 @@ class RunManager:
 
     async def resolve(self, run_id: str, approval_id: str, decision: ApprovalDecision) -> None:
         run = self.runs[run_id]
+        if run.ledger:
+            if run.bus.finished or approval_id not in run.barrier:
+                raise UnknownApproval(approval_id)
+            answer = ApprovalAnswer(approval_id=approval_id, **decision.model_dump())
+            answer = ApprovalAnswer.model_validate(
+                self.redactor.value(answer.model_dump(mode="json"))
+            )
+            run.ledger.answer(answer)
+            await run.bus.emit(
+                "approval.resolved",
+                approval_id=approval_id,
+                decision=answer.decision,
+                reason=answer.reason,
+            )
+            run.ready.set()
+            return
         pending = run.pending
         if pending is None or pending.approval_id != approval_id or run.answer is not None:
             raise UnknownApproval(approval_id)
@@ -310,6 +451,8 @@ class RunManager:
     async def stop(self, run_id: str) -> None:
         run = self.runs[run_id]
         if not run.bus.finished:
+            if run.ledger:
+                run.ledger.cancel()
             run.task.cancel()
             # Report cancellation before SQLite/HTTP cleanup. Terminal buses reject
             # late events, so cleanup cannot append results or another finish.
@@ -319,6 +462,7 @@ class RunManager:
         return self.runs[run_id].bus.events(after)
 
     async def close(self) -> None:
-        for run_id in self.runs:
-            await self.stop(run_id)
+        for run in self.runs.values():
+            run.preserving = True
+            run.task.cancel()
         await asyncio.gather(*(run.task for run in self.runs.values()), return_exceptions=True)

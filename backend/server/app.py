@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from agent.events import Event, HealthResponse, RunRequest, RunResponse
-from permissions.types import ApprovalDecision, UnknownApproval
+from permissions.types import ApprovalDecision, ApprovalRecord, UnknownApproval
 from server.files import file_routes
 from server.git import git_routes
 from server.models import model_routes
@@ -25,6 +25,8 @@ from store.secrets import Redactor
 
 
 class RunService(Protocol):
+    async def recover(self) -> None: ...
+    def approvals(self, status: str | None = None) -> list[ApprovalRecord]: ...
     async def start(self, request: RunRequest) -> str: ...
     async def stop(self, run_id: str) -> None: ...
     async def resolve(self, run_id: str, approval_id: str, decision: ApprovalDecision) -> None: ...
@@ -92,6 +94,12 @@ def create_app(
     @app.get("/health")
     def health() -> HealthResponse:
         return HealthResponse()
+
+    @app.get("/approvals")
+    async def approvals(status: str | None = None) -> list[ApprovalRecord]:
+        manager = runs()
+        await manager.recover()
+        return manager.approvals(status)
 
     @app.post("/runs", status_code=201)
     async def create_run(request: RunRequest) -> JSONResponse:
