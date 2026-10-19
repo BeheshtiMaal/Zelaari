@@ -1,8 +1,9 @@
 """Permission and approval contracts. Leaf module: imports nothing from the engine."""
 
+from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
 Mode = Literal["read-only", "ask", "auto"]
 """Conversation ceiling.
@@ -64,14 +65,26 @@ class ApprovalRequest(PermissionModel):
     command: str | None = None
     risk: RiskAssessment = Field(default_factory=RiskAssessment)
     reason: str = ""
+    args: dict[str, JsonValue] = Field(default_factory=dict)
+    workspace: str = ""
+    source_title: str = ""
+    source_kind: Literal["task", "schedule", "configuration"] = "task"
+    agent_reason: str | None = None
+    policy_code: str = "permission_required"
+    diff: str = ""
+    revision: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ApprovalDecision(PermissionModel):
     decision: Literal["approve", "reject"]
     reason: str | None = Field(default=None, max_length=2000)
+    edited_args: dict[str, JsonValue] | None = None
+    allow_glob: str | None = Field(default=None, max_length=512)
+    revision: str | None = None
 
 
-class ApprovalAnswer(PermissionModel):
+class ApprovalAnswer(ApprovalDecision):
     """The resume value for one interrupt.
 
     `approval_id` is carried so a resumed run cannot apply a decision to the wrong
@@ -79,8 +92,31 @@ class ApprovalAnswer(PermissionModel):
     """
 
     approval_id: str
-    decision: Literal["approve", "reject"]
-    reason: str | None = Field(default=None, max_length=2000)
+
+
+class ApprovalBatch(PermissionModel):
+    """One graph barrier containing independent, identity-bound human decisions."""
+
+    approvals: list[ApprovalRequest]
+
+
+class ApprovalBatchAnswer(PermissionModel):
+    answers: dict[str, ApprovalAnswer]
+
+
+class ApprovalRecord(PermissionModel):
+    request: ApprovalRequest
+    interrupt_id: str
+    status: Literal["pending", "approved", "rejected", "cancelled"] = "pending"
+    answer: ApprovalAnswer | None = None
+    resolved_at: datetime | None = None
+
+
+class CommandJournalEntry(PermissionModel):
+    call_id: str
+    args_digest: str
+    status: Literal["intent", "completed", "interrupted"] = "intent"
+    result: str | None = None
 
 
 class PermissionOutcome(PermissionModel):

@@ -63,6 +63,14 @@ export type Command = string | null;
 export type Level = "low" | "high";
 export type Reasons = string[];
 export type Reason = string;
+export type Workspace = string;
+export type SourceTitle = string;
+export type SourceKind = "task" | "schedule" | "configuration";
+export type AgentReason = string | null;
+export type PolicyCode = string;
+export type Diff = string;
+export type Revision = string | null;
+export type CreatedAt = string;
 export type RunId8 = string;
 export type Seq7 = number;
 export type Ts7 = string;
@@ -94,7 +102,7 @@ export type Type10 =
   | "ui.render"
   | "test.result";
 export type Task1 = string;
-export type Workspace = string;
+export type Workspace1 = string;
 export type Model1 = string;
 export type Mode = "read-only" | "ask" | "auto";
 export type Worktree = boolean;
@@ -127,10 +135,10 @@ export type Url = string | null;
 export type Path1 = string;
 export type Name4 = string;
 export type Branch = string | null;
-export type Recent = Workspace1[];
+export type Recent = Workspace2[];
 export type Selected = string | null;
 export type Id2 = string;
-export type Workspace2 = string;
+export type Workspace3 = string;
 export type Title = string;
 export type Model4 = string;
 export type Mode1 = "read-only" | "ask" | "auto";
@@ -139,6 +147,22 @@ export type Worktree1 = string | null;
 export type Tasks = TaskRecord[];
 export type Decision1 = "approve" | "reject";
 export type Reason2 = string | null;
+export type EditedArgs = {
+  [k: string]: JsonValue;
+} | null;
+export type AllowGlob = string | null;
+export type Revision1 = string | null;
+export type InterruptId = string;
+export type Status4 = "pending" | "approved" | "rejected" | "cancelled";
+export type Decision2 = "approve" | "reject";
+export type Reason3 = string | null;
+export type EditedArgs1 = {
+  [k: string]: JsonValue;
+} | null;
+export type AllowGlob1 = string | null;
+export type Revision2 = string | null;
+export type ApprovalId2 = string;
+export type ResolvedAt = string | null;
 export type Command1 = string;
 export type Shell = "powershell" | "cmd";
 export type ExitCode = number | null;
@@ -175,7 +199,7 @@ export type RunId13 = string | null;
 export type CallId2 = string | null;
 export type Bytes = number;
 export type Tool1 = string;
-export type Workspace3 = string;
+export type Workspace4 = string;
 export type Branch1 = string;
 export type Approved = boolean;
 export type Mode2 = ("read-only" | "ask" | "auto") | null;
@@ -202,6 +226,7 @@ export interface Protocol {
   workspaces: WorkspaceState;
   approval_request: ApprovalRequest;
   approval_decision: ApprovalDecision;
+  approval_record: ApprovalRecord;
   command_result: CommandResult;
   file_listing: FileListing;
   revert_result: RevertResult;
@@ -288,10 +313,22 @@ export interface ApprovalRequest {
   command?: Command;
   risk?: RiskAssessment;
   reason?: Reason;
+  args?: Args1;
+  workspace?: Workspace;
+  source_title?: SourceTitle;
+  source_kind?: SourceKind;
+  agent_reason?: AgentReason;
+  policy_code?: PolicyCode;
+  diff?: Diff;
+  revision?: Revision;
+  created_at?: CreatedAt;
 }
 export interface RiskAssessment {
   level?: Level;
   reasons?: Reasons;
+}
+export interface Args1 {
+  [k: string]: JsonValue;
 }
 export interface ApprovalResolved {
   run_id: RunId8;
@@ -331,7 +368,7 @@ export interface Data {
 }
 export interface RunRequest {
   task: Task1;
-  workspace: Workspace;
+  workspace: Workspace1;
   model?: Model1;
   mode?: Mode;
   worktree?: Worktree;
@@ -385,14 +422,14 @@ export interface WorkspaceState {
   selected?: Selected;
   tasks?: Tasks;
 }
-export interface Workspace1 {
+export interface Workspace2 {
   path: Path1;
   name: Name4;
   branch?: Branch;
 }
 export interface TaskRecord {
   id: Id2;
-  workspace: Workspace2;
+  workspace: Workspace3;
   title: Title;
   model: Model4;
   mode?: Mode1;
@@ -402,6 +439,30 @@ export interface TaskRecord {
 export interface ApprovalDecision {
   decision: Decision1;
   reason?: Reason2;
+  edited_args?: EditedArgs;
+  allow_glob?: AllowGlob;
+  revision?: Revision1;
+}
+export interface ApprovalRecord {
+  request: ApprovalRequest;
+  interrupt_id: InterruptId;
+  status?: Status4;
+  answer?: ApprovalAnswer | null;
+  resolved_at?: ResolvedAt;
+}
+/**
+ * The resume value for one interrupt.
+ *
+ * `approval_id` is carried so a resumed run cannot apply a decision to the wrong
+ * call if a turn ever holds more than one pending approval.
+ */
+export interface ApprovalAnswer {
+  decision: Decision2;
+  reason?: Reason3;
+  edited_args?: EditedArgs1;
+  allow_glob?: AllowGlob1;
+  revision?: Revision2;
+  approval_id: ApprovalId2;
 }
 /**
  * What `run_command` returns to the model and what the timeout card reads.
@@ -459,7 +520,7 @@ export interface SnapshotEntry {
   tool?: Tool1;
 }
 export interface BranchSwitch {
-  workspace: Workspace3;
+  workspace: Workspace4;
   branch: Branch1;
   approved?: Approved;
   mode?: Mode2;
