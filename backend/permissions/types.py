@@ -110,6 +110,8 @@ class ApprovalRecord(PermissionModel):
     status: Literal["pending", "approved", "rejected", "cancelled"] = "pending"
     answer: ApprovalAnswer | None = None
     resolved_at: datetime | None = None
+    execution_status: Literal["not_started", "running", "completed", "interrupted"] = "not_started"
+    result: str | None = None
 
 
 class CommandJournalEntry(PermissionModel):
@@ -125,3 +127,5 @@ class PermissionOutcome(PermissionModel):
     action: Action
     reason: str = ""
     risk: RiskAssessment = Field(default_factory=RiskAssessment)
+    edited_args: dict[str, JsonValue] | None = None
+    revision: str | None = None

@@ -16,6 +16,7 @@ from agent.events import Event, RunRequest
 from agent.factory import build_agent
 from agent.meter import TokenMeter, content_parts
 from permissions.middleware import PermissionMiddleware
+from permissions.review import prepare_review
 from permissions.rules import RulesEngine
 from permissions.types import (
     ApprovalAnswer,
@@ -23,19 +24,21 @@ from permissions.types import (
     ApprovalDecision,
     ApprovalRecord,
     ApprovalRequest,
+    Rule,
     UnknownApproval,
 )
 from providers.adapters import chat_model
 from providers.base import TaskRecord
 from providers.context import detect_context
 from providers.demo import DemoModel
+from store.actions import ActionApprovals
 from store.approvals import ApprovalLedger
 from store.catalog import Catalog
 from store.eventlog import EventBus
 from store.secrets import Redactor, StreamRedactor
 from store.workspaces import add_task, select_workspace
 from tools.command import CommandRunner, build_run_command
-from tools.git import add_worktree, build_git_switch
+from tools.git import add_worktree, build_git_switch, repository
 from tools.jail import storage_path, workspace_root
 from tools.snapshot import SnapshotStore
 
@@ -74,9 +77,12 @@ class RunManager:
         self.demo_delay = demo_delay
         self.catalog = catalog or Catalog(redactor=self.redactor)
         self.redactor = self.catalog.redactor
+        self.actions = ActionApprovals(self.catalog)
 
     def contains(self, run_id: str) -> bool:
-        return run_id in self.runs
+        return run_id in self.runs or any(
+            record.request.run_id == run_id for record in self.actions.records()
+        )
 
     def pending_paths(self) -> set[str]:
         """Paths a paused run is waiting on, so the file viewer can badge them."""
@@ -94,7 +100,9 @@ class RunManager:
                 )
         return paths
 
-    async def start(self, request: RunRequest, *, restore_id: str | None = None) -> str:
+    async def start(
+        self, request: RunRequest, *, restore_id: str | None = None, worktree_consent: bool = False
+    ) -> str:
         workspace = workspace_root(request.workspace)
         record = self.catalog.require(request.model)
         model = (
@@ -108,16 +116,27 @@ class RunManager:
         root = workspace
         worktree: Path | None = None
         if request.worktree and not restore_id:
-            if not request.worktree_approved:
+            if not repository(workspace):
+                raise ValueError("Worktrees require a Git repository")
+            outcome = RulesEngine.load(workspace, request.mode).decide("worktree_create")
+            if outcome.action == "deny":
+                raise ValueError("Current permissions deny worktree creation")
+            if not worktree_consent:
                 raise WorktreeApprovalRequired(
-                    ApprovalRequest(
-                        approval_id=f"worktree:{run_id}",
-                        run_id=run_id,
-                        kind="command",
-                        tool="worktree_create",
-                        path=f".harness/worktrees/{run_id}",
-                        reason="creating a worktree writes engine storage and adds a branch",
-                    )
+                    self.actions.propose(
+                        workspace,
+                        ApprovalRequest(
+                            approval_id=f"worktree:{run_id}",
+                            run_id=run_id,
+                            kind="command",
+                            tool="worktree_create",
+                            path=f".harness/worktrees/{run_id}",
+                            reason="creating a worktree writes engine storage and adds a branch",
+                            workspace=str(workspace),
+                            args=request.model_dump(mode="json"),
+                            source_title=self.redactor.text(request.task)[:240],
+                        ),
+                    ).request
                 )
             worktree = add_worktree(workspace, run_id)
             root = worktree
@@ -167,7 +186,9 @@ class RunManager:
                         model,
                         saver,
                         self.redactor,
-                        permissions=PermissionMiddleware(rules, run_id=run_id),
+                        permissions=PermissionMiddleware(
+                            rules, run_id=run_id, redactor=self.redactor
+                        ),
                         snapshots=SnapshotStore(root, run_id=run_id),
                         extra_tools=[
                             build_run_command(runner),
@@ -323,7 +344,9 @@ class RunManager:
                 continue
 
     def approvals(self, status: str | None = None) -> list[ApprovalRecord]:
-        result: list[ApprovalRecord] = []
+        result: list[ApprovalRecord] = [
+            record for record in self.actions.records() if status is None or record.status == status
+        ]
         for task in self.catalog.data.workspaces.tasks:
             try:
                 ledger = ApprovalLedger(
@@ -414,14 +437,64 @@ class RunManager:
         return answer
 
     async def resolve(self, run_id: str, approval_id: str, decision: ApprovalDecision) -> None:
+        if run_id not in self.runs:
+            ledger, record = self.actions.find(run_id, approval_id)
+            self.actions.resolve(run_id, approval_id, decision)
+            if record.request.tool == "run_command" and decision.decision == "approve":
+                ledger, record = self.actions.find(run_id, approval_id)
+                record.execution_status = "running"
+                ledger.save()
+                runner = CommandRunner(
+                    Path(record.request.workspace), self.redactor, secrets=self.redactor.values
+                )
+                result = await asyncio.to_thread(
+                    runner.run,
+                    str(record.request.command),
+                    timeout=float(str(record.request.args.get("timeout") or 120)),
+                )
+                record.execution_status = "completed"
+                record.result = self.redactor.text(result.model_dump_json())
+                ledger.save()
+            if record.request.tool == "worktree_create" and decision.decision == "approve":
+                await self.start(
+                    RunRequest.model_validate(record.request.args), worktree_consent=True
+                )
+            return
         run = self.runs[run_id]
         if run.ledger:
             if run.bus.finished or approval_id not in run.barrier:
                 raise UnknownApproval(approval_id)
+            record = run.ledger.records[approval_id]
+            if decision.decision == "approve":
+                review = prepare_review(Path(record.request.workspace), record.request)
+                if decision.edited_args is not None and decision.edited_args != record.request.args:
+                    raise UnknownApproval("Preview edited arguments before approval")
+                if review.revision != record.request.revision:
+                    raise UnknownApproval("Contents changed; refresh review")
+                if decision.revision and decision.revision != review.revision:
+                    raise UnknownApproval("Review was replaced; refresh before deciding")
+                decision = decision.model_copy(
+                    update={
+                        "revision": review.revision,
+                        "edited_args": record.request.args,
+                    }
+                )
             answer = ApprovalAnswer(approval_id=approval_id, **decision.model_dump())
             answer = ApprovalAnswer.model_validate(
                 self.redactor.value(answer.model_dump(mode="json"))
             )
+            if answer.decision == "approve" and decision.allow_glob:
+                request = record.request
+                if request.tool not in {"write_file", "edit_file"} or not request.path:
+                    raise ValueError("This action cannot create an allow rule")
+                expected = str(Path(request.path).parent).replace("\\", "/") + "/**"
+                if decision.allow_glob != expected or request.path.startswith(".harness/"):
+                    raise ValueError("Allow rule must match the reviewed source folder")
+                rules = RulesEngine.load(Path(request.workspace)).rules.model_copy(deep=True)
+                rules.tools.setdefault(request.tool, []).insert(
+                    0, Rule(glob=decision.allow_glob, action="allow")
+                )
+                self.actions.propose_rules(Path(request.workspace), rules)
             run.ledger.answer(answer)
             await run.bus.emit(
                 "approval.resolved",
@@ -447,6 +520,83 @@ class RunManager:
             reason=decision.reason,
         )
         run.ready.set()
+
+    def retry_command(self, run_id: str, call_id: str, timeout: float) -> ApprovalRecord:
+        task = next(
+            (item for item in self.catalog.data.workspaces.tasks if item.id == run_id), None
+        )
+        if task is None or not 1 <= timeout <= 600:
+            raise ValueError("Unknown call or invalid timeout")
+        root = workspace_root(task.worktree or task.workspace)
+        log = EventBus(
+            storage_path(workspace_root(task.workspace), f"runs/{run_id}/events.jsonl"),
+            run_id,
+            self.redactor,
+        )
+        call = next(
+            (
+                event
+                for event in log.history
+                if event.type == "tool.call"
+                and event.call_id == call_id
+                and event.name == "run_command"
+            ),
+            None,
+        )
+        if call is None or call.type != "tool.call":
+            raise ValueError("Only a recorded command can be retried")
+        command = str(call.args.get("command", ""))
+        outcome = RulesEngine.load(root, task.mode).decide(
+            "run_command", command=command, timeout=timeout
+        )
+        if outcome.action == "deny":
+            raise ValueError("Current rules deny retry")
+        return self.actions.propose(
+            root,
+            ApprovalRequest(
+                approval_id="",
+                run_id="",
+                kind="command",
+                tool="run_command",
+                command=command,
+                workspace=str(root),
+                source_title=task.title,
+                reason=f"Explicit command retry. Requested timeout: {timeout:g}s",
+                risk=outcome.risk,
+                args={"command": command, "timeout": timeout, "mode": task.mode},
+            ),
+        )
+
+    def preview(self, run_id: str, approval_id: str, decision: ApprovalDecision) -> ApprovalRequest:
+        run = self.runs[run_id]
+        if run.ledger is None or approval_id not in run.ledger.records:
+            raise UnknownApproval(approval_id)
+        record = run.ledger.records[approval_id]
+        if record.status != "pending":
+            raise UnknownApproval(approval_id)
+        request = record.request
+        args = decision.edited_args if decision.edited_args is not None else request.args
+        from permissions.middleware import tool_target
+
+        path, command, timeout = tool_target(request.tool, args)
+        rules = RulesEngine.load(Path(request.workspace))
+        verdict = rules.decide(request.tool, path=path, command=command, timeout=timeout)
+        if verdict.action == "deny":
+            raise ValueError("Current permissions deny this input")
+        request = prepare_review(
+            Path(request.workspace),
+            request.model_copy(
+                update={
+                    "args": self.redactor.value(args),
+                    "path": path,
+                    "command": command,
+                    "risk": verdict.risk,
+                }
+            ),
+        )
+        record.request = request
+        run.ledger.save()
+        return request
 
     async def stop(self, run_id: str) -> None:
         run = self.runs[run_id]

@@ -10,6 +10,7 @@ from test_permissions import FINAL, ScriptedModel
 
 from agent.bridge import RunManager
 from agent.events import RunRequest
+from permissions.rules import RulesEngine
 from permissions.types import ApprovalDecision, UnknownApproval
 from store.catalog import Catalog
 
@@ -66,5 +67,75 @@ def test_pending_batch_partial_answer_restart_and_exactly_once(
         assert sum(event.type == "approval.requested" for event in history) == 2
         assert sum(event.type == "tool.result" for event in history) == 2
         await restarted.close()
+
+    asyncio.run(scenario())
+
+
+def test_edit_preview_revalidates_and_stages_allow_rule(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "src").mkdir()
+    model = ScriptedModel(
+        replies=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "write_file",
+                        "args": {"file_path": "src/a.txt", "content": "original"},
+                        "id": "one",
+                    }
+                ],
+            ),
+            FINAL,
+        ]
+    )
+    monkeypatch.setattr("agent.bridge.DemoModel", lambda **kwargs: model)
+
+    async def scenario() -> None:
+        manager = RunManager()
+        run_id = await manager.start(RunRequest(task="write", workspace=str(tmp_path)))
+        await wait_for(lambda: manager.approvals("pending"))
+        with pytest.raises(ValueError):
+            manager.preview(
+                run_id,
+                "one",
+                ApprovalDecision(
+                    decision="approve",
+                    edited_args={
+                        "file_path": "../escape.txt",
+                        "content": "bad",
+                    },
+                ),
+            )
+        edited = {"file_path": "src/a.txt", "content": "edited"}
+        preview = manager.preview(
+            run_id, "one", ApprovalDecision(decision="approve", edited_args=edited)
+        )
+        assert "+edited" in preview.diff
+        await manager.resolve(
+            run_id,
+            "one",
+            ApprovalDecision(
+                decision="approve",
+                edited_args=edited,
+                revision=preview.revision,
+                allow_glob="src/**",
+            ),
+        )
+        await wait_for(lambda: manager.runs[run_id].bus.finished)
+        assert (tmp_path / "src/a.txt").read_text() == "edited"
+        assert RulesEngine.load(tmp_path).rules.tools == {}
+        linked = next(
+            record
+            for record in manager.approvals("pending")
+            if record.request.tool == "rules_update"
+        )
+        await manager.resolve(
+            linked.request.run_id, linked.request.approval_id, ApprovalDecision(decision="approve")
+        )
+        assert RulesEngine.load(tmp_path).rules.tools["write_file"][0].glob == "src/**"
+        await manager.close()
 
     asyncio.run(scenario())

@@ -7,12 +7,13 @@ from fastapi.responses import JSONResponse
 
 from permissions.rules import RulesEngine
 from permissions.types import ApprovalRequest
+from store.actions import ActionApprovals
 from tools.git import list_branches, switch, validate_branch
 from tools.jail import workspace_root
 from tools.types import BranchList, BranchSwitch, BranchSwitchResult
 
 
-def git_routes() -> APIRouter:
+def git_routes(actions: ActionApprovals) -> APIRouter:
     router = APIRouter()
 
     @router.get("/workspaces/branches")
@@ -34,7 +35,7 @@ def git_routes() -> APIRouter:
         outcome = RulesEngine.load(root, value.mode).decide("git_switch", command=command)
         if outcome.action == "deny":
             raise HTTPException(403, outcome.reason)
-        if outcome.action == "ask" and not value.approved:
+        if outcome.action == "ask":
             approval = ApprovalRequest(
                 approval_id=uuid4().hex,
                 run_id="",
@@ -43,12 +44,15 @@ def git_routes() -> APIRouter:
                 command=command,
                 risk=outcome.risk,
                 reason=outcome.reason,
+                workspace=str(root),
+                args={"branch": branch, "mode": value.mode},
             )
+            approval = actions.propose(root, approval).request
             return JSONResponse(
                 status_code=409,
                 content={
                     "detail": "Branch switch needs approval",
-                    "approval": approval.model_dump(),
+                    "approval": approval.model_dump(mode="json"),
                 },
             )
 

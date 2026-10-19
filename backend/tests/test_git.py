@@ -181,13 +181,14 @@ def test_branch_route_switches_and_reports_errors(tmp_path: Path) -> None:
         assert ok.status_code == 409, ok.text
         assert ok.json()["approval"]["tool"] == "git_switch"
         assert branch_name(tmp_path) == "main"
+        approval = ok.json()["approval"]
         ok = client.post(
-            "/workspaces/branch",
+            f"/runs/{approval['run_id']}/interrupts/{approval['approval_id']}",
             headers=headers,
-            json={"workspace": str(tmp_path), "branch": "feature", "approved": True},
+            json={"decision": "approve"},
         )
         assert ok.status_code == 200, ok.text
-        assert ok.json()["branch"] == "feature"
+        assert branch_name(tmp_path) == "feature"
 
         bad = client.post(
             "/workspaces/branch",
@@ -289,9 +290,13 @@ def test_a_worktree_run_needs_approval_then_runs_in_the_worktree(tmp_path: Path)
         assert approval["kind"] == "command"
         assert list((tmp_path / ".harness" / "worktrees").glob("*")) == []
 
-        created = client.post("/runs", headers=headers, json={**body, "worktree_approved": True})
-        assert created.status_code == 201, created.text
-        run_id = created.json()["run_id"]
+        created = client.post(
+            f"/runs/{approval['run_id']}/interrupts/{approval['approval_id']}",
+            headers=headers,
+            json={"decision": "approve"},
+        )
+        assert created.status_code == 200, created.text
+        run_id = catalog.data.workspaces.tasks[-1].id
 
         worktree = tmp_path / ".harness" / "worktrees" / run_id
         assert worktree.is_dir()

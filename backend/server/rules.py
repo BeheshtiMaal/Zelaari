@@ -11,7 +11,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from permissions.rules import DEFAULTS, RulesEngine
-from permissions.types import RulesFile
+from permissions.types import ApprovalRecord, RulesFile
+from store.actions import ActionApprovals
 from tools.jail import JailError, workspace_root
 from tools.types import RulesResponse
 
@@ -35,7 +36,7 @@ def _root(value: str) -> Path:
         raise HTTPException(400, "Select an accessible workspace") from None
 
 
-def rules_routes() -> APIRouter:
+def rules_routes(actions: ActionApprovals) -> APIRouter:
     router = APIRouter()
 
     @router.get("/rules")
@@ -43,14 +44,12 @@ def rules_routes() -> APIRouter:
         """The effective grid. A malformed file still answers, with `mode` asked."""
         return _response(RulesEngine.load(_root(workspace)))
 
-    @router.put("/rules")
-    def write_rules(workspace: str, value: RulesFile) -> RulesResponse:
+    @router.put("/rules", status_code=202)
+    def write_rules(workspace: str, value: RulesFile) -> ApprovalRecord:
         root = _root(workspace)
-        engine = RulesEngine.load(root)
         try:
-            engine.save(value)
+            return actions.propose_rules(root, value)
         except (OSError, ValueError) as error:
             raise HTTPException(409, f"Could not write rules: {error}") from None
-        return _response(RulesEngine.load(root))
 
     return router

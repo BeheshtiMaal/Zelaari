@@ -16,14 +16,16 @@ classified, and the safe answer to "unclassified" is no.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Annotated, Any, NotRequired
+from typing import Annotated, Any, NotRequired, cast
 
 from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.types import AgentState, PrivateStateAttr, ToolCallRequest
 from langchain_core.messages import AIMessage, ToolCall, ToolMessage
 from langgraph.runtime import Runtime
 from langgraph.types import Command, interrupt
+from pydantic import BaseModel, JsonValue
 
+from permissions.review import arguments_digest, prepare_review
 from permissions.rules import COMMAND_TOOLS, DELETE_TOOLS, READ_TOOLS, WRITE_TOOLS, RulesEngine
 from permissions.types import (
     ApprovalAnswer,
@@ -32,7 +34,9 @@ from permissions.types import (
     ApprovalRequest,
     PermissionOutcome,
 )
-from tools.jail import JailError, jail_message, resolve_virtual
+from store.effects import EffectJournal
+from store.secrets import Redactor
+from tools.jail import JailError, jail_message, resolve_virtual, storage_path
 
 PATH_KEYS = ("file_path", "path", "target_path", "source_path", "destination_path")
 """Argument names the filesystem tools use for the path they act on."""
@@ -78,10 +82,13 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
 
     state_schema = PermissionState
 
-    def __init__(self, rules: RulesEngine, *, run_id: str) -> None:
+    def __init__(
+        self, rules: RulesEngine, *, run_id: str, redactor: Redactor | None = None
+    ) -> None:
         super().__init__()
         self.rules = rules
         self.run_id = run_id
+        self.redactor = redactor or Redactor()
 
     # -- resolution --------------------------------------------------------
     def decide(self, call: ToolCall) -> PermissionOutcome:
@@ -90,7 +97,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
 
     def approval(self, call: ToolCall, outcome: PermissionOutcome) -> ApprovalRequest:
         path, command, timeout = tool_target(call["name"], call.get("args") or {})
-        return ApprovalRequest(
+        request = ApprovalRequest(
             approval_id=call_key(call),
             run_id=self.run_id,
             kind="command" if call["name"] in COMMAND_TOOLS else "tool",
@@ -106,6 +113,10 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 else outcome.reason
             ),
         )
+        try:
+            return prepare_review(self.rules.root, request)
+        except (ValueError, OSError):
+            return request
 
     def _ask(self, call: ToolCall, outcome: PermissionOutcome) -> PermissionOutcome:
         """Pause for one decision and fold the answer back into an outcome."""
@@ -119,7 +130,11 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             return PermissionOutcome(action="deny", reason="approval did not match this call")
         if answer.decision == "approve":
             return PermissionOutcome(
-                action="allow", reason="approved by the user", risk=outcome.risk
+                action="allow",
+                reason="approved by the user",
+                risk=outcome.risk,
+                edited_args=answer.edited_args,
+                revision=answer.revision or request.revision,
             )
         detail = f"rejected by the user: {answer.reason}"
         return PermissionOutcome(
@@ -166,6 +181,13 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                             if answer.decision == "approve"
                             else f"rejected by the user: {answer.reason or ''}",
                             risk=outcome.risk,
+                            edited_args=answer.edited_args,
+                            revision=answer.revision
+                            or next(
+                                item.revision
+                                for item in pending
+                                if item.approval_id == call_key(call)
+                            ),
                         )
                 else:
                     outcome = self._ask(call, outcome)
@@ -173,6 +195,8 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 "action": outcome.action,
                 "reason": outcome.reason,
                 "risk": outcome.risk.model_dump(),
+                "edited_args": outcome.edited_args,
+                "revision": outcome.revision,
             }
         return {"permission_outcomes": outcomes}
 
@@ -195,6 +219,9 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
         call = request.tool_call
         state = request.state if isinstance(request.state, dict) else {}
         recorded = (state.get("permission_outcomes") or {}).get(call_key(call))
+        if recorded and recorded.get("edited_args") is not None:
+            call = {**call, "args": recorded["edited_args"]}
+            request = request.override(tool_call=call)
         if recorded is None:
             # Unclassified: decide now and allow only an outright allow.
             outcome = self.decide(call)
@@ -215,7 +242,49 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                         tool_call_id=call_key(call),
                         name=call["name"],
                     )
-        return await handler(request)
+        effect = call["name"] in WRITE_TOOLS | DELETE_TOOLS | COMMAND_TOOLS
+        if (
+            request.tool is not None
+            and isinstance(request.tool.args_schema, type)
+            and issubclass(request.tool.args_schema, BaseModel)
+        ):
+            try:
+                request.tool.args_schema.model_validate(call["args"])
+            except ValueError:
+                return self.refusal(call, "Invalid tool arguments")
+        journal = EffectJournal(storage_path(self.rules.root, f"runs/{self.run_id}/effects.json"))
+        if effect:
+            previous = journal.read().get(call_key(call))
+            if previous:
+                return ToolMessage(
+                    content=previous.result
+                    or (
+                        "Interrupted: this action may have run before the engine stopped. "
+                        "It was not replayed. Inspect its effects before requesting a fresh call."
+                    ),
+                    tool_call_id=call_key(call),
+                    name=call["name"],
+                )
+            current_rules = RulesEngine.load(self.rules.root, self.rules.mode)
+            path, command, timeout = tool_target(call["name"], call["args"])
+            verdict = current_rules.decide(
+                call["name"], path=path, command=command, timeout=timeout
+            )
+            if verdict.action == "deny":
+                return self.refusal(call, verdict.reason)
+            if recorded and recorded.get("revision"):
+                review = prepare_review(self.rules.root, self.approval(call, verdict))
+                if review.revision != recorded["revision"]:
+                    return self.refusal(call, "Reviewed contents changed; request a fresh review")
+            journal.begin(call_key(call), arguments_digest(call["args"]))
+        result = await handler(request)
+        if isinstance(result, ToolMessage):
+            result = result.model_copy(
+                update={"content": self.redactor.value(cast(JsonValue, result.content))}
+            )
+            if effect:
+                journal.complete(call_key(call), str(result.content))
+        return result
 
 
 def call_key(call: ToolCall) -> str:

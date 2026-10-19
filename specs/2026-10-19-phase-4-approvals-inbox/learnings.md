@@ -17,3 +17,12 @@ Implementation in progress; unchecked validation remains outstanding.
 
 ## Scope notes
 No constitution changes applied. The approved plan's final roadmap update still needs explicit approval of its exact text.
+
+## Steps 2–3 evidence
+- Recovery regression exposed an event/checkpoint race: publishing inside the stream's interrupt update could precede checkpoint completion. Publication now follows stream closure/state inspection with `durability="sync"`.
+- Real graph tests restore a partially answered two-call barrier, reject one call, approve the other, preserve event sequence and execute only the approved write.
+- Edited arguments require a refreshed preview and content revision. The graph wrapper rechecks schema, jail, current rules and reviewed contents before dispatch.
+- Effect journals cache completed tool results; incomplete intents return an interrupted tool result without executing. This covers writes/deletes as well as commands.
+- Rules PUT now stages an explicit proposal. Checkbox rules are separate linked proposals; graph edit and rule-change decisions are tested independently.
+- Branch/worktree client boolean flags no longer constitute authorization. Their proposals are durable configuration actions decided through the interrupt endpoint.
+- Focused permission/recovery/review/rules/Git suite: 80 passed; added edit-preview/linked-rule regression also passes. Strict mypy and ruff pass at this step. Full phase validation is still outstanding.

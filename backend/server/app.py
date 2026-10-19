@@ -11,20 +11,26 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from pydantic import BaseModel, Field
 
 from agent.events import Event, HealthResponse, RunRequest, RunResponse
-from permissions.types import ApprovalDecision, ApprovalRecord, UnknownApproval
+from permissions.types import ApprovalDecision, ApprovalRecord, ApprovalRequest, UnknownApproval
 from server.files import file_routes
 from server.git import git_routes
 from server.models import model_routes
 from server.rules import rules_routes
 from server.snapshots import snapshot_routes
 from server.workspaces import workspace_routes
+from store.actions import ActionApprovals
 from store.catalog import Catalog
 from store.secrets import Redactor
 
 
 class RunService(Protocol):
+    def retry_command(self, run_id: str, call_id: str, timeout: float) -> ApprovalRecord: ...
+    def preview(
+        self, run_id: str, approval_id: str, decision: ApprovalDecision
+    ) -> ApprovalRequest: ...
     async def recover(self) -> None: ...
     def approvals(self, status: str | None = None) -> list[ApprovalRecord]: ...
     async def start(self, request: RunRequest) -> str: ...
@@ -82,9 +88,9 @@ def create_app(
     app.include_router(model_routes(catalog))
     app.include_router(workspace_routes(catalog))
     app.include_router(snapshot_routes())
-    app.include_router(git_routes())
+    app.include_router(git_routes(ActionApprovals(catalog)))
     app.include_router(file_routes(lambda: service.pending_paths() if service else set()))
-    app.include_router(rules_routes())
+    app.include_router(rules_routes(ActionApprovals(catalog)))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_input(request: object, error: RequestValidationError) -> JSONResponse:
@@ -147,7 +153,31 @@ def create_app(
             # Already answered, or never pending: the caller must re-read the stream
             # rather than have a decision silently applied twice.
             raise HTTPException(409, "Unknown or already-resolved approval") from None
+        except (ValueError, OSError):
+            raise HTTPException(
+                409, "Review is stale or invalid; refresh before deciding"
+            ) from None
         return {"status": "ok"}
+
+    @app.post("/runs/{run_id}/interrupts/{approval_id}/preview")
+    async def preview_approval(
+        run_id: str, approval_id: str, decision: ApprovalDecision
+    ) -> ApprovalRequest:
+        try:
+            return require_run(run_id).preview(run_id, approval_id, decision)
+        except (UnknownApproval, ValueError, OSError):
+            raise HTTPException(
+                409, "Input cannot be reviewed; refresh and check permissions"
+            ) from None
+
+    @app.post("/runs/{run_id}/commands/{call_id}/retry", status_code=202)
+    async def retry_command(run_id: str, call_id: str, value: RetryCommand) -> ApprovalRecord:
+        try:
+            return runs().retry_command(run_id, call_id, value.timeout)
+        except (ValueError, OSError):
+            raise HTTPException(
+                409, "Command cannot be retried under current permissions"
+            ) from None
 
     @app.get("/runs/{run_id}/events", response_class=EventSourceResponse)
     async def events(
@@ -159,3 +189,7 @@ def create_app(
             yield ServerSentEvent(raw_data=event.model_dump_json(), id=str(event.seq))
 
     return app
+
+
+class RetryCommand(BaseModel):
+    timeout: float = Field(default=300, ge=1, le=600)

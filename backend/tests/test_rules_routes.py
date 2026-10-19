@@ -37,23 +37,36 @@ def test_a_saved_grid_round_trips(tmp_path: Path) -> None:
         saved = http.put(
             "/rules", headers=HEADERS, params={"workspace": str(tmp_path)}, json=payload
         )
-        assert saved.status_code == 200, saved.text
-        assert saved.json()["tools"] == {"write_file": [{"glob": "src/**", "action": "allow"}]}
+        assert saved.status_code == 202, saved.text
+        assert not storage_path(tmp_path, "rules.json").exists()
+        proposal = saved.json()["request"]
+        resolved = http.post(
+            f"/runs/{proposal['run_id']}/interrupts/{proposal['approval_id']}",
+            headers=HEADERS,
+            json={"decision": "approve"},
+        )
+        assert resolved.status_code == 200, resolved.text
 
         reread = http.get("/rules", headers=HEADERS, params={"workspace": str(tmp_path)})
-    assert reread.json() == saved.json()
+    assert reread.json()["tools"] == payload["tools"]
     assert reread.json()["mode"] == "auto"
     assert reread.json()["defaults"]["write"] == "allow"
 
 
 def test_the_grid_lands_in_engine_storage(tmp_path: Path) -> None:
     with client() as http:
-        http.put(
+        proposal = http.put(
             "/rules",
             headers=HEADERS,
             params={"workspace": str(tmp_path)},
             json={"tools": {"run_command": [{"glob": "*", "action": "deny"}]}},
+        ).json()["request"]
+        response = http.post(
+            f"/runs/{proposal['run_id']}/interrupts/{proposal['approval_id']}",
+            headers=HEADERS,
+            json={"decision": "approve"},
         )
+        assert response.status_code == 200, response.text
     written = json.loads(storage_path(tmp_path, "rules.json").read_text(encoding="utf-8"))
     assert written["tools"]["run_command"][0]["action"] == "deny"
 

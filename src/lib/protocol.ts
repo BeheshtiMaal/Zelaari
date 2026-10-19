@@ -163,6 +163,8 @@ export type AllowGlob1 = string | null;
 export type Revision2 = string | null;
 export type ApprovalId2 = string;
 export type ResolvedAt = string | null;
+export type ExecutionStatus = "not_started" | "running" | "completed" | "interrupted";
+export type Result = string | null;
 export type Command1 = string;
 export type Shell = "powershell" | "cmd";
 export type ExitCode = number | null;
@@ -449,6 +451,8 @@ export interface ApprovalRecord {
   status?: Status4;
   answer?: ApprovalAnswer | null;
   resolved_at?: ResolvedAt;
+  execution_status?: ExecutionStatus;
+  result?: Result;
 }
 /**
  * The resume value for one interrupt.
