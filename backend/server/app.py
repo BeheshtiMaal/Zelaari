@@ -14,6 +14,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from agent.events import Event, HealthResponse, RunRequest, RunResponse
 from server.models import model_routes
+from server.snapshots import snapshot_routes
 from server.workspaces import workspace_routes
 from store.catalog import Catalog
 from store.secrets import Redactor
@@ -72,6 +73,7 @@ def create_app(
     )
     app.include_router(model_routes(catalog))
     app.include_router(workspace_routes(catalog))
+    app.include_router(snapshot_routes())
 
     @app.exception_handler(RequestValidationError)
     async def invalid_input(request: object, error: RequestValidationError) -> JSONResponse:

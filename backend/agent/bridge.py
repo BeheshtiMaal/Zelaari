@@ -22,6 +22,7 @@ from store.eventlog import EventBus
 from store.secrets import Redactor, StreamRedactor
 from store.workspaces import add_task, select_workspace
 from tools.jail import storage_path, workspace_root
+from tools.snapshot import SnapshotStore
 
 
 @dataclass
@@ -78,7 +79,13 @@ class RunManager:
             streamed: set[str] = set()
             try:
                 async with AsyncSqliteSaver.from_conn_string(str(checkpoint)) as saver:
-                    graph = build_agent(root, model, saver, self.redactor)
+                    graph = build_agent(
+                        root,
+                        model,
+                        saver,
+                        self.redactor,
+                        snapshots=SnapshotStore(root, run_id=run_id),
+                    )
                     stream = graph.astream(
                         {"messages": [{"role": "user", "content": safe_task}]},
                         {"configurable": {"thread_id": run_id}, "recursion_limit": 24},

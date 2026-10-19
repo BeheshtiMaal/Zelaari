@@ -1,7 +1,5 @@
 """Jailed workspace backend: atomic mutations, protected engine storage, no recursion on delete."""
 
-import os
-import tempfile
 from pathlib import Path
 from typing import Protocol
 
@@ -17,6 +15,7 @@ from deepagents.backends.protocol import (
 )
 
 from store.secrets import Redactor
+from tools.atomic import atomic_write
 from tools.jail import (
     MAX_READ_LINES,
     MAX_TEXT_BYTES,
@@ -25,6 +24,7 @@ from tools.jail import (
     Resolved,
     resolve_virtual,
 )
+from tools.snapshot import SnapshotError
 
 _BINARY_PROBE = 8192
 _GREP_LIMIT = 1000
@@ -33,22 +33,7 @@ _GREP_LIMIT = 1000
 class SnapshotSink(Protocol):
     """Captures the pre-mutation state. Implemented in `tools.snapshot`."""
 
-    def capture(self, target: Resolved, *, tool: str, call_id: str | None = None) -> None: ...
-
-
-def atomic_write(target: Path, content: str) -> None:
-    """Write through a same-directory temp file so a crash never leaves half a file."""
-    target.parent.mkdir(parents=True, exist_ok=True)
-    handle, temporary = tempfile.mkstemp(dir=target.parent, prefix=".harness-tmp-")
-    try:
-        with os.fdopen(handle, "w", encoding="utf-8", newline="") as stream:
-            stream.write(content)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, target)
-    except BaseException:
-        Path(temporary).unlink(missing_ok=True)
-        raise
+    def capture(self, target: Resolved, *, tool: str, call_id: str | None = None) -> str: ...
 
 
 def _virtual(resolved: Resolved) -> str:
@@ -228,6 +213,8 @@ class WorkspaceBackend(FilesystemBackend):
             self._capture(target, "write_file")
             atomic_write(target.path, content)
             return WriteResult(path=_virtual(target))
+        except SnapshotError as error:
+            return WriteResult(error=f"Blocked: {error}")
         except (JailError, OSError, RuntimeError):
             return WriteResult(
                 error="Write denied: invalid, inaccessible, or outside workspace path"
@@ -265,6 +252,8 @@ class WorkspaceBackend(FilesystemBackend):
             self._capture(target, "edit_file")
             atomic_write(target.path, updated)
             return EditResult(path=_virtual(target), occurrences=occurrences if replace_all else 1)
+        except SnapshotError as error:
+            return EditResult(error=f"Blocked: {error}")
         except (JailError, OSError, RuntimeError, UnicodeError):
             return EditResult(error="Edit denied: invalid, inaccessible, or outside workspace path")
 
@@ -278,6 +267,8 @@ class WorkspaceBackend(FilesystemBackend):
             self._capture(target, "delete")
             target.path.unlink()
             return DeleteResult(path=_virtual(target))
+        except SnapshotError as error:
+            return DeleteResult(error=f"Blocked: {error}")
         except (JailError, OSError, RuntimeError):
             return DeleteResult(
                 error="Delete denied: invalid, inaccessible, or outside workspace path"

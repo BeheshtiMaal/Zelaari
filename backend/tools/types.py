@@ -76,6 +76,10 @@ class RevertResult(ToolModel):
     created_snapshot_id: str
 
 
+class RevertRequest(ToolModel):
+    workspace: str
+
+
 class BranchSwitch(ToolModel):
     workspace: str
     branch: str

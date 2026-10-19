@@ -125,7 +125,7 @@ def test_atomic_write_rollback_leaves_original_intact(
     def explode(_src: object, _dst: object) -> None:
         raise OSError("simulated crash before rename")
 
-    monkeypatch.setattr("tools.fs.os.replace", explode)
+    monkeypatch.setattr("tools.atomic.os.replace", explode)
     assert backend.write("src/a.txt", "half-written").error
     assert (root / "src" / "a.txt").read_bytes() == original
     assert not list((root / "src").glob(".harness-tmp-*"))
