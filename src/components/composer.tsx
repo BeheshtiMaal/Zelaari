@@ -6,11 +6,16 @@ import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import type { Dictionary } from "../i18n";
 import type { Session } from "../lib/use-session";
 import { Hint } from "./hint";
+import { useCommands } from "../lib/use-commands";
+import { questionCopy } from "../i18n/questions";
 export function Composer({ t, task, setTask, session: s, submit }: {t: Dictionary; task: string; setTask(task: string): void; session: Session; submit(): void}) {
+  const commands = useCommands(task, setTask), q = questionCopy(s.locale);
   return <form className="composer-frame" onSubmit={event => { event.preventDefault(); submit(); }}>
     <div className="composer">
       <label className="sr-only" htmlFor="task">{t.taskLabel}</label>
-      <textarea id="task" rows={2} placeholder={t.placeholder} value={task} disabled={!s.ready || s.busy} onChange={event => setTask(event.target.value)} onKeyDown={event => {
+      {commands.matches.length > 0 && <div className="command-picker" role="listbox" id="composer-commands" aria-label={q.options}>{commands.matches.map(command => <button key={command} type="button" role="option" aria-selected="true" id="command-grill" onMouseDown={event => event.preventDefault()} onClick={() => commands.choose(command)}><code>{command}</code><span>{q.command}</span></button>)}</div>}
+      <textarea id="task" rows={2} role="combobox" aria-autocomplete="list" aria-expanded={commands.matches.length > 0} aria-controls="composer-commands" aria-activedescendant={commands.matches.length ? "command-grill" : undefined} placeholder={t.placeholder} value={task} disabled={!s.ready || s.busy} onChange={event => setTask(event.target.value)} onKeyDown={event => {
+        if (commands.keyDown(event) || event.nativeEvent.isComposing) return;
         if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); }
       }} />
       <div className="composer-toolbar"><Hint text={t.soon}><button type="button" className="icon-button" disabled aria-label={t.add}><PlusIcon size={22} /></button></Hint>

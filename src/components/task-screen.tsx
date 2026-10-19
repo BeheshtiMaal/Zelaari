@@ -8,6 +8,7 @@ import { Sidebar } from "./shell/sidebar";
 import { Composer } from "./composer";
 import { QuestionCard } from "./questions/question-card";
 import { useQuestions } from "../lib/use-questions";
+import { questionCopy } from "../i18n/questions";
 import { InboxScreen } from "./approvals/inbox-screen";
 import { ApprovalCard } from "./approvals/approval-card";
 import { recordKey, useInbox } from "../lib/inbox";
@@ -41,10 +42,12 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
   const submit = () => { if (task.trim() && !session.busy) void session.start(task.trim()); };
   const selected = session.usableModel;
   const total = run.usage.input + run.usage.output;
+  const waiting = questions.filter(record => record.status === "pending").length + approvals.filter(record => record.status === "pending" && record.request.run_id === run.runId).length;
   return <div className="app-shell" data-ready={session.ready}>
     <Sidebar t={t} session={session} settings={view === "settings" || view === "add-model"} current={view} reset={reset} openSettings={() => setView("settings")} openTask={id => { setView("home"); void session.openTask(id); }} />
     <main className={`surface ${view !== "home" ? "settings-surface" : running ? "run-surface" : "home-surface"}`}>
       {view === "inbox" ? <InboxScreen locale={session.locale} /> : view === "rules" ? <RulesScreen session={session} /> : view !== "home" ? <SettingsScreen key={view} session={session} t={t} addInitially={view === "add-model"} /> : <>
+        <div className={running ? "run-layout" : "home-layout"}><div className={running ? "run-main" : "home-main"}>
         {running && <header className="run-header"><h1>{run.task}</h1><div className="run-actions">
           {total > 0 && <span data-testid="token-meter">{run.usage.estimated ? "~" : ""}{new Intl.NumberFormat(session.locale).format(total)} {t.tokens}</span>}
           <span role="status">{run.approval || questions.some(record => record.status === "pending") ? t.paused : run.status === "completed" ? t.completed : run.status === "stopped" ? t.stopped : run.status === "error" ? t.error : t.reading}</span>
@@ -63,7 +66,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
         </div></div> : <h1 className="home-title">{t.title}</h1>}
         <div className="compose-region"><div className="chat-column">
           {questions.filter(record => record.status === "pending").map(record => <QuestionCard key={record.request.call_id} record={record} locale={session.locale} />)}
-          {!running && <div className="hints">{t.hints.map(hint => <button key={hint} disabled={!session.ready} onClick={() => setTask(hint)}>{hint}</button>)}<Hint text={t.soon}><button className="more-hints" disabled aria-label={session.locale === "fa" ? "بیشتر" : "More"}><CaretRightIcon size={16} /></button></Hint></div>}
+          {!running && <div className="hints">{t.hints.map((hint, index) => <button key={hint} disabled={!session.ready} onClick={() => setTask(index === 4 ? "/grill " : hint)}>{hint}</button>)}<Hint text={t.soon}><button className="more-hints" disabled aria-label={session.locale === "fa" ? "بیشتر" : "More"}><CaretRightIcon size={16} /></button></Hint></div>}
           <Composer t={t} task={task} setTask={setTask} session={session} submit={submit} />
           {approvals.filter(record => record.status === "pending" && [session.branchApproval?.approval_id, session.worktreeApproval?.approval_id].includes(record.request.approval_id)).map(record => <ApprovalCard key={recordKey(record.request)} record={record} locale={session.locale} inline />)}
           {session.branchError && <pre className="error" role="alert" dir="ltr" data-testid="branch-error">{session.branchError}</pre>}
@@ -75,6 +78,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
           {session.failed || run.error || session.workspaceError ? <p className="error" role="alert">{session.workspaceError ? t.invalidWorkspace : session.ready ? t.error : t.offline}</p> :
             <p className="footnote" role="status">{!session.ready ? t.starting : running ? t.footer : t.ready}</p>}
         </div></div>
+        </div>{running && waiting > 0 && <aside className="run-info"><div className="current-waiting" role="status" data-testid="current-waiting">{new Intl.NumberFormat(session.locale).format(waiting)} {questionCopy(session.locale).waiting}</div></aside>}</div>
       </>}
     </main>
   </div>;

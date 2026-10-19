@@ -327,3 +327,14 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .question-hint { display: grid; gap: 6px; margin-block-start: 10px; }
 .question-hint textarea { background: #151618; color: inherit; border: 1px solid #33363D; border-radius: 12px; padding: 10px; inline-size: 100%; box-sizing: border-box; }
 @media (max-width: 700px) { .question-card { padding: 12px; } .question-footer .button-row { flex-wrap: wrap; } }
+.composer { position: relative; }
+.command-picker { background: #1E2024; border: 1px solid #33363D; border-radius: 14px; padding: 8px; }
+.command-picker button { inline-size: 100%; display: flex; align-items: center; gap: 12px; padding: 10px; text-align: start; background: #12353A; border: 1px solid #0E7C86; border-radius: 10px; color: #E8EAED; }
+.command-picker code { direction: ltr; }
+.command-picker span { font-size: 12px; }
+.current-waiting { background: #2A2415; border: 1px solid #5A4510; border-radius: 14px; padding: 10px 14px; color: #FCD34D; font-size: 13px; }
+.run-layout { display: flex; flex: 1; min-block-size: 0; }
+.run-main { display: flex; flex-direction: column; flex: 1; min-inline-size: 0; }
+.run-info { inline-size: 288px; flex: none; background: #1E2024; border-inline-start: 1px solid #2C2F36; padding: 20px 18px; }
+.home-main { display: flex; flex-direction: column; gap: 28px; }
+@media (max-width: 1100px) { .run-layout { flex-direction: column; } .run-main { min-block-size: 0; } .run-info { order: -1; inline-size: auto; padding: 8px 18px; border-inline-start: 0; } }
