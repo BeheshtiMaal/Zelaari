@@ -6,6 +6,8 @@ import { useRun } from "../store/run";
 import { Message } from "../genui/message";
 import { Sidebar } from "./shell/sidebar";
 import { Composer } from "./composer";
+import { QuestionCard } from "./questions/question-card";
+import { useQuestions } from "../lib/use-questions";
 import { InboxScreen } from "./approvals/inbox-screen";
 import { ApprovalCard } from "./approvals/approval-card";
 import { recordKey, useInbox } from "../lib/inbox";
@@ -23,6 +25,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
   const [task, setTask] = useState("");
   const [view, setView] = useState<"home" | "settings" | "add-model" | "inbox" | "rules">(initialView);
   const session = useSession(), run = useRun();
+  const questions = useQuestions(run.runId);
   const approvals = useInbox(state => state.records);
   const decisionError = useInbox(state => state.decisionError);
   const startedRunId = useInbox(state => state.startedRunId);
@@ -44,7 +47,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
       {view === "inbox" ? <InboxScreen locale={session.locale} /> : view === "rules" ? <RulesScreen session={session} /> : view !== "home" ? <SettingsScreen key={view} session={session} t={t} addInitially={view === "add-model"} /> : <>
         {running && <header className="run-header"><h1>{run.task}</h1><div className="run-actions">
           {total > 0 && <span data-testid="token-meter">{run.usage.estimated ? "~" : ""}{new Intl.NumberFormat(session.locale).format(total)} {t.tokens}</span>}
-          <span role="status">{run.approval ? t.paused : run.status === "completed" ? t.completed : run.status === "stopped" ? t.stopped : run.status === "error" ? t.error : t.reading}</span>
+          <span role="status">{run.approval || questions.some(record => record.status === "pending") ? t.paused : run.status === "completed" ? t.completed : run.status === "stopped" ? t.stopped : run.status === "error" ? t.error : t.reading}</span>
           <button className="stop" disabled={!session.busy} onClick={() => void session.stop()}>{t.stop}</button>
         </div></header>}
         {running ? <div className="timeline" aria-live="polite"><div className="chat-column">
@@ -55,9 +58,11 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
               <ToolErrorCard key={item.id} text={item.result} t={t} locale={session.locale} command={typeof item.args.command === "string" ? item.args.command : undefined} onRetry={command => void session.retryWithLongerTimeout(command).then(() => setView("inbox"))} /> :
               <details className="tool-line" key={item.id} data-testid="tool-line"><summary><span className="status-dot" />{t.reading} <code>{String(item.args.file_path ?? item.name)}</code></summary><pre className="readable" dir="auto">{item.result ?? "…"}</pre></details>)}
           {approvals.filter(record => record.status === "pending" && record.request.run_id === run.runId).map(record => <ApprovalCard key={recordKey(record.request)} record={record} locale={session.locale} inline />)}
+          {questions.filter(record => record.status !== "pending").map(record => <QuestionCard key={record.request.call_id} record={record} locale={session.locale} />)}
           <div ref={end} />
         </div></div> : <h1 className="home-title">{t.title}</h1>}
         <div className="compose-region"><div className="chat-column">
+          {questions.filter(record => record.status === "pending").map(record => <QuestionCard key={record.request.call_id} record={record} locale={session.locale} />)}
           {!running && <div className="hints">{t.hints.map(hint => <button key={hint} disabled={!session.ready} onClick={() => setTask(hint)}>{hint}</button>)}<Hint text={t.soon}><button className="more-hints" disabled aria-label={session.locale === "fa" ? "بیشتر" : "More"}><CaretRightIcon size={16} /></button></Hint></div>}
           <Composer t={t} task={task} setTask={setTask} session={session} submit={submit} />
           {approvals.filter(record => record.status === "pending" && [session.branchApproval?.approval_id, session.worktreeApproval?.approval_id].includes(record.request.approval_id)).map(record => <ApprovalCard key={recordKey(record.request)} record={record} locale={session.locale} inline />)}

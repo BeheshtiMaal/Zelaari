@@ -1,0 +1,35 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { chooseOption, initialSelection, rankDrop, rankMove, validSelection } from "../../src/lib/questions";
+import type { Question } from "../../src/lib/protocol";
+import { initialRun, reduceEvent } from "../../src/store/run";
+const q: Question = { id: "q", header: "Approach", text: "Choose", type: "single", options: [{ id: "a", label: "A", description: "First" }, { id: "b", label: "B", description: "Second" }] };
+test("question selections require explicit complete single/multi/rank input", () => {
+  let answer = initialSelection(q);
+  assert.equal(validSelection(q, answer), false);
+  answer = chooseOption(q, answer, "a");
+  assert.equal(validSelection(q, answer), true);
+  assert.equal(validSelection(q, { ...answer, other: "custom" }), false);
+  assert.equal(validSelection(q, { ...answer, option_ids: [], other: "custom" }), true);
+  assert.equal(validSelection(q, { ...answer, option_ids: [], other: " " }), false);
+  const multi: Question = { ...q, type: "multi" };
+  answer = chooseOption(multi, chooseOption(multi, initialSelection(multi), "a"), "b");
+  assert.deepEqual(answer.option_ids, ["a", "b"]);
+  assert.deepEqual(chooseOption(multi, answer, "a").option_ids, ["b"]);
+  assert.equal(validSelection(multi, { ...answer, option_ids: ["a", "a"] }), false);
+  const rank: Question = { ...q, type: "rank" };
+  answer = rankMove(initialSelection(rank), "b", -1);
+  assert.deepEqual(answer.option_ids, ["b", "a"]);
+  assert.equal(validSelection(rank, answer), true);
+  assert.equal(validSelection(rank, { ...answer, option_ids: ["b"] }), false);
+  assert.deepEqual(rankDrop(answer, "b", "a").option_ids, ["a", "b"]);
+  assert.equal(rankMove(answer, "b", -1), answer);
+});
+test("question events replay history independently from approval waiting", () => {
+  let state = reduceEvent(initialRun, { type: "run.started", run_id: "run", seq: 1, ts: "now", task: "task", model: "demo" });
+  state = reduceEvent(state, { type: "question.asked", run_id: "run", seq: 2, ts: "now", question: { request: { run_id: "run", call_id: "call", questions: [q] }, interrupt_id: "graph" } });
+  assert.equal(state.questions.call.request.call_id, "call");
+  state = reduceEvent(state, { type: "question.answered", run_id: "run", seq: 3, ts: "now", answer: { run_id: "run", call_id: "call", interrupt_id: "graph", status: "declined" } });
+  assert.equal(state.questions.call.status, "declined");
+  assert.equal(state.approval, null);
+});

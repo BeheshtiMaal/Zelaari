@@ -19,7 +19,8 @@ Callout(text: string) — A short status or summary
 KeyValue(label: string, value: string) — A labeled value
 ApprovalCard(runId: string, approvalId: string) — Review an existing engine approval by its exact IDs; cannot create permissions
 DiffView(diff: string) — Unified diff with old/new line numbers
-Stack(children: (Callout | KeyValue | ApprovalCard | DiffView)[]) — Vertical content
+QuestionCard(runId: string, callId: string) — Answer an existing engine question using exact run and call IDs
+Stack(children: (Callout | KeyValue | ApprovalCard | DiffView | QuestionCard)[]) — Vertical content
 
 ## Hoisting & Streaming (CRITICAL)
 

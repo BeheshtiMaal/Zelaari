@@ -2,6 +2,13 @@ import { createLibrary, defineComponent } from "@openuidev/react-lang";
 import { z } from "zod/v4";
 import { DiffView as DiffComponent } from "../components/approvals/diff-view";
 import { RegisteredApprovalCard } from "../components/approvals/approval-card";
+import { RegisteredQuestionCard } from "../components/questions/question-card";
+
+const QuestionCard = defineComponent({
+  name: "QuestionCard", description: "Answer an existing engine question using exact run and call IDs",
+  props: z.object({ runId: z.string(), callId: z.string() }),
+  component: ({ props }) => <RegisteredQuestionCard {...props} />,
+});
 
 const ApprovalCard = defineComponent({
   name: "ApprovalCard", description: "Review an existing engine approval by its exact IDs; cannot create permissions",
@@ -26,7 +33,7 @@ const KeyValue = defineComponent({
 });
 const Stack = defineComponent({
   name: "Stack", description: "Vertical content",
-  props: z.object({ children: z.array(z.union([Callout.ref, KeyValue.ref, ApprovalCard.ref, DiffView.ref])) }),
+  props: z.object({ children: z.array(z.union([Callout.ref, KeyValue.ref, ApprovalCard.ref, DiffView.ref, QuestionCard.ref])) }),
   component: ({ props, renderNode }) => <section className="genui-stack" data-testid="stack">{renderNode(props.children)}</section>,
 });
-export const library = createLibrary({ components: [Callout, KeyValue, ApprovalCard, DiffView, Stack], root: "Stack" });
+export const library = createLibrary({ components: [Callout, KeyValue, ApprovalCard, DiffView, QuestionCard, Stack], root: "Stack" });
