@@ -1,4 +1,4 @@
-"""The deepagents harness: jailed filesystem tools plus (later) command execution."""
+"""The deepagents harness: jailed filesystem tools, `run_command`, one permission gate."""
 
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -12,6 +12,7 @@ from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
+from permissions.middleware import PermissionMiddleware
 from store.secrets import Redactor
 from tools.fs import SnapshotSink, WorkspaceBackend
 
@@ -55,6 +56,7 @@ def build_agent(
     saver: AsyncSqliteSaver,
     redactor: Redactor,
     *,
+    permissions: PermissionMiddleware | None = None,
     snapshots: SnapshotSink | None = None,
     extra_tools: list[Any] | None = None,
     extra_middleware: list[AgentMiddleware[Any, Any, Any]] | None = None,
@@ -69,7 +71,11 @@ def build_agent(
             "You are CodeHarness, a coding agent working inside one workspace folder. "
             "Use relative paths. Read before you edit. Keep changes small and explain them. "
             "File tools: ls, read_file, write_file, edit_file, delete, glob, grep. "
-            "delete removes a single file only; directories need a command. "
+            "delete removes a single file only; directories need run_command. "
+            "run_command runs a shell command in the workspace and returns exit code, "
+            "duration and at most 200 lines; page with offset. "
+            "A call may come back with 'Permission denied': that is a decision, not an "
+            "error to retry. Explain it and adjust the plan. "
             "Reply in the user's language. "
             "Your final response must use this UI library:\n" + prompt
         ),
@@ -77,6 +83,9 @@ def build_agent(
         middleware=cast(
             list[AgentMiddleware[Any, Any, Any]],
             [
+                # First is outermost: the permission gate must see every tool call
+                # before anything else can execute it.
+                *([permissions] if permissions else []),
                 TodoListMiddleware(),
                 FilesystemMiddleware(
                     backend=backend,

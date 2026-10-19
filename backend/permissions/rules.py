@@ -8,6 +8,7 @@ from typing import Literal
 from permissions.classifier import assess
 from permissions.types import Action, Mode, PermissionOutcome, RiskAssessment, Rule, RulesFile
 from tools.atomic import atomic_write
+from tools.command import DEFAULT_TIMEOUT
 from tools.jail import storage_path
 
 READ_TOOLS = frozenset({"ls", "read_file", "glob", "grep"})
@@ -15,8 +16,15 @@ WRITE_TOOLS = frozenset({"write_file", "edit_file"})
 DELETE_TOOLS = frozenset({"delete"})
 COMMAND_TOOLS = frozenset({"run_command", "git_switch", "worktree_create"})
 WEB_TOOLS = frozenset({"web_search"})
+INTERNAL_TOOLS = frozenset({"write_todos", "task"})
+"""Tools that only mutate graph state and never touch the workspace.
 
-Category = Literal["read", "write", "delete", "command", "web"]
+They are not permissioned: asking a person to approve a todo list would train them to
+click approve without reading, which is the failure mode the whole layer exists to
+avoid. `web_search` is not in this set because it leaves the machine.
+"""
+
+Category = Literal["read", "write", "delete", "command", "web", "internal"]
 
 DEFAULTS: dict[Mode, dict[Category, Action]] = {
     "read-only": {
@@ -25,6 +33,7 @@ DEFAULTS: dict[Mode, dict[Category, Action]] = {
         "delete": "deny",
         "command": "deny",
         "web": "deny",
+        "internal": "allow",
     },
     "ask": {
         "read": "allow",
@@ -32,6 +41,7 @@ DEFAULTS: dict[Mode, dict[Category, Action]] = {
         "delete": "ask",
         "command": "ask",
         "web": "ask",
+        "internal": "allow",
     },
     "auto": {
         "read": "allow",
@@ -39,6 +49,7 @@ DEFAULTS: dict[Mode, dict[Category, Action]] = {
         "delete": "allow",
         "command": "allow",
         "web": "ask",
+        "internal": "allow",
     },
 }
 
@@ -54,6 +65,8 @@ def category_of(tool: str) -> Category:
         return "delete"
     if tool in WEB_TOOLS:
         return "web"
+    if tool in INTERNAL_TOOLS:
+        return "internal"
     return "command"
 
 
@@ -113,11 +126,19 @@ class RulesEngine:
         matching.sort(key=lambda rule: (*_specificity(rule.glob), RANK[rule.action]), reverse=True)
         return matching[0]
 
-    def _always_ask(self, tool: str, path: str | None, command: str | None) -> str | None:
+    def _always_ask(
+        self,
+        tool: str,
+        path: str | None,
+        command: str | None,
+        timeout: float | None,
+    ) -> str | None:
         if path is not None and path.replace("\\", "/").split("/")[0].casefold() == ".harness":
             return "engine storage always needs approval"
         if tool in WEB_TOOLS:
             return "every web query needs approval"
+        if timeout is not None and timeout > DEFAULT_TIMEOUT:
+            return f"a timeout above {DEFAULT_TIMEOUT:g}s needs approval"
         if command is not None:
             risk = assess(command, self.root)
             if risk.level == "high":
@@ -130,6 +151,7 @@ class RulesEngine:
         *,
         path: str | None = None,
         command: str | None = None,
+        timeout: float | None = None,
     ) -> PermissionOutcome:
         category = category_of(tool)
         ceiling = DEFAULTS[self.mode][category]
@@ -160,11 +182,11 @@ class RulesEngine:
         if action == "allow":
             # An explicit allow rule is the documented escape hatch from always-ask.
             if explicit is None:
-                escalation = self._always_ask(tool, path, command)
+                escalation = self._always_ask(tool, path, command, timeout)
                 if escalation:
                     action, reason = "ask", escalation
         elif action == "ask":
-            escalation = self._always_ask(tool, path, command)
+            escalation = self._always_ask(tool, path, command, timeout)
             if escalation and escalation != reason:
                 reason = f"{reason}; {escalation}"
 

@@ -264,7 +264,9 @@ export interface ApprovalRequested {
   approval: ApprovalRequest;
 }
 /**
- * Payload of `approval.requested`. `approval_id` is the tool call id, so it is stable across resume.
+ * Payload of `approval.requested`.
+ *
+ * `approval_id` is the tool call id, so it stays stable across a resume.
  */
 export interface ApprovalRequest {
   approval_id: ApprovalId;

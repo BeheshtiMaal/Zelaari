@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from agent.events import Event, HealthResponse, RunRequest, RunResponse
+from permissions.types import ApprovalDecision, UnknownApproval
 from server.models import model_routes
 from server.snapshots import snapshot_routes
 from server.workspaces import workspace_routes
@@ -23,6 +24,9 @@ from store.secrets import Redactor
 class RunService(Protocol):
     async def start(self, request: RunRequest) -> str: ...
     async def stop(self, run_id: str) -> None: ...
+    async def resolve(
+        self, run_id: str, approval_id: str, decision: ApprovalDecision
+    ) -> None: ...
     def events(self, run_id: str, after: int) -> AsyncIterator[Event]: ...
     def contains(self, run_id: str) -> bool: ...
     async def close(self) -> None: ...
@@ -102,6 +106,21 @@ def create_app(
     @app.post("/runs/{run_id}/stop")
     async def stop_run(run_id: str) -> dict[str, str]:
         await require_run(run_id).stop(run_id)
+        return {"status": "ok"}
+
+    @app.post("/runs/{run_id}/interrupts/{approval_id}")
+    async def resolve_approval(
+        run_id: str,
+        approval_id: str,
+        decision: ApprovalDecision,
+    ) -> dict[str, str]:
+        manager = require_run(run_id)
+        try:
+            await manager.resolve(run_id, approval_id, decision)
+        except UnknownApproval:
+            # Already answered, or never pending: the caller must re-read the stream
+            # rather than have a decision silently applied twice.
+            raise HTTPException(409, "Unknown or already-resolved approval") from None
         return {"status": "ok"}
 
     @app.get("/runs/{run_id}/events", response_class=EventSourceResponse)

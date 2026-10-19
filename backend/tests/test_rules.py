@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 
 from permissions.rules import RulesEngine
-from permissions.types import RulesFile
+from permissions.types import Mode, RulesFile
+
+Rules = dict[str, list[dict[str, str]]]
 
 
 @pytest.fixture()
@@ -14,9 +16,9 @@ def root(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def engine(root: Path, mode: str = "ask", tools: dict | None = None) -> RulesEngine:
+def engine(root: Path, mode: Mode = "ask", tools: Rules | None = None) -> RulesEngine:
     rules = RulesFile.model_validate({"mode": mode, "tools": tools or {}})
-    return RulesEngine(root, mode=mode, rules=rules)  # type: ignore[arg-type]
+    return RulesEngine(root, mode=mode, rules=rules)
 
 
 def test_mode_defaults() -> None:
@@ -120,7 +122,9 @@ def test_deny_rule_beats_default_allow(root: Path) -> None:
 def test_save_and_reload_round_trip(root: Path) -> None:
     subject = engine(root, "ask")
     subject.save(
-        RulesFile(mode="auto", tools={"write_file": [{"glob": "src/**", "action": "allow"}]})
+        RulesFile.model_validate(
+            {"mode": "auto", "tools": {"write_file": [{"glob": "src/**", "action": "allow"}]}}
+        )
     )
     reloaded = RulesEngine.load(root, None)
     assert reloaded.mode == "auto"

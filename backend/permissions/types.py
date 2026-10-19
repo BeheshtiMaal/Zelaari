@@ -10,6 +10,11 @@ Mode = Literal["read-only", "ask", "auto"]
 Read-only denies every mutation; auto relaxes defaults, not the always-ask list.
 """
 
+
+class UnknownApproval(Exception):
+    """The approval id is not pending for this run, or was already answered."""
+
+
 Action = Literal["allow", "ask", "deny"]
 RiskLevel = Literal["low", "high"]
 
@@ -62,6 +67,18 @@ class ApprovalRequest(PermissionModel):
 
 
 class ApprovalDecision(PermissionModel):
+    decision: Literal["approve", "reject"]
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class ApprovalAnswer(PermissionModel):
+    """The resume value for one interrupt.
+
+    `approval_id` is carried so a resumed run cannot apply a decision to the wrong
+    call if a turn ever holds more than one pending approval.
+    """
+
+    approval_id: str
     decision: Literal["approve", "reject"]
     reason: str | None = Field(default=None, max_length=2000)
 
