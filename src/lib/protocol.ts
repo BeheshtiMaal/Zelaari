@@ -7,6 +7,8 @@ export type Event =
   | UsageUpdated
   | ToolCall
   | ToolResult
+  | ApprovalRequested
+  | ApprovalResolved
   | RunFinished
   | RunError
   | FutureEvent;
@@ -51,24 +53,42 @@ export type Text2 = string;
 export type RunId6 = string;
 export type Seq6 = number;
 export type Ts6 = string;
-export type Type6 = "run.finished";
-export type Status = "completed" | "stopped" | "error";
+export type Type6 = "approval.requested";
+export type ApprovalId = string;
 export type RunId7 = string;
+export type Kind = "tool" | "command";
+export type Tool = string;
+export type Path = string | null;
+export type Command = string | null;
+export type Level = "low" | "high";
+export type Reasons = string[];
+export type Reason = string;
+export type RunId8 = string;
 export type Seq7 = number;
 export type Ts7 = string;
-export type Type7 = "run.error";
-export type Message = string;
-export type RunId8 = string;
+export type Type7 = "approval.resolved";
+export type ApprovalId1 = string;
+export type Decision = "approve" | "reject";
+export type Reason1 = string | null;
+export type RunId9 = string;
 export type Seq8 = number;
 export type Ts8 = string;
-export type Type8 =
+export type Type8 = "run.finished";
+export type Status = "completed" | "stopped" | "error";
+export type RunId10 = string;
+export type Seq9 = number;
+export type Ts9 = string;
+export type Type9 = "run.error";
+export type Message = string;
+export type RunId11 = string;
+export type Seq10 = number;
+export type Ts10 = string;
+export type Type10 =
   | "plan.created"
   | "plan.step.updated"
   | "subagent.started"
   | "subagent.finished"
   | "context.summarized"
-  | "approval.requested"
-  | "approval.resolved"
   | "question.asked"
   | "question.answered"
   | "ui.render"
@@ -77,7 +97,8 @@ export type Task1 = string;
 export type Workspace = string;
 export type Model1 = string;
 export type Mode = "read-only" | "ask" | "auto";
-export type RunId9 = string;
+export type Worktree = boolean;
+export type RunId12 = string;
 export type Status1 = "ok";
 export type Id = string;
 export type Name1 = string;
@@ -86,7 +107,7 @@ export type Model2 = string;
 export type Id1 = string;
 export type Name2 = string;
 export type Model3 = string;
-export type Kind = "demo" | "openai-compatible" | "anthropic";
+export type Kind1 = "demo" | "openai-compatible" | "anthropic";
 export type BaseUrl1 = string | null;
 export type ApiKeyRef = string | null;
 export type KeySuffix = string;
@@ -102,7 +123,7 @@ export type Locale = "fa" | "en";
 export type DefaultModel = string | null;
 export type Name3 = string;
 export type Url = string | null;
-export type Path = string;
+export type Path1 = string;
 export type Name4 = string;
 export type Branch = string | null;
 export type Recent = Workspace1[];
@@ -114,6 +135,48 @@ export type Model4 = string;
 export type Mode1 = "read-only" | "ask" | "auto";
 export type Status3 = "running" | "completed" | "stopped" | "error" | "interrupted";
 export type Tasks = TaskRecord[];
+export type Command1 = string;
+export type Shell = "powershell" | "cmd";
+export type ExitCode = number | null;
+export type DurationMs = number;
+export type Output = string;
+export type Truncated = boolean;
+export type TotalLines = number;
+export type Offset = number;
+export type TimedOut = boolean;
+export type TimeoutSeconds = number;
+export type KilledTree = boolean;
+export type Path2 = string;
+export type Kind2 = "file" | "dir";
+export type Name5 = string;
+export type Path3 = string;
+export type Kind3 = "file" | "dir";
+export type Size = number;
+export type Changed = boolean;
+export type Entries = FileEntry[];
+export type Path4 = string;
+export type Text3 = string;
+export type Binary = boolean;
+export type Truncated1 = boolean;
+export type ChangedLines = [unknown, unknown][];
+export type PendingApproval = boolean;
+export type Path5 = string;
+export type SnapshotId = string;
+export type CreatedSnapshotId = string;
+export type Id3 = string;
+export type Path6 = string;
+export type Existed = boolean;
+export type Ts11 = string;
+export type RunId13 = string | null;
+export type CallId2 = string | null;
+export type Bytes = number;
+export type Tool1 = string;
+export type Workspace3 = string;
+export type Branch1 = string;
+export type Branch2 = string | null;
+export type Error = string | null;
+export type Mode2 = "read-only" | "ask" | "auto";
+export type AlwaysAsk = string[];
 
 /**
  * Schema-generation envelope only; never sent over the wire.
@@ -128,6 +191,14 @@ export interface Protocol {
   settings: Settings;
   preset: Preset;
   workspaces: WorkspaceState;
+  approval_request: ApprovalRequest;
+  command_result: CommandResult;
+  file_listing: FileListing;
+  revert_result: RevertResult;
+  snapshot_entry: SnapshotEntry;
+  branch_switch: BranchSwitch;
+  branch_switch_result: BranchSwitchResult;
+  rules_response: RulesResponse;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -182,28 +253,64 @@ export interface ToolResult {
   call_id: CallId1;
   text: Text2;
 }
-export interface RunFinished {
+/**
+ * One tool call needs a human decision before it runs.
+ */
+export interface ApprovalRequested {
   run_id: RunId6;
   seq: Seq6;
   ts?: Ts6;
   type?: Type6;
-  status: Status;
+  approval: ApprovalRequest;
 }
-export interface RunError {
+/**
+ * Payload of `approval.requested`. `approval_id` is the tool call id, so it is stable across resume.
+ */
+export interface ApprovalRequest {
+  approval_id: ApprovalId;
   run_id: RunId7;
+  kind: Kind;
+  tool: Tool;
+  path?: Path;
+  command?: Command;
+  risk?: RiskAssessment;
+  reason?: Reason;
+}
+export interface RiskAssessment {
+  level?: Level;
+  reasons?: Reasons;
+}
+export interface ApprovalResolved {
+  run_id: RunId8;
   seq: Seq7;
   ts?: Ts7;
   type?: Type7;
+  approval_id: ApprovalId1;
+  decision: Decision;
+  reason?: Reason1;
+}
+export interface RunFinished {
+  run_id: RunId9;
+  seq: Seq8;
+  ts?: Ts8;
+  type?: Type8;
+  status: Status;
+}
+export interface RunError {
+  run_id: RunId10;
+  seq: Seq9;
+  ts?: Ts9;
+  type?: Type9;
   message: Message;
 }
 /**
- * Reserved events: not emitted by the Phase 1 bridge.
+ * Reserved events: not emitted by the Phase 3 bridge.
  */
 export interface FutureEvent {
-  run_id: RunId8;
-  seq: Seq8;
-  ts?: Ts8;
-  type: Type8;
+  run_id: RunId11;
+  seq: Seq10;
+  ts?: Ts10;
+  type: Type10;
   data: Data;
 }
 export interface Data {
@@ -214,9 +321,10 @@ export interface RunRequest {
   workspace: Workspace;
   model?: Model1;
   mode?: Mode;
+  worktree?: Worktree;
 }
 export interface RunResponse {
-  run_id: RunId9;
+  run_id: RunId12;
 }
 export interface HealthResponse {
   status?: Status1;
@@ -231,7 +339,7 @@ export interface ProviderRecord {
   id?: Id1;
   name: Name2;
   model: Model3;
-  kind: Kind;
+  kind: Kind1;
   base_url?: BaseUrl1;
   api_key_ref?: ApiKeyRef;
   key_suffix?: KeySuffix;
@@ -264,7 +372,7 @@ export interface WorkspaceState {
   tasks?: Tasks;
 }
 export interface Workspace1 {
-  path: Path;
+  path: Path1;
   name: Name4;
   branch?: Branch;
 }
@@ -275,6 +383,83 @@ export interface TaskRecord {
   model: Model4;
   mode?: Mode1;
   status?: Status3;
+}
+/**
+ * What `run_command` returns to the model and what the timeout card reads.
+ */
+export interface CommandResult {
+  command: Command1;
+  shell: Shell;
+  exit_code?: ExitCode;
+  duration_ms?: DurationMs;
+  output?: Output;
+  truncated?: Truncated;
+  total_lines?: TotalLines;
+  offset?: Offset;
+  timed_out?: TimedOut;
+  timeout_seconds?: TimeoutSeconds;
+  killed_tree?: KilledTree;
+}
+/**
+ * `GET /files?path=` returns a directory listing or a file, never both.
+ */
+export interface FileListing {
+  path: Path2;
+  kind: Kind2;
+  entries?: Entries;
+  file?: FileContent | null;
+}
+export interface FileEntry {
+  name: Name5;
+  path: Path3;
+  kind: Kind3;
+  size?: Size;
+  changed?: Changed;
+}
+export interface FileContent {
+  path: Path4;
+  text: Text3;
+  binary?: Binary;
+  truncated?: Truncated1;
+  changed_lines?: ChangedLines;
+  pending_approval?: PendingApproval;
+}
+export interface RevertResult {
+  path: Path5;
+  snapshot_id: SnapshotId;
+  created_snapshot_id: CreatedSnapshotId;
+}
+export interface SnapshotEntry {
+  id: Id3;
+  path: Path6;
+  existed: Existed;
+  ts: Ts11;
+  run_id?: RunId13;
+  call_id?: CallId2;
+  bytes?: Bytes;
+  tool?: Tool1;
+}
+export interface BranchSwitch {
+  workspace: Workspace3;
+  branch: Branch1;
+}
+export interface BranchSwitchResult {
+  branch?: Branch2;
+  error?: Error;
+}
+export interface RulesResponse {
+  mode: Mode2;
+  tools?: Tools;
+  defaults?: Defaults;
+  always_ask?: AlwaysAsk;
+}
+export interface Tools {
+  [k: string]: {
+    [k: string]: string;
+  }[];
+}
+export interface Defaults {
+  [k: string]: string;
 }
 
 export type HarnessEvent = Protocol["event"];

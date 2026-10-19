@@ -5,7 +5,17 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from permissions.types import ApprovalRequest
 from providers.base import ModelInput, Preset, ProviderRecord, Settings, WorkspaceState
+from tools.types import (
+    BranchSwitch,
+    BranchSwitchResult,
+    CommandResult,
+    FileListing,
+    RevertResult,
+    RulesResponse,
+    SnapshotEntry,
+)
 
 
 class WireModel(BaseModel):
@@ -53,8 +63,22 @@ class RunError(EventBase):
     message: str
 
 
+class ApprovalRequested(EventBase):
+    """One tool call needs a human decision before it runs."""
+
+    type: Literal["approval.requested"] = "approval.requested"
+    approval: ApprovalRequest
+
+
+class ApprovalResolved(EventBase):
+    type: Literal["approval.resolved"] = "approval.resolved"
+    approval_id: str
+    decision: Literal["approve", "reject"]
+    reason: str | None = None
+
+
 class FutureEvent(EventBase):
-    """Reserved events: not emitted by the Phase 1 bridge."""
+    """Reserved events: not emitted by the Phase 3 bridge."""
 
     type: Literal[
         "plan.created",
@@ -62,8 +86,6 @@ class FutureEvent(EventBase):
         "subagent.started",
         "subagent.finished",
         "context.summarized",
-        "approval.requested",
-        "approval.resolved",
         "question.asked",
         "question.answered",
         "ui.render",
@@ -92,6 +114,8 @@ Event = Annotated[
     | UsageUpdated
     | ToolCall
     | ToolResult
+    | ApprovalRequested
+    | ApprovalResolved
     | RunFinished
     | RunError
     | FutureEvent,
@@ -105,6 +129,7 @@ class RunRequest(WireModel):
     workspace: str
     model: str = Field(default="demo", pattern=r"^[a-zA-Z0-9_-]{1,64}$")
     mode: Literal["read-only", "ask", "auto"] = "ask"
+    worktree: bool = False
 
 
 class RunResponse(WireModel):
@@ -127,3 +152,11 @@ class Protocol(WireModel):
     settings: Settings
     preset: Preset
     workspaces: WorkspaceState
+    approval_request: ApprovalRequest
+    command_result: CommandResult
+    file_listing: FileListing
+    revert_result: RevertResult
+    snapshot_entry: SnapshotEntry
+    branch_switch: BranchSwitch
+    branch_switch_result: BranchSwitchResult
+    rules_response: RulesResponse

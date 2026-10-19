@@ -39,7 +39,9 @@ def test_plain_python_engine_bound_loopback_and_auth() -> None:
         connections = [item for child in children for item in child.net_connections(kind="inet")]
         assert any(item.laddr.ip == "127.0.0.1" and item.laddr.port == port for item in connections)
         assert all(item.laddr.ip == "127.0.0.1" for item in connections if item.status == "LISTEN")
-        with httpx.Client(base_url=f"http://127.0.0.1:{port}") as client:
+        # trust_env=False keeps the host's HTTP(S)_PROXY out of the test: httpx
+        # otherwise reuses a connection in absolute-form and uvicorn answers 404.
+        with httpx.Client(base_url=f"http://127.0.0.1:{port}", trust_env=False) as client:
             assert client.get("/health").status_code == 401
             assert (
                 client.get("/health", headers={"Authorization": "Bearer wrong"}).status_code == 401
