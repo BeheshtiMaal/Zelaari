@@ -9,6 +9,8 @@ export type Event =
   | ToolResult
   | ApprovalRequested
   | ApprovalResolved
+  | QuestionAsked
+  | QuestionAnswered
   | RunFinished
   | RunError
   | FutureEvent;
@@ -81,24 +83,78 @@ export type Reason1 = string | null;
 export type RunId9 = string;
 export type Seq8 = number;
 export type Ts8 = string;
-export type Type8 = "run.finished";
-export type Status = "completed" | "stopped" | "error";
+export type Type8 = "question.asked";
+/**
+ * @minItems 1
+ * @maxItems 3
+ */
+export type Questions = [Question] | [Question, Question] | [Question, Question, Question];
+export type Id = string;
+export type Header = string;
+export type Text3 = string;
+export type Type9 = "single" | "multi" | "rank";
+/**
+ * @minItems 2
+ * @maxItems 4
+ */
+export type Options =
+  | [QuestionOption, QuestionOption]
+  | [QuestionOption, QuestionOption, QuestionOption]
+  | [QuestionOption, QuestionOption, QuestionOption, QuestionOption];
+export type Id1 = string;
+export type Label = string;
+export type Description = string;
+export type Kind1 = "question";
 export type RunId10 = string;
+export type CallId2 = string;
+export type CreatedAt1 = string;
+export type Presentation = "standard" | "exhausted";
+export type Context = string;
+export type InterruptId = string;
+export type Status = "pending" | "answered" | "declined" | "cancelled";
+export type Kind2 = "question";
+export type InterruptId1 = string;
+export type Status1 = "answered" | "declined";
+/**
+ * @maxItems 3
+ */
+export type Answers =
+  | []
+  | [QuestionSelection]
+  | [QuestionSelection, QuestionSelection]
+  | [QuestionSelection, QuestionSelection, QuestionSelection];
+export type QuestionId = string;
+/**
+ * @maxItems 4
+ */
+export type OptionIds = [] | [string] | [string, string] | [string, string, string] | [string, string, string, string];
+export type Other = string | null;
+export type RunId11 = string;
+export type CallId3 = string;
+export type ResolvedAt = string | null;
+export type RunId12 = string;
 export type Seq9 = number;
 export type Ts9 = string;
-export type Type9 = "run.error";
-export type Message = string;
-export type RunId11 = string;
+export type Type10 = "question.answered";
+export type RunId13 = string;
 export type Seq10 = number;
 export type Ts10 = string;
-export type Type10 =
+export type Type11 = "run.finished";
+export type Status2 = "completed" | "stopped" | "error";
+export type RunId14 = string;
+export type Seq11 = number;
+export type Ts11 = string;
+export type Type12 = "run.error";
+export type Message = string;
+export type RunId15 = string;
+export type Seq12 = number;
+export type Ts12 = string;
+export type Type13 =
   | "plan.created"
   | "plan.step.updated"
   | "subagent.started"
   | "subagent.finished"
   | "context.summarized"
-  | "question.asked"
-  | "question.answered"
   | "ui.render"
   | "test.result";
 export type Task1 = string;
@@ -107,23 +163,23 @@ export type Model1 = string;
 export type Mode = "read-only" | "ask" | "auto";
 export type Worktree = boolean;
 export type WorktreeApproved = boolean;
-export type RunId12 = string;
-export type Status1 = "ok";
-export type Id = string;
+export type RunId16 = string;
+export type Status3 = "ok";
+export type Id2 = string;
 export type Name1 = string;
 export type BaseUrl = string;
 export type Model2 = string;
-export type Id1 = string;
+export type Id3 = string;
 export type Name2 = string;
 export type Model3 = string;
-export type Kind1 = "demo" | "openai-compatible" | "anthropic";
+export type Kind3 = "demo" | "openai-compatible" | "anthropic";
 export type BaseUrl1 = string | null;
 export type ApiKeyRef = string | null;
 export type KeySuffix = string;
 export type Tokens = number;
 export type Source = "metadata" | "table" | "error" | "fallback";
 export type Estimated1 = boolean;
-export type Status2 = "untested" | "testing" | "retrying" | "ok" | "error";
+export type Status4 = "untested" | "testing" | "retrying" | "ok" | "error";
 export type Code = ("unauthorized" | "rate_limit" | "no_tools" | "network" | "vault") | null;
 export type Attempt = number;
 export type RetrySeconds = number;
@@ -138,12 +194,12 @@ export type Branch = string | null;
 export type Recent = Workspace2[];
 export type Selected = string | null;
 export type WaitingOn = ("approval" | "question")[];
-export type Id2 = string;
+export type Id4 = string;
 export type Workspace3 = string;
 export type Title = string;
 export type Model4 = string;
 export type Mode1 = "read-only" | "ask" | "auto";
-export type Status3 = "running" | "completed" | "stopped" | "error" | "interrupted";
+export type Status5 = "running" | "completed" | "stopped" | "error" | "interrupted";
 export type Worktree1 = string | null;
 export type Tasks = TaskRecord[];
 export type Decision1 = "approve" | "reject";
@@ -153,8 +209,8 @@ export type EditedArgs = {
 } | null;
 export type AllowGlob = string | null;
 export type Revision1 = string | null;
-export type InterruptId = string;
-export type Status4 = "pending" | "approved" | "rejected" | "cancelled";
+export type InterruptId2 = string;
+export type Status6 = "pending" | "approved" | "rejected" | "cancelled";
 export type Decision2 = "approve" | "reject";
 export type Reason3 = string | null;
 export type EditedArgs1 = {
@@ -163,11 +219,11 @@ export type EditedArgs1 = {
 export type AllowGlob1 = string | null;
 export type Revision2 = string | null;
 export type ApprovalId2 = string;
-export type ResolvedAt = string | null;
+export type ResolvedAt1 = string | null;
 export type ExecutionStatus = "not_started" | "running" | "completed" | "interrupted";
 export type Result = string | null;
-export type Status5 = "ok";
-export type RunId13 = string | null;
+export type Status7 = "ok";
+export type RunId17 = string | null;
 export type Command1 = string;
 export type Shell = "powershell" | "cmd";
 export type ExitCode = number | null;
@@ -180,15 +236,15 @@ export type TimedOut = boolean;
 export type TimeoutSeconds = number;
 export type KilledTree = boolean;
 export type Path2 = string;
-export type Kind2 = "file" | "dir";
+export type Kind4 = "file" | "dir";
 export type Name5 = string;
 export type Path3 = string;
-export type Kind3 = "file" | "dir";
+export type Kind5 = "file" | "dir";
 export type Size = number;
 export type Changed = boolean;
 export type Entries = FileEntry[];
 export type Path4 = string;
-export type Text3 = string;
+export type Text4 = string;
 export type Binary = boolean;
 export type Truncated1 = boolean;
 export type ChangedLines = [unknown, unknown][];
@@ -196,12 +252,12 @@ export type PendingApproval = boolean;
 export type Path5 = string;
 export type SnapshotId = string;
 export type CreatedSnapshotId = string;
-export type Id3 = string;
+export type Id5 = string;
 export type Path6 = string;
 export type Existed = boolean;
-export type Ts11 = string;
-export type RunId14 = string | null;
-export type CallId2 = string | null;
+export type Ts13 = string;
+export type RunId18 = string | null;
+export type CallId4 = string | null;
 export type Bytes = number;
 export type Tool1 = string;
 export type Workspace4 = string;
@@ -219,6 +275,17 @@ export type Glob = string;
 export type Action = "allow" | "ask" | "deny";
 export type Mode4 = "read-only" | "ask" | "auto";
 export type AlwaysAsk = string[];
+export type Kind6 = "question";
+export type InterruptId3 = string;
+export type Status8 = "answered" | "declined";
+/**
+ * @maxItems 3
+ */
+export type Answers1 =
+  | []
+  | [QuestionSelection]
+  | [QuestionSelection, QuestionSelection]
+  | [QuestionSelection, QuestionSelection, QuestionSelection];
 
 /**
  * Schema-generation envelope only; never sent over the wire.
@@ -246,6 +313,9 @@ export interface Protocol {
   branch_list: BranchList;
   rules_response: RulesResponse;
   rules_file: RulesFile;
+  question_request: QuestionRequest;
+  question_record: QuestionRecord;
+  question_decision: QuestionDecision;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -350,28 +420,83 @@ export interface ApprovalResolved {
   decision: Decision;
   reason?: Reason1;
 }
-export interface RunFinished {
+export interface QuestionAsked {
   run_id: RunId9;
   seq: Seq8;
   ts?: Ts8;
   type?: Type8;
-  status: Status;
+  question: QuestionRecord;
 }
-export interface RunError {
+export interface QuestionRecord {
+  request: QuestionRequest;
+  interrupt_id: InterruptId;
+  status?: Status;
+  answer?: QuestionAnswer | null;
+  resolved_at?: ResolvedAt;
+}
+export interface QuestionRequest {
+  questions: Questions;
+  kind?: Kind1;
   run_id: RunId10;
+  call_id: CallId2;
+  created_at?: CreatedAt1;
+  presentation?: Presentation;
+  context?: Context;
+}
+export interface Question {
+  id: Id;
+  header: Header;
+  text: Text3;
+  type?: Type9;
+  options: Options;
+}
+export interface QuestionOption {
+  id: Id1;
+  label: Label;
+  description: Description;
+}
+export interface QuestionAnswer {
+  kind?: Kind2;
+  interrupt_id: InterruptId1;
+  status: Status1;
+  answers?: Answers;
+  run_id: RunId11;
+  call_id: CallId3;
+}
+export interface QuestionSelection {
+  question_id: QuestionId;
+  option_ids?: OptionIds;
+  other?: Other;
+}
+export interface QuestionAnswered {
+  run_id: RunId12;
   seq: Seq9;
   ts?: Ts9;
-  type?: Type9;
+  type?: Type10;
+  answer: QuestionAnswer;
+}
+export interface RunFinished {
+  run_id: RunId13;
+  seq: Seq10;
+  ts?: Ts10;
+  type?: Type11;
+  status: Status2;
+}
+export interface RunError {
+  run_id: RunId14;
+  seq: Seq11;
+  ts?: Ts11;
+  type?: Type12;
   message: Message;
 }
 /**
  * Reserved events: not emitted by the Phase 3 bridge.
  */
 export interface FutureEvent {
-  run_id: RunId11;
-  seq: Seq10;
-  ts?: Ts10;
-  type: Type10;
+  run_id: RunId15;
+  seq: Seq12;
+  ts?: Ts12;
+  type: Type13;
   data: Data;
 }
 export interface Data {
@@ -386,36 +511,36 @@ export interface RunRequest {
   worktree_approved?: WorktreeApproved;
 }
 export interface RunResponse {
-  run_id: RunId12;
+  run_id: RunId16;
 }
 export interface HealthResponse {
-  status?: Status1;
+  status?: Status3;
 }
 export interface ModelInput {
-  id: Id;
+  id: Id2;
   name: Name1;
   base_url: BaseUrl;
   model: Model2;
 }
 export interface ProviderRecord {
-  id?: Id1;
+  id?: Id3;
   name: Name2;
   model: Model3;
-  kind: Kind1;
+  kind: Kind3;
   base_url?: BaseUrl1;
   api_key_ref?: ApiKeyRef;
   key_suffix?: KeySuffix;
-  context?: Context;
+  context?: Context1;
   probe?: Probe;
   supports_tools?: SupportsTools;
 }
-export interface Context {
+export interface Context1 {
   tokens?: Tokens;
   source?: Source;
   estimated?: Estimated1;
 }
 export interface Probe {
-  status?: Status2;
+  status?: Status4;
   code?: Code;
   attempt?: Attempt;
   retry_seconds?: RetrySeconds;
@@ -440,12 +565,12 @@ export interface Workspace2 {
 }
 export interface TaskRecord {
   waiting_on?: WaitingOn;
-  id: Id2;
+  id: Id4;
   workspace: Workspace3;
   title: Title;
   model: Model4;
   mode?: Mode1;
-  status?: Status3;
+  status?: Status5;
   worktree?: Worktree1;
 }
 export interface ApprovalDecision {
@@ -457,10 +582,10 @@ export interface ApprovalDecision {
 }
 export interface ApprovalRecord {
   request: ApprovalRequest;
-  interrupt_id: InterruptId;
-  status?: Status4;
+  interrupt_id: InterruptId2;
+  status?: Status6;
   answer?: ApprovalAnswer | null;
-  resolved_at?: ResolvedAt;
+  resolved_at?: ResolvedAt1;
   execution_status?: ExecutionStatus;
   result?: Result;
 }
@@ -479,8 +604,8 @@ export interface ApprovalAnswer {
   approval_id: ApprovalId2;
 }
 export interface ApprovalResolution {
-  status?: Status5;
-  run_id?: RunId13;
+  status?: Status7;
+  run_id?: RunId17;
 }
 /**
  * What `run_command` returns to the model and what the timeout card reads.
@@ -503,20 +628,20 @@ export interface CommandResult {
  */
 export interface FileListing {
   path: Path2;
-  kind: Kind2;
+  kind: Kind4;
   entries?: Entries;
   file?: FileContent | null;
 }
 export interface FileEntry {
   name: Name5;
   path: Path3;
-  kind: Kind3;
+  kind: Kind5;
   size?: Size;
   changed?: Changed;
 }
 export interface FileContent {
   path: Path4;
-  text: Text3;
+  text: Text4;
   binary?: Binary;
   truncated?: Truncated1;
   changed_lines?: ChangedLines;
@@ -528,12 +653,12 @@ export interface RevertResult {
   created_snapshot_id: CreatedSnapshotId;
 }
 export interface SnapshotEntry {
-  id: Id3;
+  id: Id5;
   path: Path6;
   existed: Existed;
-  ts: Ts11;
-  run_id?: RunId14;
-  call_id?: CallId2;
+  ts: Ts13;
+  run_id?: RunId18;
+  call_id?: CallId4;
   bytes?: Bytes;
   tool?: Tool1;
 }
@@ -587,6 +712,12 @@ export interface Tools1 {
 }
 export interface Defaults {
   [k: string]: string;
+}
+export interface QuestionDecision {
+  kind?: Kind6;
+  interrupt_id: InterruptId3;
+  status: Status8;
+  answers?: Answers1;
 }
 
 export type HarnessEvent = Protocol["event"];

@@ -13,6 +13,7 @@ from permissions.types import (
     RulesFile,
 )
 from providers.base import ModelInput, Preset, ProviderRecord, Settings, WorkspaceState
+from questions.types import QuestionAnswer, QuestionDecision, QuestionRecord, QuestionRequest
 from tools.types import (
     BranchList,
     BranchSwitch,
@@ -84,6 +85,16 @@ class ApprovalResolved(EventBase):
     reason: str | None = None
 
 
+class QuestionAsked(EventBase):
+    type: Literal["question.asked"] = "question.asked"
+    question: QuestionRecord
+
+
+class QuestionAnswered(EventBase):
+    type: Literal["question.answered"] = "question.answered"
+    answer: QuestionAnswer
+
+
 class FutureEvent(EventBase):
     """Reserved events: not emitted by the Phase 3 bridge."""
 
@@ -93,8 +104,6 @@ class FutureEvent(EventBase):
         "subagent.started",
         "subagent.finished",
         "context.summarized",
-        "question.asked",
-        "question.answered",
         "ui.render",
         "test.result",
     ]
@@ -123,6 +132,8 @@ Event = Annotated[
     | ToolResult
     | ApprovalRequested
     | ApprovalResolved
+    | QuestionAsked
+    | QuestionAnswered
     | RunFinished
     | RunError
     | FutureEvent,
@@ -179,3 +190,6 @@ class Protocol(WireModel):
     branch_list: BranchList
     rules_response: RulesResponse
     rules_file: RulesFile
+    question_request: QuestionRequest
+    question_record: QuestionRecord
+    question_decision: QuestionDecision
