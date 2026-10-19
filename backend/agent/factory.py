@@ -1,4 +1,4 @@
-"""The Phase 1 deepagents harness: actual read dispatch and SQLite checkpoints."""
+"""The deepagents harness: jailed filesystem tools plus (later) command execution."""
 
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -7,53 +7,46 @@ from typing import Any, cast
 from deepagents import create_deep_agent
 from deepagents.middleware.filesystem import FilesystemMiddleware
 from langchain.agents.middleware import AgentMiddleware, TodoListMiddleware
-from langchain.agents.middleware.types import ModelRequest, ModelResponse, ToolCallRequest
+from langchain.agents.middleware.types import ModelRequest, ModelResponse
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import ToolMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
-from langgraph.types import Command
 
 from store.secrets import Redactor
-from tools.jail import ReadOnlyBackend
+from tools.fs import SnapshotSink, WorkspaceBackend
+
+FS_TOOLS: list[Any] = [
+    "ls",
+    "read_file",
+    "write_file",
+    "edit_file",
+    "delete",
+    "glob",
+    "grep",
+]
+"""Stock `execute` stays out: `run_command` owns shell access and its permission path."""
 
 
-class ReadOnlyTools(AgentMiddleware[Any, Any, Any]):
-    """Enforce the phase's tool surface even if a model invents a tool call."""
+class RedactingMiddleware(AgentMiddleware[Any, Any, Any]):
+    """Scrub registered secrets before graph state is checkpointed.
 
-    def __init__(self, redactor: Redactor | None = None) -> None:
-        self.redactor = redactor or Redactor()
+    The event bridge runs after persistence, so redaction has to happen here.
+    """
+
+    def __init__(self, redactor: Redactor) -> None:
+        self.redactor = redactor
 
     async def awrap_model_call(
         self,
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        tools = [
-            tool
-            for tool in request.tools
-            if getattr(tool, "name", "") in {"read_file", "write_todos"}
-        ]
-        response = await handler(request.override(tools=tools))
-        # The event bridge alone is too late: graph state is checkpointed first.
+        response = await handler(request)
         response.result = [
             type(message).model_validate(self.redactor.value(message.model_dump(mode="json")))
             for message in response.result
         ]
         return response
-
-    async def awrap_tool_call(
-        self,
-        request: ToolCallRequest,
-        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
-    ) -> ToolMessage | Command[Any]:
-        if request.tool_call["name"] not in {"read_file", "write_todos"}:
-            return ToolMessage(
-                content="Phase 1 allows file reads only",
-                status="error",
-                tool_call_id=request.tool_call["id"],
-            )
-        return await handler(request)
 
 
 def build_agent(
@@ -61,30 +54,38 @@ def build_agent(
     model: BaseChatModel,
     saver: AsyncSqliteSaver,
     redactor: Redactor,
+    *,
+    snapshots: SnapshotSink | None = None,
+    extra_tools: list[Any] | None = None,
+    extra_middleware: list[AgentMiddleware[Any, Any, Any]] | None = None,
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
-    backend = ReadOnlyBackend(root, redactor)
+    backend = WorkspaceBackend(root, redactor, snapshots)
     prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
     return create_deep_agent(
         model=model,
         backend=backend,
         checkpointer=saver,
         system_prompt=(
-            "You are CodeHarness. Read the requested workspace file and summarize it honestly. "
-            "Only read_file is available for workspace access. Use relative paths. "
-            "Never claim to edit or run commands. Reply in the user's language. "
+            "You are CodeHarness, a coding agent working inside one workspace folder. "
+            "Use relative paths. Read before you edit. Keep changes small and explain them. "
+            "File tools: ls, read_file, write_file, edit_file, delete, glob, grep. "
+            "delete removes a single file only; directories need a command. "
+            "Reply in the user's language. "
             "Your final response must use this UI library:\n" + prompt
         ),
+        tools=extra_tools or [],
         middleware=cast(
             list[AgentMiddleware[Any, Any, Any]],
             [
                 TodoListMiddleware(),
                 FilesystemMiddleware(
                     backend=backend,
-                    tools=["read_file"],
+                    tools=FS_TOOLS,
                     tool_token_limit_before_evict=None,
                     human_message_token_limit_before_evict=None,
                 ),
-                ReadOnlyTools(redactor),
+                RedactingMiddleware(redactor),
+                *(extra_middleware or []),
             ],
         ),
     )

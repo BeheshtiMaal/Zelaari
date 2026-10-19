@@ -1,72 +1,95 @@
-"""Read-only filesystem backend. Resolve-based containment is not an OS sandbox."""
+"""Workspace containment. Resolve-based checks are not an OS sandbox.
+
+Phase 0 recorded the residual race: a junction created between resolution and the
+open call can still redirect a write. We resolve every path (symlinks and NTFS
+junctions included) and reject anything that lands outside the root, but we do not
+claim kernel-level isolation.
+"""
 
 import re
+from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 
-from deepagents.backends import FilesystemBackend
-from deepagents.backends.protocol import EditResult, ReadResult, WriteResult
+PROTECTED = ".harness"
+MAX_TEXT_BYTES = 2_000_000
+MAX_READ_LINES = 2000
 
-from store.secrets import Redactor
-from tools.workspace import storage_path as storage_path
-from tools.workspace import workspace_root as workspace_root
+_DEVICE = re.compile(r"(^|[/\\])(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)", re.I)
 
 
-def contained(root: Path, value: str) -> Path:
-    windows = PureWindowsPath(value)
-    if windows.drive.startswith("\\\\") or (windows.drive and not windows.root):
-        raise ValueError("UNC, device and drive-relative paths are unsupported")
-    if windows.root and not windows.drive:
-        raise ValueError("Root-relative paths are unsupported; use a relative path")
-    if any(part.casefold() in {"..", ".harness"} for part in windows.parts):
-        raise ValueError("Traversal and engine storage are protected")
-    if any(":" in part for part in windows.parts[1:] if windows.drive) or (
-        not windows.drive and ":" in value
-    ):
-        raise ValueError("Alternate data streams are unsupported")
-    if re.search(r"(^|[/\\])(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)", value, re.I):
-        raise ValueError("Device names are unsupported")
-    path = Path(value)
-    target = (path if path.is_absolute() else root / path).resolve()
+class JailError(ValueError):
+    """A path that must never reach the filesystem."""
+
+
+@dataclass(frozen=True)
+class Resolved:
+    """A path proven to live inside the workspace, plus its POSIX-relative form."""
+
+    path: Path
+    relative: str
+
+    @property
+    def is_protected(self) -> bool:
+        return self.relative.split("/")[0].casefold() == PROTECTED
+
+
+def workspace_root(value: str) -> Path:
+    root = Path(value).resolve(strict=True)
+    if not root.is_dir() or root == Path(root.anchor) or root == Path.home().resolve():
+        raise JailError("Choose a project directory, not a drive or home directory")
+    return root
+
+
+def storage_path(root: Path, relative: str) -> Path:
+    target = (root / PROTECTED / relative).resolve()
     if not target.is_relative_to(root):
-        raise ValueError("Path escapes workspace")
-    if any(part.casefold() == ".harness" for part in target.relative_to(root).parts):
-        raise ValueError("Engine storage is protected")
+        raise JailError("Engine storage escapes workspace")
     return target
 
 
-class ReadOnlyBackend(FilesystemBackend):
-    def __init__(self, root: Path, redactor: Redactor) -> None:
-        super().__init__(root_dir=root, virtual_mode=True)
-        self.root = root
-        self.redactor = redactor
+def _reject_forms(value: str) -> None:
+    """Reject the spellings that bypass a naive relative-path join."""
+    windows = PureWindowsPath(value)
+    if windows.drive.startswith("\\\\") or (windows.drive and not windows.root):
+        raise JailError("UNC, device and drive-relative paths are unsupported")
+    if windows.root and not windows.drive:
+        raise JailError("Root-relative paths are unsupported; use a relative path")
+    if any(part.casefold() == ".." for part in windows.parts):
+        raise JailError("Traversal is not allowed")
+    if any(":" in part for part in windows.parts[1:] if windows.drive) or (
+        not windows.drive and ":" in value
+    ):
+        raise JailError("Alternate data streams are unsupported")
+    if _DEVICE.search(value):
+        raise JailError("Device names are unsupported")
 
-    def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> ReadResult:
-        try:
-            # FilesystemMiddleware canonicalizes relative tool paths to virtual
-            # /paths. Interpret that prefix inside the jail, never as an OS root.
-            virtual = (
-                file_path[1:]
-                if file_path.startswith("/") and not file_path.startswith("//")
-                else file_path
-            )
-            target = contained(self.root, virtual)
-            if target.stat().st_size > 2_000_000:
-                return ReadResult(error="File exceeds Phase 1 text read limit (2 MB)")
-            text = self.redactor.text(target.read_text(encoding="utf-8"))
-            lines = text.splitlines(keepends=True)
-            content = "".join(lines[max(0, offset) : max(0, offset) + max(0, min(limit, 2000))])
-            return ReadResult(file_data={"content": content, "encoding": "utf-8"})
-        except (ValueError, OSError, RuntimeError, UnicodeError):
-            return ReadResult(error="Read denied: invalid, inaccessible, or outside workspace path")
 
-    def write(self, file_path: str, content: str) -> WriteResult:
-        return WriteResult(error="Phase 1 allows file reads only")
+def resolve(root: Path, value: str, *, allow_protected: bool = False) -> Resolved:
+    """Resolve `value` inside `root` or raise `JailError`.
 
-    def edit(
-        self,
-        file_path: str,
-        old_string: str,
-        new_string: str,
-        replace_all: bool = False,
-    ) -> EditResult:
-        return EditResult(error="Phase 1 allows file reads only")
+    `allow_protected` exists only for engine-owned paths (snapshots, run logs); no
+    agent-facing tool may set it.
+    """
+    _reject_forms(value)
+    candidate = Path(value)
+    target = (candidate if candidate.is_absolute() else root / candidate).resolve()
+    if not target.is_relative_to(root):
+        raise JailError("Path escapes workspace")
+    relative = target.relative_to(root).as_posix()
+    if relative == ".":
+        relative = ""
+    if not allow_protected and relative.split("/")[0].casefold() == PROTECTED:
+        raise JailError("Engine storage is protected")
+    if any(part.casefold() == PROTECTED for part in target.relative_to(root).parts):
+        if not allow_protected:
+            raise JailError("Engine storage is protected")
+    return Resolved(target, relative)
+
+
+def virtual_path(value: str) -> str:
+    """Map the middleware's canonical `/path` form back to a workspace-relative path."""
+    return value[1:] if value.startswith("/") and not value.startswith("//") else value
+
+
+def resolve_virtual(root: Path, value: str, *, allow_protected: bool = False) -> Resolved:
+    return resolve(root, virtual_path(value), allow_protected=allow_protected)
