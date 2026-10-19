@@ -17,7 +17,9 @@ Arguments marked with ? are optional. Sub-components can be inline or referenced
 
 Callout(text: string) — A short status or summary
 KeyValue(label: string, value: string) — A labeled value
-Stack(children: (Callout | KeyValue)[]) — Vertical content
+ApprovalCard(runId: string, approvalId: string) — Review an existing engine approval by its exact IDs; cannot create permissions
+DiffView(diff: string) — Unified diff with old/new line numbers
+Stack(children: (Callout | KeyValue | ApprovalCard | DiffView)[]) — Vertical content
 
 ## Hoisting & Streaming (CRITICAL)
 

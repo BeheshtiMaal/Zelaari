@@ -11,7 +11,7 @@ export function Sidebar({ t, session, settings, reset, openSettings, openTask }:
   return <aside className="sidebar" aria-label="CodeHarness">
     <div className="brand"><span className="brand-mark" /><span dir="ltr">CodeHarness</span></div>
     <nav><button className={`nav-item ${!settings ? "active" : ""}`} onClick={reset} disabled={session.busy}><PlusCircleIcon size={18} /><span>{t.newTask}</span></button>
-      <button className="nav-item" disabled title={t.soon}><TrayIcon size={18} /><span>{t.approvals}</span></button>
+      <a className="nav-item" href="/approvals/"><TrayIcon size={18} /><span>{t.approvals}</span></a>
       <button className="nav-item" disabled title={t.soon}><SparkleIcon size={18} /><span>{t.customize}</span></button>
       <button className="nav-item" disabled title={t.soon}><AlarmIcon size={18} /><span>{t.schedule}</span></button>
     </nav>

@@ -1,5 +1,56 @@
 @import "tailwindcss";
 
+.inbox-screen { padding-block: 24px; padding-inline: 28px; display: flex; flex-direction: column; gap: 16px; overflow: auto; block-size: 100%; }
+.inbox-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.inbox-heading h1 { font-size: 22px; font-weight: 800; margin: 0; }
+.inbox-heading p { margin: 0; }
+.inbox-tabs { display: flex; gap: 6px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 24px; padding: 4px; flex-wrap: wrap; }
+.inbox-tabs button { background: transparent; color: var(--text-muted); border: 0; border-radius: 20px; padding-block: 5px; padding-inline: 16px; font-size: 13.5px; }
+.inbox-tabs button[aria-selected="true"] { background: var(--bg-active); color: #fff; font-weight: 800; }
+.inbox-panes { display: flex; gap: 16px; align-items: flex-start; flex: 1; min-block-size: 0; }
+.inbox-list { inline-size: 360px; max-inline-size: 100%; flex: none; display: flex; flex-direction: column; gap: 10px; }
+.inbox-row { display: block; text-align: start; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding-block: 12px; padding-inline: 14px; }
+.inbox-row.selected { border: 2px solid var(--accent); background: #172A2D; }
+.inbox-row.decided { opacity: .6; }
+.inbox-row p { margin-block: 2px 8px; }
+.inbox-row-heading { display: flex; gap: 10px; align-items: center; }
+.inbox-row-heading svg { flex: none; color: var(--text-muted); }
+.inbox-row-heading strong { flex: 1; overflow-wrap: anywhere; }
+.inbox-row-heading time { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.inbox-detail { flex: 1; min-inline-size: 0; }
+.approval-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 22px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.approval-card.inline { background: #2A2415; border: 2px solid #D97706; border-radius: 16px; padding-block: 14px; padding-inline: 16px; margin-block: 16px; gap: 10px; }
+.approval-card h2 { font-size: 19px; font-weight: 800; margin: 0; overflow-wrap: anywhere; }
+.approval-card.inline h2 { font-size: 15px; }
+.approval-card h2 code { font-size: 14px; font-weight: 400; background: var(--bg-raised); border-radius: 6px; padding-inline: 8px; }
+.approval-card p { margin: 0; }
+.approval-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.type-chip { background: var(--bg-raised); color: var(--text-muted); border-radius: 20px; padding-inline: 10px; font-size: 12px; }
+.approval-source { margin-inline-start: auto; font-size: 12.5px; color: var(--text-dim); }
+.approval-explanation { background: var(--bg-raised); border-radius: 14px; padding-block: 10px; padding-inline: 14px; color: var(--text-muted); font-size: 13.5px; }
+.approval-explanation strong { color: var(--text); }
+.command-preview { font-family: Consolas, monospace; font-size: 12.5px; background: var(--terminal); border-radius: 8px; padding-block: 6px; padding-inline: 10px; margin-block: 6px; white-space: pre-wrap; overflow-wrap: anywhere; text-align: start; }
+.diff-view { border: 1px solid var(--border); border-radius: 14px; overflow: auto; padding-block: 8px; background: #15171A; font-family: Consolas, monospace; font-size: 13px; line-height: 1.8; }
+.diff-line { display: flex; gap: 12px; padding-inline: 14px; color: #D6E0EA; min-inline-size: max-content; }
+.diff-line.add { background: #12301F; color: #86EFAC; }
+.diff-line.remove { background: #3A1A1A; color: #FCA5A5; }
+.diff-line.header { color: var(--text-dim); }
+.diff-line code { white-space: pre; }
+.line-number { inline-size: 22px; text-align: end; flex: none; color: var(--text-dim); user-select: none; }
+.allow-rule { display: flex; gap: 10px; align-items: center; font-size: 13.5px; }
+.allow-rule input { accent-color: var(--accent); inline-size: 16px; block-size: 16px; }
+.approval-input { display: flex; flex-direction: column; gap: 6px; }
+.approval-input textarea { border: 1px solid #33363D; background: #15171A; color: var(--text); border-radius: 14px; padding-block: 10px; padding-inline: 14px; font: inherit; resize: vertical; inline-size: 100%; }
+.approval-input textarea[dir="ltr"] { font-family: Consolas, monospace; font-size: 13px; }
+.approval-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.approval-actions button, .approval-card .error button { border: 1px solid #474B54; background: transparent; color: var(--text); border-radius: 12px; padding-block: 8px; padding-inline: 20px; font: inherit; font-weight: 600; }
+.approval-actions button.approve { background: var(--accent); color: #fff; border: 0; }
+.approval-actions button.reject { border-color: #5C2A2A; color: #F87171; }
+.approval-actions a, .approval-actions .shortcuts { margin-inline-start: auto; font-size: 12px; }
+.approval-actions a { color: #5EEAD4; }
+.approval-card :focus-visible, .inbox-screen :focus-visible { outline: 2px solid #2DD4BF; outline-offset: 3px; }
+@media (max-width: 1120px) { .inbox-panes { flex-direction: column; } .inbox-list, .inbox-detail { inline-size: 100%; } }
+
 .settings-layout { display: flex; gap: 24px; padding-block: 24px; padding-inline: 28px; overflow: auto; block-size: 100%; align-items: flex-start; }
 .settings-nav { inline-size: 200px; flex: none; display: flex; flex-direction: column; gap: 4px; }
 .settings-nav h1 { font-size: 22px; font-weight: 800; margin-block: 0 10px; }

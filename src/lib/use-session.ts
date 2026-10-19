@@ -6,6 +6,7 @@ import { api, ApiError } from "./api";
 import { decision } from "./approvals";
 import { decodeSSE, subscribe } from "./sse";
 import { useRun } from "../store/run";
+import { useInbox } from "./inbox";
 import type { Locale } from "../i18n";
 
 const NO_BRANCHES: BranchList = { git: false, current: null, branches: [] };
@@ -38,6 +39,12 @@ export function useSession() {
   const workspace = spaces.selected ?? "";
   const branch = spaces.recent?.find(item => item.path === workspace)?.branch ?? null;
   const usableModel = models.some(provider => provider.id === model && provider.supports_tools && provider.probe?.status === "ok");
+  useEffect(() => {
+    if (!ready) return;
+    void useInbox.getState().refresh();
+    const timer = setInterval(() => { void useInbox.getState().refresh(); }, 1200);
+    return () => clearInterval(timer);
+  }, [ready]);
   async function refresh() {
     const [providers, workspaces] = await Promise.all([api<ProviderRecord[]>("/models"), api<WorkspaceState>("/workspaces")]);
     setModels(providers); setSpaces(workspaces);
@@ -105,9 +112,9 @@ export function useSession() {
   async function approveBranch() {
     const name = waitingBranch.current;
     waitingBranch.current = null; setBranchApproval(null);
-    if (name) await switchBranch(name, true);
+    if (name && branchApproval) { await useInbox.getState().decide(branchApproval, { decision: "approve" }); await refresh(); }
   }
-  function rejectBranch() { waitingBranch.current = null; setBranchApproval(null); }
+  function rejectBranch() { if (branchApproval) void useInbox.getState().decide(branchApproval, { decision: "reject" }); waitingBranch.current = null; setBranchApproval(null); }
   async function changeSettings(value: Settings) {
     try { setSettings(await api<Settings>("/settings", "PUT", value)); setFailed(false); return true; }
     catch { setFailed(true); return false; }
@@ -153,14 +160,15 @@ export function useSession() {
   async function approveWorktree() {
     const task = waitingTask.current;
     setWorktreeApproval(null); waitingTask.current = null;
-    if (task) await start(task, true);
+    if (task && worktreeApproval) { await useInbox.getState().decide(worktreeApproval, { decision: "approve" }); await refresh(); }
   }
-  function rejectWorktree() { setWorktreeApproval(null); waitingTask.current = null; }
+  function rejectWorktree() { if (worktreeApproval) void useInbox.getState().decide(worktreeApproval, { decision: "reject" }); setWorktreeApproval(null); waitingTask.current = null; }
   async function retryWithLongerTimeout(command: string) {
-    // The engine refuses a longer timeout without a fresh approval, so this starts a
-    // new run whose `run_command` call asks again. Phase 4 replaces it with a real
-    // "retry this call with new arguments" channel.
-    await start(`Run this command again with a timeout of 300 seconds: ${command}`);
+    const run = useRun.getState();
+    const call = [...run.items].reverse().find(item => item.kind === "tool" && item.name === "run_command" && item.args.command === command);
+    if (!run.runId || !call) return;
+    try { await api(`/runs/${run.runId}/commands/${encodeURIComponent(call.id)}/retry`, "POST", { timeout: 300 }); await useInbox.getState().refresh(); }
+    catch { setFailed(true); }
   }
   async function resolveApproval(verdict: "approve" | "reject") {
     const state = useRun.getState(), pending = state.approval, id = state.runId;

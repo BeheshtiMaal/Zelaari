@@ -36,6 +36,12 @@ export function keyAction(key: string): "approve" | "reject" | null {
   return null;
 }
 
+export function reviewShortcut(key: string, tag: string, contentEditable = false) {
+  if (contentEditable || ["TEXTAREA", "INPUT", "SELECT"].includes(tag)) return null;
+  if (tag === "BUTTON" && key === "Enter") return null;
+  return keyAction(key);
+}
+
 /** A run that is waiting on a person is paused, not running and not finished. */
 export function runLabel(status: string, hasApproval: boolean): "paused" | string {
   return hasApproval ? "paused" : status;
