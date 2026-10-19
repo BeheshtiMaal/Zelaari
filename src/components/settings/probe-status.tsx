@@ -8,7 +8,7 @@ export function ProbeStatus({ provider, t, edit, test, choose }: {
   if (provider.kind === "demo") return <p className="success">{t.available}</p>;
   if (probe?.status === "ok") return <p className="success">{t.testOk}</p>;
   if (probe?.status === "testing") return <p role="status">{t.testing}</p>;
-  if (probe?.status === "retrying") return <p className="warning" role="status">{t.probeErrors.rate_limit} · {t.retrying} {probe.retry_seconds} {t.seconds}</p>;
+  if (probe?.status === "retrying") return <p className="warning" role="status">{t.probeErrors.rate_limit} · {t.retrying} {new Intl.NumberFormat(document.documentElement.lang).format(probe.retry_seconds ?? 0)} {t.seconds}</p>;
   if (!probe?.code) return <p className="muted">{t.untested}</p>;
   const code = probe.code;
   return <div className={`provider-error ${code === "no_tools" || code === "rate_limit" ? "amber" : ""}`} role="alert">

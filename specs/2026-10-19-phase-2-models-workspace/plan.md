@@ -2,6 +2,10 @@
 
 Status: **Approved by the user on 2026-10-19.** Implement top to bottom, one commit per completed step.
 
+Execution: Steps 1–7 are implemented. Step 8 local checks pass with evidence in
+`validation.md`; live acceptance remains open at the user's request. The status-only
+roadmap amendment is proposed separately and has not been applied without approval.
+
 ## Step 1: Verify contracts and define data
 - Inspect installed safeStorage, provider adapters, deepagents stream shapes, FastAPI, Radix and static-export APIs; use official docs when local source is insufficient. Record evidence without credentials.
 - Define typed provider IDs/records, probe status, context provenance, default/locale settings, workspace/task metadata, error codes and reasoning/usage semantics.

@@ -67,6 +67,7 @@ def chat_model(record: ProviderRecord, key: SecretStr) -> BaseChatModel:
             max_retries=0,
             timeout=30,
             max_tokens_to_sample=4096,
+            stop=None,
         )
     return ReasoningOpenAI(
         model=record.model,

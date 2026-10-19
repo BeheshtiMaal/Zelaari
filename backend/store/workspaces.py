@@ -6,7 +6,7 @@ from pathlib import Path
 from agent.events import Event, event_adapter
 from providers.base import TaskRecord, Workspace, WorkspaceState
 from store.catalog import Catalog
-from tools.jail import storage_path, workspace_root
+from tools.workspace import storage_path, workspace_root
 
 
 def branch_name(root: Path) -> str | None:
@@ -46,6 +46,19 @@ def select_workspace(catalog: Catalog, value: str) -> WorkspaceState:
 def add_task(catalog: Catalog, task: TaskRecord) -> None:
     catalog.data.workspaces.tasks.append(task)
     catalog.persist()
+
+
+def workspace_state(catalog: Catalog) -> WorkspaceState:
+    state = catalog.data.workspaces
+    for item in state.recent:
+        try:
+            item.branch = branch_name(workspace_root(item.path))
+        except (ValueError, OSError, RuntimeError):
+            item.branch = None
+            if state.selected == item.path:
+                state.selected = None
+                catalog.persist()
+    return state
 
 
 def task_events(catalog: Catalog, identifier: str) -> list[Event]:

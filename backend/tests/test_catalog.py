@@ -12,6 +12,8 @@ from store.catalog import Catalog, Credential
 def test_catalog_persistence_and_memory_only_keys(tmp_path: Path) -> None:
     path = tmp_path / "catalog.json"
     catalog = Catalog(path)
+    with pytest.raises(ValueError):
+        catalog.require("missing")
     value = ModelInput(id="mine", name="Mine", base_url="https://example.invalid/v1", model="m")
     with pytest.raises(ValueError):
         catalog.save(value)

@@ -2,6 +2,8 @@ import type { fa } from "./fa";
 export const en: { [Key in keyof typeof fa]: typeof fa[Key] } = {
   sections: ["Models and keys", "Appearance and language", "Permissions and safety", "Context and compaction", "Terminal and tests", "Data and privacy", "About"],
   modelsIntro: "Any model with your own key; keys stay on this device.",
+  invalidWorkspace: "Choose an accessible project folder; drive roots and your home folder are not allowed.",
+  emptyWorkspaceLabel: "First use · no workspace selected", emptyModelLabel: "First use · no model added",
   addModel: "Add model", editModel: "Edit model", edit: "Edit", test: "Test", testConnection: "Test connection", save: "Save", cancel: "Cancel", close: "Close",
   displayName: "Display name", baseUrl: "Base URL", apiKey: "API key", modelName: "Model name", fillPreset: "Fill with one click:",
   vaultHelp: "Stored only in the Windows vault; never written to the project folder.",

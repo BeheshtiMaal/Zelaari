@@ -7,7 +7,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from agent.events import Event
 from providers.base import WorkspaceSelection, WorkspaceState
 from store.catalog import Catalog
-from store.workspaces import select_workspace, task_events
+from store.workspaces import select_workspace, task_events, workspace_state
 
 
 def workspace_routes(catalog: Catalog) -> APIRouter:
@@ -15,7 +15,7 @@ def workspace_routes(catalog: Catalog) -> APIRouter:
 
     @router.get("/workspaces")
     def workspaces() -> WorkspaceState:
-        return catalog.data.workspaces
+        return workspace_state(catalog)
 
     @router.post("/workspaces")
     def select(value: WorkspaceSelection) -> WorkspaceState:

@@ -11,11 +11,12 @@ const entries = z.record(z.string(), z.string());
 export class Vault {
   constructor(private path: string, private encryption: Encryption) {}
   private async read(): Promise<Record<string, string>> {
-    try { return entries.parse(JSON.parse(await readFile(this.path, "utf8"))); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return {}; throw new Error("Vault unavailable"); }
+    try { return Object.assign(Object.create(null) as Record<string, string>, entries.parse(JSON.parse(await readFile(this.path, "utf8")))); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return Object.create(null) as Record<string, string>; throw new Error("Vault unavailable"); }
   }
   private check() { if (!this.encryption.isEncryptionAvailable()) throw new Error("Vault unavailable"); }
   async put(id: string, key: string): Promise<void> {
+    if (["__proto__", "constructor", "prototype"].includes(id)) throw new Error("Invalid model identifier");
     this.check();
     const values = await this.read();
     values[id] = this.encryption.encryptString(key).toString("base64");
@@ -26,13 +27,13 @@ export class Vault {
   async all(): Promise<Record<string, string>> {
     const values = await this.read();
     if (Object.keys(values).length) this.check();
-    return Object.fromEntries(Object.entries(values).map(([id, encrypted]) =>
-      [id, this.encryption.decryptString(Buffer.from(encrypted, "base64"))]));
+    return Object.assign(Object.create(null) as Record<string, string>, Object.fromEntries(Object.entries(values).map(([id, encrypted]) =>
+      [id, this.encryption.decryptString(Buffer.from(encrypted, "base64"))])));
   }
 }
 
 export const modelSubmission = z.object({
-  id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/).refine(id => id !== "demo"),
+  id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/).refine(id => !["demo", "__proto__", "constructor", "prototype"].includes(id)),
   name: z.string().trim().min(1).max(120), model: z.string().trim().min(1).max(200),
   base_url: z.string().refine(value => {
     try { const u = new URL(value); return ["http:", "https:"].includes(u.protocol) && !u.username && !u.password && !u.search && !u.hash; }

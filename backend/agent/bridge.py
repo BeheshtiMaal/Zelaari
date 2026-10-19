@@ -161,8 +161,15 @@ class RunManager:
             except Exception as error:
                 if record.kind != "demo" and record.context.source == "fallback":
                     context = detect_context(record.model, error=str(error))
-                    if context.source == "error":
-                        self.catalog.data.models[record.id].context = context
+                    current = self.catalog.data.models.get(record.id)
+                    if (
+                        context.source == "error"
+                        and current
+                        and current.model == record.model
+                        and current.base_url == record.base_url
+                        and current.context.source == "fallback"
+                    ):
+                        current.context = context
                         self.catalog.persist()
                 # Provider errors may contain request headers/keys. Never serialize exceptions.
                 await bus.emit(

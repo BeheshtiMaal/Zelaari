@@ -43,13 +43,15 @@ async def test_connection(
         raise ValueError("Test already running")
     record.supports_tools = False
     key = catalog.keys[identifier]
+    key_digest = catalog.data.key_digests.get(identifier)
     record.probe = Probe(status="testing")
     catalog.persist()
-    context_metadata = await metadata(record, key)
-    record.context = detect_context(record.model, context_metadata)
+    context_metadata: object = None
     try:
+        context_metadata = await metadata(record, key)
+        record.context = detect_context(record.model, context_metadata)
         model = factory(record.model_copy(deep=True), key)
-        bound = model.bind_tools([PROBE_TOOL])
+        bound = model.bind_tools([PROBE_TOOL]).bind(max_tokens=512)
         for attempt in range(1, 4):
             record.probe = Probe(status="testing", attempt=attempt)
             try:
@@ -75,6 +77,15 @@ async def test_connection(
                 break
             except Exception as error:
                 status = getattr(error, "status_code", None)
+                no_tools = status in {400, 422} and any(
+                    phrase in str(error).lower()
+                    for phrase in (
+                        "tool calling is not supported",
+                        "does not support tools",
+                        "does not support tool",
+                        "unsupported tool",
+                    )
+                )
                 parsed = detect_context(record.model, context_metadata, str(error))
                 record.context = parsed
                 if status == 429 and attempt < 3:
@@ -94,6 +105,8 @@ async def test_connection(
                     if status == 401
                     else "rate_limit"
                     if status == 429
+                    else "no_tools"
+                    if no_tools
                     else "network",
                 )
                 break
@@ -103,5 +116,11 @@ async def test_connection(
     except Exception:
         record.probe = Probe(status="error", code="network")
     finally:
+        current = catalog.data.models.get(identifier)
+        if current is not record or catalog.data.key_digests.get(identifier) != key_digest:
+            if current:
+                current.probe = Probe()
+                current.supports_tools = False
+                record = current
         catalog.persist()
     return record

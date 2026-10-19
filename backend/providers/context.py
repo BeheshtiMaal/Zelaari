@@ -16,10 +16,10 @@ def positive(value: object) -> int | None:
 
 
 def detect_context(model: str, metadata: object = None, error: str = "") -> Context:
-    if isinstance(metadata, dict):
+    if isinstance(metadata, dict) and isinstance(metadata.get("data"), list):
         for item in metadata.get("data", []):
             if isinstance(item, dict) and item.get("id") == model:
-                for field in ("context_window", "context_length"):
+                for field in ("context_window", "context_length", "max_input_tokens"):
                     if tokens := positive(item.get(field)):
                         return Context(tokens=tokens, source="metadata", estimated=False)
     table: dict[str, Any] = json.loads(Path(__file__).with_name("context_table.json").read_text())
@@ -28,7 +28,7 @@ def detect_context(model: str, metadata: object = None, error: str = "") -> Cont
     match = re.search(
         r"(?:maximum context length is|context (?:window|length|limit)(?: is|:)?"
         r"|maximum number of tokens (?:is|allowed is))"
-        r"\s*([\d,]+)\s*(?:tokens)?",
+        r"\s*([0-9][0-9,]*)\s*(?:tokens)?",
         error,
         re.I,
     )

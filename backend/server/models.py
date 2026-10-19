@@ -1,14 +1,15 @@
 """Provider metadata routes. Credentials are write-only and never persisted here."""
 
+import asyncio
+import importlib
 import json
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from pydantic import SecretStr
 
 from providers.base import ModelInput, Preset, ProviderRecord, Settings
-from providers.probe import test_connection
 from store.catalog import Catalog, Credential
-from pydantic import SecretStr
 
 
 class DraftModel(ModelInput):
@@ -20,6 +21,9 @@ def model_routes(catalog: Catalog) -> APIRouter:
 
     @router.post("/internal/probe")
     async def draft_probe(value: DraftModel) -> ProviderRecord:
+        await asyncio.to_thread(importlib.import_module, "providers.probe")
+        from providers.probe import test_connection
+
         temporary = Catalog(redactor=catalog.redactor)
         temporary.credential(Credential(id=value.id, key=value.key))
         temporary.save(ModelInput.model_validate(value.model_dump(exclude={"key"})))
@@ -30,9 +34,16 @@ def model_routes(catalog: Catalog) -> APIRouter:
         return catalog.records()
 
     @router.post("/models")
-    def save(value: ModelInput) -> ProviderRecord:
+    async def save(value: ModelInput) -> ProviderRecord:
         try:
-            return catalog.save(value)
+            from providers.context import detect_context, model_metadata
+
+            record = catalog.save(value)
+            record.context = detect_context(
+                record.model, await model_metadata(record, catalog.keys[value.id])
+            )
+            catalog.persist()
+            return record
         except (ValueError, OSError):
             raise HTTPException(400, "Model could not be saved") from None
 
@@ -51,6 +62,9 @@ def model_routes(catalog: Catalog) -> APIRouter:
 
     @router.post("/models/{identifier}/test")
     async def probe(identifier: str) -> ProviderRecord:
+        await asyncio.to_thread(importlib.import_module, "providers.probe")
+        from providers.probe import test_connection
+
         try:
             return await test_connection(catalog, identifier)
         except (ValueError, OSError):

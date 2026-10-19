@@ -2,6 +2,7 @@
 
 from hashlib import sha256
 from pathlib import Path
+from threading import RLock
 
 from pydantic import Field, SecretStr
 
@@ -31,6 +32,7 @@ class Credential(Record):
 
 class Catalog:
     def __init__(self, path: Path | None = None, redactor: Redactor | None = None) -> None:
+        self.lock = RLock()
         self.path = path
         self.redactor = redactor or Redactor()
         self.keys: dict[str, SecretStr] = {}
@@ -46,6 +48,10 @@ class Catalog:
                     task.status = "interrupted"
 
     def persist(self) -> None:
+        with self.lock:
+            self._persist()
+
+    def _persist(self) -> None:
         if self.path:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             temporary = self.path.with_suffix(".tmp")

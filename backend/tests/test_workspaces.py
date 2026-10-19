@@ -6,7 +6,7 @@ import pytest
 from agent.bridge import RunManager
 from agent.events import RunRequest
 from store.catalog import Catalog
-from store.workspaces import branch_name, select_workspace, task_events
+from store.workspaces import branch_name, select_workspace, task_events, workspace_state
 from tools.jail import workspace_root
 
 
@@ -14,7 +14,12 @@ def test_selection_safety_recents_and_git_metadata(tmp_path: Path) -> None:
     catalog = Catalog(tmp_path / "app" / "catalog.json")
     project = tmp_path / "project"
     project.mkdir()
-    for forbidden in [str(Path.home()), str(Path(tmp_path.anchor)), str(project / "missing")]:
+    for forbidden in [
+        str(Path.home()),
+        str(Path(tmp_path.anchor)),
+        "//localhost/C$/",
+        str(project / "missing"),
+    ]:
         with pytest.raises((ValueError, OSError)):
             select_workspace(catalog, forbidden)
     assert branch_name(project) is None
@@ -33,6 +38,13 @@ def test_selection_safety_recents_and_git_metadata(tmp_path: Path) -> None:
     assert len(catalog.data.workspaces.recent) == 1
     restored = Catalog(catalog.path)
     assert restored.data.workspaces.selected == str(project.resolve())
+    (git / "HEAD").write_text("ref: refs/heads/changed-while-closed")
+    assert workspace_state(restored).recent[0].branch == "changed-while-closed"
+    stale = tmp_path / "stale"
+    stale.mkdir()
+    select_workspace(restored, str(stale))
+    stale.rmdir()
+    assert workspace_state(restored).selected is None
     home_alias = tmp_path / "home-alias"
     # Native Windows junction, not a mocked resolve result.
     import subprocess

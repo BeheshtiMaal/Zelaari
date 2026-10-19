@@ -7,13 +7,8 @@ from deepagents.backends import FilesystemBackend
 from deepagents.backends.protocol import EditResult, ReadResult, WriteResult
 
 from store.secrets import Redactor
-
-
-def workspace_root(value: str) -> Path:
-    root = Path(value).resolve(strict=True)
-    if not root.is_dir() or root == Path(root.anchor) or root == Path.home().resolve():
-        raise ValueError("Choose a project directory, not a drive or home directory")
-    return root
+from tools.workspace import storage_path as storage_path
+from tools.workspace import workspace_root as workspace_root
 
 
 def contained(root: Path, value: str) -> Path:
@@ -36,13 +31,6 @@ def contained(root: Path, value: str) -> Path:
         raise ValueError("Path escapes workspace")
     if any(part.casefold() == ".harness" for part in target.relative_to(root).parts):
         raise ValueError("Engine storage is protected")
-    return target
-
-
-def storage_path(root: Path, relative: str) -> Path:
-    target = (root / ".harness" / relative).resolve()
-    if not target.is_relative_to(root):
-        raise ValueError("Engine storage escapes workspace")
     return target
 
 

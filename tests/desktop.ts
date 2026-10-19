@@ -52,18 +52,29 @@ for (const language of ["fa", "en"] as const) {
     const failedRequests: string[] = [];
     page.on("requestfailed", request => failedRequests.push(new URL(request.url()).pathname));
     await expect(page.locator(".app-shell")).toHaveAttribute("data-ready", "true", { timeout: 30000 });
+    if (language === "en") {
+      await page.locator(".settings").click();
+      await page.locator(".settings-nav button").nth(1).click();
+      await page.getByRole("button", {name: "English", exact: true}).click();
+      await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+      await page.locator(".sidebar nav button").first().click();
+    }
     let releaseHealth!: () => void;
+    let capturedHealth!: () => void;
+    const captured = new Promise<void>(resolve => { capturedHealth = resolve; });
     const healthGate = new Promise<void>(resolve => { releaseHealth = resolve; });
-    await page.route("**/health", async route => { await healthGate; await route.continue(); });
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.route("**/health", async route => { capturedHealth(); await healthGate; await route.continue(); });
+    const reloaded = page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
+    await captured;
     await expect(page.locator("#task")).toBeDisabled();
     releaseHealth();
+    await reloaded;
     await expect(page.locator("#task")).toBeEnabled({ timeout: 10000 });
     await page.unroute("**/health");
     assert.equal(await page.evaluate(() => document.documentElement.dir), language === "fa" ? "rtl" : "ltr");
     assert.equal(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require), "undefined");
-    assert.deepEqual(await page.evaluate(() => Object.keys(window.harness ?? {}).sort()), ["baseUrl", "pickWorkspace", "token"]);
-    await expect(page.locator(".sidebar button:disabled")).toHaveCount(5);
+    assert.deepEqual(await page.evaluate(() => Object.keys(window.harness ?? {}).sort()), ["baseUrl", "pickWorkspace", "saveModel", "testModelDraft", "token", "vaultStatus"]);
+    await expect(page.locator(".sidebar button:disabled")).toHaveCount(3);
     await page.screenshot({ path: resolve(artifacts, `home-${language}.png`) });
     const body = await page.locator("body").boundingBox();
     const sidebar = await page.locator(".sidebar").boundingBox();
@@ -78,6 +89,7 @@ for (const language of ["fa", "en"] as const) {
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [selected] });
     }, workspace);
     await page.getByTestId("pick-workspace").click();
+    await page.locator(".model-select select").selectOption("demo");
     await page.locator("#task").fill("read README.md and summarize");
     const created = page.waitForResponse(response => new URL(response.url()).pathname === "/runs" && response.request().method() === "POST");
     await page.locator("button[type=submit]").click();

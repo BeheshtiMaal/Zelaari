@@ -16,10 +16,12 @@ export function useSession() {
   const [model, setModel] = useState("");
   const [mode, setMode] = useState<RunRequest["mode"]>("ask");
   const [vaultOk, setVaultOk] = useState(true);
+  const [workspaceError, setWorkspaceError] = useState(false);
   const active = useRef<AbortController | null>(null);
   const locale: Locale = settings.locale === "en" ? "en" : "fa";
   const workspace = spaces.selected ?? "";
   const branch = spaces.recent?.find(item => item.path === workspace)?.branch ?? null;
+  const usableModel = models.some(provider => provider.id === model && provider.supports_tools && provider.probe?.status === "ok");
   async function refresh() {
     const [providers, workspaces] = await Promise.all([api<ProviderRecord[]>("/models"), api<WorkspaceState>("/workspaces")]);
     setModels(providers); setSpaces(workspaces);
@@ -51,12 +53,12 @@ export function useSession() {
     return () => { controller.abort(); active.current?.abort(); };
   }, []);
   async function selectWorkspace(path: string) {
-    try { setSpaces(await api<WorkspaceState>("/workspaces", "POST", { path })); setFailed(false); }
-    catch { setFailed(true); }
+    try { setSpaces(await api<WorkspaceState>("/workspaces", "POST", { path })); setFailed(false); setWorkspaceError(false); }
+    catch { setWorkspaceError(true); }
   }
   async function pickWorkspace() {
     try { const path = await connection()?.pickWorkspace(); if (path) await selectWorkspace(path); }
-    catch { setFailed(true); }
+    catch { setWorkspaceError(true); }
   }
   async function changeSettings(value: Settings) {
     try { setSettings(await api<Settings>("/settings", "PUT", value)); setFailed(false); return true; }
@@ -82,7 +84,7 @@ export function useSession() {
   }
   async function start(task: string) {
     const bridge = connection();
-    if (!bridge || !ready || busy || !workspace || !models.some(p => p.id === model && p.supports_tools && p.probe?.status === "ok")) return;
+    if (!bridge || !ready || busy || !workspace || !usableModel) return;
     active.current?.abort();
     const controller = new AbortController(); active.current = controller;
     setBusy(true); setFailed(false); useRun.getState().reset();
@@ -101,6 +103,7 @@ export function useSession() {
       useRun.getState().reset();
       for await (const event of decodeSSE(response.body)) useRun.getState().receive(event);
       const task = spaces.tasks?.find(item => item.id === id);
+      if (task) { await selectWorkspace(task.workspace); setModel(task.model); setMode(task.mode ?? "ask"); }
       if (task?.status === "interrupted") useRun.setState({ status: "stopped" });
     } catch { setFailed(true); }
   }
@@ -109,7 +112,7 @@ export function useSession() {
     if (!id) return;
     try { await api(`/runs/${id}/stop`, "POST"); } catch { setFailed(true); }
   }
-  return { ready, failed, busy, testing, workspace, branch, spaces, models, presets, settings, model, mode, locale, vaultOk,
+  return { ready, failed, busy, testing, workspace, branch, spaces, models, presets, settings, model, mode, locale, vaultOk, usableModel, workspaceError,
     setModel, setMode, setLocale, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace, start, stop, openTask };
 }
 export type Session = ReturnType<typeof useSession>;

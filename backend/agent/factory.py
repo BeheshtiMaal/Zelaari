@@ -21,6 +21,9 @@ from tools.jail import ReadOnlyBackend
 class ReadOnlyTools(AgentMiddleware[Any, Any, Any]):
     """Enforce the phase's tool surface even if a model invents a tool call."""
 
+    def __init__(self, redactor: Redactor | None = None) -> None:
+        self.redactor = redactor or Redactor()
+
     async def awrap_model_call(
         self,
         request: ModelRequest,
@@ -31,7 +34,13 @@ class ReadOnlyTools(AgentMiddleware[Any, Any, Any]):
             for tool in request.tools
             if getattr(tool, "name", "") in {"read_file", "write_todos"}
         ]
-        return await handler(request.override(tools=tools))
+        response = await handler(request.override(tools=tools))
+        # The event bridge alone is too late: graph state is checkpointed first.
+        response.result = [
+            type(message).model_validate(self.redactor.value(message.model_dump(mode="json")))
+            for message in response.result
+        ]
+        return response
 
     async def awrap_tool_call(
         self,
@@ -75,7 +84,7 @@ def build_agent(
                     tool_token_limit_before_evict=None,
                     human_message_token_limit_before_evict=None,
                 ),
-                ReadOnlyTools(),
+                ReadOnlyTools(redactor),
             ],
         ),
     )

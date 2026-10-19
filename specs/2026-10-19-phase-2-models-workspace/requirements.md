@@ -1,6 +1,6 @@
 ﻿# Phase 2: Models and Workspace. Requirements
 
-Status: **Approved by the user on 2026-10-19; implementation in progress.**
+Status: **Approved by the user on 2026-10-19; local implementation complete, live validation pending.**
 
 ## Goal
 A user can add and test models with their own keys, pick a safe workspace, and start a task from Home, preserving the offline demo and Phase 1 guarantees.
