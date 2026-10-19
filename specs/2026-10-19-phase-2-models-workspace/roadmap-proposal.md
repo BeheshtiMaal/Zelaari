@@ -8,8 +8,9 @@ Keep its scope and phase order unchanged. Add to its outcome:
 > Implementation adds model settings/probes, safeStorage credentials, provider
 > reasoning and usage, Home, workspace recents/task replay and remembered language.
 > Local evidence is recorded in `2026-10-19-phase-2-models-workspace/validation.md`.
-> Live compatible and native Anthropic acceptance checks remain open at the user's
-> request; Phase 2 is not complete and Phase 3 must wait.
+> Live compatible and native Anthropic engine checks passed using authorized
+> credentials. Full live desktop acceptance remains open; Phase 2 is not complete
+> and Phase 3 must wait.
 
 Replace the final Phase 1 handoff sentence beginning “Phase 2 has not started” with:
 

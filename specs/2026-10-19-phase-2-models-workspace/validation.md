@@ -1,6 +1,6 @@
 # Phase 2: Models and Workspace. Validation
 
-Status: **Local validation passed on 2026-10-19. Live acceptance remains open at the user's request. Phase 2 is not complete.**
+Status: **Local validation passed on 2026-10-19. Live engine checks passed; full live desktop acceptance remains open. Phase 2 is not complete.**
 Done only when every box has passing evidence. Checked items have observed passing evidence; unchecked items remain acceptance targets. Never capture real keys in screenshots, traces or artifacts.
 
 ## Automated (CI/local Windows)
@@ -59,9 +59,9 @@ Done only when every box has passing evidence. Checked items have observed passi
 - [x] Git branch/detached label/non-git hiding correct. Worktree disabled with Phase 3 explanation. Modes add no execution capability. Chips fill editable text; Home uses chosen workspace/model/mode. (R11–R12)
   Evidence: Native phase-two branch display/mode payload/disabled Worktree/chip fill; gitdir/detached/non-git cases verified with filesystem fixtures.
 - [ ] Live OpenAI-compatible provider: add/probe and real jailed read from Home; streamed output, tokens, Stop/replay. Record model, context source and reasoning availability without credentials. (R4, R6–R9, R12)
-  Open: user chose local-only validation on 2026-10-19; no live credentials/endpoints used.
+  Partial evidence (2026-10-19): authorized external Phase 1 credentials; AvalAI gpt-4o-mini passed live probe, jailed read, streamed OpenUI, provider usage (4,406 input / 63 output), identical replay, Stop and persisted-file key scan. Metadata context 128,000; no reasoning emitted. Command: `backend/.venv/Scripts/python.exe scripts/check_live.py`. Full live Home add/save/run remains open.
 - [ ] Live native Anthropic provider: add/probe and real jailed read; record model, context source, tokens and whether thinking actually arrived. Synthetic fixtures do not count as live evidence. (R4, R6–R9)
-  Open: user chose local-only validation on 2026-10-19; no live credentials/endpoints used.
+  Partial evidence (2026-10-19): `scripts/check_live.py --native-adapter --model claude-haiku-4-5` passed the real Anthropic Messages SDK against AvalAI, including probe, jailed read, streamed OpenUI, provider usage (6,771 input / 161 output), identical replay, Stop and persisted-file key scan. Context fallback 32,768 estimated; no thinking emitted. This explicit in-memory diagnostic override does not change product exact-host inference: a custom AvalAI URL selects the compatible adapter in Settings. Direct native-provider desktop acceptance remains open.
 - [x] Controlled local provider fixture produces 401, repeated 429 and no-tools errors: exact Persian copy/actions, visible retry state/exhaustion, no probe file changes, previous task output intact. (R6)
   Evidence: Local provider fixture emits 401/429/no-tools; both error locales inspected. API denies failed providers for defaults/runs, retains prior output, and makes exactly three rate-limit attempts.
 - [x] Hover/focus ring and disabled controls; labels make placeholder/deferred status clear. Token estimates show ~ and no monetary value. (R9, R14)

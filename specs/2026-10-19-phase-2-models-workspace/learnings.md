@@ -3,7 +3,7 @@
 Status: implementation delivered in ordered commits; all local checks pass and
 evidence is recorded in `validation.md`. Live acceptance remains open. On 2026-10-19 the user
 explicitly chose: “Complete local validation and leave unavailable live checks open.”
-No external credential file was read for this phase's validation.
+The user subsequently authorized the external Phase 1 credential file for both model families. Live adapter results below supersede the earlier local-only restriction; full desktop acceptance remains open.
 
 ## Verified contracts and versions
 - Electron 44.9.0 local declarations: `safeStorage.isEncryptionAvailable`,
@@ -62,8 +62,8 @@ No external credential file was read for this phase's validation.
 | Adapter/provider | Local evidence | Live evidence |
 |---|---|---|
 | Offline demo | Real read-file run, marked usage estimate, no invented reasoning | Not applicable; offline |
-| OpenAI-compatible / DeepSeek-style reasoning field | Actual SDK synthetic HTTP conversions, tool round trips, redacted reasoning and usage | Open at user request |
-| Native Anthropic | Actual SDK tool probe and thinking/text stream fixtures, thinking present/absent | Open at user request |
+| OpenAI-compatible / DeepSeek-style reasoning field | Actual SDK synthetic HTTP conversions, tool round trips, redacted reasoning and usage | AvalAI gpt-4o-mini: live probe/read/stream/replay/Stop passed; measured usage; no reasoning |
+| Native Anthropic | Actual SDK tool probe and thinking/text stream fixtures, thinking present/absent | AvalAI claude-haiku-4-5 via native Messages SDK diagnostic: probe/read/stream/replay/Stop passed; measured usage; no thinking |
 
 No claim is made that an arbitrary compatible model supplies reasoning, supports
 forced thinking, or reports token usage. Each missing usage turn uses a marked
@@ -91,3 +91,21 @@ tool turns. This is coarse and is never shown as provider-measured usage or cost
   advance the roadmap phase while Phase 2 live acceptance remains open.
 - Constitution files remain unchanged. `roadmap-proposal.md` contains the concrete
   status-only amendment for separate approval under AGENTS.md rule 5.
+
+## Authorized live checks (2026-10-19)
+- External `phase1-provider.env` was read only after explicit user authorization.
+  Its key stayed in memory; temporary workspace persistence scans found no key.
+  No provider response bodies, exception diagnostics or credentials were recorded.
+- `scripts/check_live.py` now reports sanitized context, usage and reasoning presence,
+  verifies identical event replay, cancels a second run, and scans persisted files.
+  The native override is diagnostic only, never saved as product configuration.
+- AvalAI's [official SDK documentation](https://docs.avalai.ir/en/libraries) specifies
+  native Anthropic base URL `https://api.avalai.ir` without `/v1`; the compatible
+  base URL includes `/v1`. The same supplied key worked for both transports.
+- Compatible gpt-4o-mini: metadata context 128,000, measured usage 4,406 input /
+  63 output; native claude-haiku-4-5: fallback context 32,768 estimated, measured
+  usage 6,771 input / 161 output. Neither run emitted reasoning/thinking.
+- Live engine checks do not establish live Home acceptance. Exact-host Anthropic
+  inference remains the approved behavior; a gateway's native Messages endpoint
+  cannot currently be selected in Settings. No adapter inference change was made.
+- Claude through the product-compatible transport also passed: `scripts/check_live.py --model claude-haiku-4-5`; metadata context 200,000, measured usage 6,158 input / 184 output; no reasoning. Probe, real read, stream, replay, Stop and key scan all passed.

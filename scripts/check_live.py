@@ -1,5 +1,6 @@
-"""Opt-in Phase 1 live check. Never writes credentials or provider diagnostics."""
+"""Opt-in live adapter check. Never writes credentials or provider diagnostics."""
 
+import argparse
 import asyncio
 import os
 import sys
@@ -22,6 +23,14 @@ from store.catalog import Catalog, Credential
 
 
 async def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", default=os.environ["CODEHARNESS_MODEL"])
+    parser.add_argument(
+        "--native-adapter",
+        action="store_true",
+        help="Diagnostic only: test Anthropic Messages on the configured host",
+    )
+    args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="codeharness-live-") as directory:
         root = Path(directory)
         (root / "README.md").write_text(
@@ -37,12 +46,21 @@ async def main() -> None:
             ModelInput(
                 id="live",
                 name="Live verification",
-                base_url=os.environ["CODEHARNESS_BASE_URL"],
-                model=os.environ["CODEHARNESS_MODEL"],
+                base_url=(
+                    os.environ["CODEHARNESS_BASE_URL"].removesuffix("/v1")
+                    if args.native_adapter
+                    else os.environ["CODEHARNESS_BASE_URL"]
+                ),
+                model=args.model,
             )
         )
+        if args.native_adapter:
+            # Explicit diagnostic override; the product's exact-host inference stays intact.
+            catalog.data.models["live"].kind = "anthropic"
         tested = await test_connection(catalog, "live")
         assert tested.supports_tools, "Connection probe failed"
+        print("Model:", tested.model, "adapter:", tested.kind)
+        print("Context:", tested.context.model_dump())
         manager = RunManager(catalog=catalog)
         run_id = await manager.start(
             RunRequest(
@@ -55,8 +73,29 @@ async def main() -> None:
             )
         )
         events = [event async for event in manager.events(run_id, 0)]
+        replay = [event async for event in manager.events(run_id, 0)]
+        assert replay == events
+        usage = [event for event in events if event.type == "usage.updated"]
+        assert usage
+        print(
+            "Usage:",
+            usage[-1].input_tokens,
+            usage[-1].output_tokens,
+            "estimated:",
+            usage[-1].estimated,
+        )
+        print("Reasoning received:", any(e.type == "reasoning.delta" for e in events))
+        stopped_id = await manager.start(
+            RunRequest(
+                task="Read README.md and explain the contents in detail.",
+                workspace=directory,
+                model="live",
+            )
+        )
+        await manager.stop(stopped_id)
+        stopped = [event async for event in manager.events(stopped_id, 0)]
+        assert stopped[-1].type == "run.finished" and stopped[-1].status == "stopped"
         await manager.close()
-        print("Live event types:", [event.type for event in events])
         assert events[-1].type == "run.finished" and events[-1].status == "completed"
         assert any(
             event.type == "tool.call" and event.name == "read_file" for event in events
@@ -74,8 +113,8 @@ async def main() -> None:
         text = "".join(event.text for event in events if event.type == "message.delta")
         assert "Stack(" in text and "Callout(" in text
         print(
-            "Live compatible model: completed; real read_file result; "
-            "OpenUI program; no credential persisted."
+            "Live adapter: completed; real read_file result; OpenUI program; "
+            "replay identical; Stop passed; no credential persisted."
         )
 
 
