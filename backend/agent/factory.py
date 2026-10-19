@@ -13,6 +13,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
 from permissions.middleware import PermissionMiddleware
+from planning.tools import build_submit_plan
 from questions.tools import build_ask_question, build_finish_interview
 from store.secrets import Redactor
 from tools.fs import SnapshotSink, WorkspaceBackend
@@ -72,6 +73,10 @@ def build_agent(
         system_prompt=(
             "You are CodeHarness, a coding agent working inside one workspace folder. "
             "Use relative paths. Read before you edit. Keep changes small and explain them. "
+            "Analyze first, then submit_plan before mutations or commands. Use stable step IDs and "
+            "expected file globs. Track progress via write_todos content '[step_id] title', "
+            "with one "
+            "in_progress parent step. Follow accepted scope and submit revisions for deviations. "
             "File tools: ls, read_file, write_file, edit_file, delete, glob, grep. "
             "delete removes a single file only; directories need run_command. "
             "run_command runs a shell command in the workspace and returns exit code, "
@@ -93,6 +98,7 @@ def build_agent(
         ),
         tools=[
             build_ask_question(),
+            build_submit_plan(),
             *([build_finish_interview()] if grill else []),
             *(extra_tools or []),
         ],

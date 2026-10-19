@@ -73,6 +73,9 @@ class ApprovalRequest(PermissionModel):
     policy_code: str = "permission_required"
     diff: str = ""
     revision: str | None = None
+    plan_id: str | None = None
+    step_id: str | None = None
+    plan_before: dict[str, JsonValue] | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

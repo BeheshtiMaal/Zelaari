@@ -14,6 +14,7 @@ from permissions.types import (
 )
 from planning.types import (
     ActivityScope,
+    PlanningSettings,
     PlanRecord,
     SteeringRecord,
     SteeringSubmission,
@@ -268,3 +269,4 @@ class Protocol(WireModel):
     question_record: QuestionRecord
     question_decision: QuestionDecision
     steering_submission: SteeringSubmission
+    planning_settings: PlanningSettings

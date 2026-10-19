@@ -36,11 +36,57 @@ class DemoModel(BaseChatModel):
     def answer(self, messages: list[BaseMessage]) -> AIMessage:
         results = [message for message in messages if isinstance(message, ToolMessage)]
         task = next((str(message.content) for message in messages if message.type == "human"), "")
+        edit = re.fullmatch(r"demo edit ([\w./\\-]+): (.+?) => (.+)", task, re.DOTALL)
+        # Offline effects follow the same real planning tools as provider runs.
+        planned_target = (
+            "demo-answer.txt"
+            if "mixed" in task and "question" in task
+            else edit[1]
+            if edit
+            else None
+        )
+        if planned_target and (not edit or any(item.name == "read_file" for item in results)):
+            if not any(item.name == "submit_plan" for item in results):
+                return AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "submit_plan",
+                            "id": "demo-plan",
+                            "args": {
+                                "steps": [
+                                    {
+                                        "id": "change",
+                                        "title": "Apply the requested change",
+                                        "expected_files": [planned_target.replace("\\", "/")],
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                )
+            if not any(item.name == "write_todos" for item in results):
+                return AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "write_todos",
+                            "id": "demo-progress",
+                            "args": {
+                                "todos": [
+                                    {
+                                        "content": "[change] Apply the requested change",
+                                        "status": "in_progress",
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                )
         question_reply = demo_question(task, results, self.locale)
         if question_reply is not None:
             return question_reply
-        edit = re.fullmatch(r"demo edit ([\w./\\-]+): (.+?) => (.+)", task, re.DOTALL)
-        if edit and results and results[-1].name == "read_file":
+        if edit and results and not any(item.name == "edit_file" for item in results):
             return AIMessage(
                 content="",
                 tool_calls=[

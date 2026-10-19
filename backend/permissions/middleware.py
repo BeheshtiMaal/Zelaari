@@ -39,6 +39,8 @@ from permissions.types import (
     ApprovalRequest,
     PermissionOutcome,
 )
+from planning.gate import EFFECTS, PlanGate, record_from_state
+from planning.progress import active_step
 from questions.types import (
     HumanBatch,
     HumanBatchAnswer,
@@ -64,6 +66,7 @@ class PermissionState(AgentState[Any]):
     interview_answered: NotRequired[bool]
     interview_summary: NotRequired[dict[str, str]]
     interview_reminders: NotRequired[int]
+    plan_record: NotRequired[Annotated[dict[str, Any], PrivateStateAttr]]
     """`tool_call_id -> {action, reason}`. Private: the renderer never sees it."""
 
 
@@ -113,10 +116,19 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
         self.run_id = run_id
         self.redactor = redactor or Redactor()
         self.grill = grill
+        self.plans = PlanGate(rules.root, run_id, rules.mode)
+        self.plan_context: dict[str, Any] = {}
 
     # -- resolution --------------------------------------------------------
     def decide(self, call: ToolCall) -> PermissionOutcome:
-        if call["name"] in {"ask_user_question", "finish_interview"}:
+        if call["name"] == "task" and call.get("args", {}).get("subagent_type") not in {
+            "reviewer",
+            "researcher",
+        }:
+            return PermissionOutcome(
+                action="deny", reason="Only read-only reviewer/researcher delegates are authorized"
+            )
+        if call["name"] in {"ask_user_question", "finish_interview", "submit_plan"}:
             return PermissionOutcome(action="allow", reason="human information request")
         path, command, timeout = tool_target(call["name"], call.get("args") or {})
         return self.rules.decide(call["name"], path=path, command=command, timeout=timeout)
@@ -139,6 +151,16 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 else outcome.reason
             ),
         )
+        previous = record_from_state(self.plan_context)
+        if previous:
+            active = active_step(previous)
+            request = request.model_copy(
+                update={
+                    "plan_id": previous.plan_id,
+                    "step_id": active.id if active else None,
+                    "plan_before": previous.submission.model_dump(mode="json"),
+                }
+            )
         try:
             request = prepare_review(self.rules.root, request)
         except (ValueError, OSError):
@@ -178,6 +200,8 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
         last = next((item for item in reversed(messages) if isinstance(item, AIMessage)), None)
         if last is None:
             return None
+        self.plan_context = dict(state)
+        previous_plan = record_from_state(self.plan_context)
 
         phase = state.get("interview_phase", "interviewing")
         if not last.tool_calls:
@@ -202,6 +226,14 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
 
         def decide(call: ToolCall) -> PermissionOutcome:
             if (
+                call["name"] in {"submit_plan", "write_todos"}
+                and sum(item["name"] in {"submit_plan", "write_todos"} for item in last.tool_calls)
+                > 1
+            ):
+                return PermissionOutcome(
+                    action="deny", reason="Submit one plan/progress change per turn"
+                )
+            if (
                 self.grill
                 and phase != "ready"
                 and call["name"] not in READ_TOOLS | {"ask_user_question", "finish_interview"}
@@ -211,7 +243,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 )
             if self.grill and phase == "declined":
                 return PermissionOutcome(action="deny", reason="Interview was declined")
-            return self.decide(call)
+            return self.plans.classify(call, previous_plan, self.decide(call))
 
         outcomes: dict[str, dict[str, Any]] = {}
         questions: list[QuestionRequest] = []
@@ -316,6 +348,30 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 key: answer.model_dump(mode="json") for key, answer in question_answers.items()
             },
         }
+        accepted = previous_plan
+        for call in last.tool_calls:
+            recorded = outcomes[call_key(call)]
+            if recorded["action"] != "allow":
+                continue
+            effective_call: ToolCall = {
+                **call,
+                "args": recorded["edited_args"]
+                if recorded["edited_args"] is not None
+                else call["args"],
+            }
+            try:
+                if recorded["reason"] == "approved by the user" and recorded.get("revision"):
+                    current_review = self.approval(effective_call, self.decide(effective_call))
+                    if current_review.revision != recorded["revision"]:
+                        raise ValueError("Review changed before adoption")
+                accepted = self.plans.adopt(
+                    effective_call, accepted, reviewed=recorded["reason"] == "approved by the user"
+                )
+            except (ValueError, OSError):
+                recorded["action"] = "deny"
+                recorded["reason"] = "Plan or progress changed; submit a fresh proposal"
+        if accepted is not None:
+            updates["plan_record"] = accepted.model_dump(mode="json")
         if self.grill and phase != "ready":
             if any(answer.status == "declined" for answer in question_answers.values()):
                 updates["interview_phase"] = "declined"
@@ -350,6 +406,19 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
     ) -> ToolMessage | Command[Any]:
         call = request.tool_call
         state = request.state if isinstance(request.state, dict) else {}
+        journal = EffectJournal(storage_path(self.rules.root, f"runs/{self.run_id}/effects.json"))
+        if call["name"] in EFFECTS:
+            previous_effect = journal.read().get(call_key(call))
+            if previous_effect:
+                return ToolMessage(
+                    content=previous_effect.result
+                    or (
+                        "Interrupted: this action may have run before the engine stopped. "
+                        "It was not replayed. Inspect its effects before requesting a fresh call."
+                    ),
+                    tool_call_id=call_key(call),
+                    name=call["name"],
+                )
         if call["name"] == "ask_user_question":
             value = (state.get("question_outcomes") or {}).get(call_key(call))
             if value is None:
@@ -383,6 +452,20 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 return self.refusal(call, outcome.reason or "no rule allowed this call")
         elif recorded["action"] == "deny":
             return self.refusal(call, str(recorded.get("reason") or "denied"))
+        if call["name"] == "submit_plan" and (
+            not recorded or recorded.get("action") != "allow" or not state.get("plan_record")
+        ):
+            return self.refusal(call, "No accepted plan transition")
+        if call["name"] == "write_todos" and state.get("plan_record") and not recorded:
+            return self.refusal(call, "No validated progress transition")
+        if call["name"] in EFFECTS:
+            if recorded is None:
+                return self.refusal(call, "No classified plan/permission decision")
+            planned = self.plans.classify(call, record_from_state(state), self.decide(call))
+            if planned.action == "deny" or (
+                planned.action == "ask" and planned.reason.startswith("Plan review:")
+            ):
+                return self.refusal(call, planned.reason)
         # Upstream filesystem tools reject Windows absolute paths before calling
         # the backend. Preserve our model/UI jail contract at this outer boundary.
         if call["name"] in READ_TOOLS | WRITE_TOOLS | DELETE_TOOLS:
@@ -406,19 +489,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 request.tool.args_schema.model_validate(call["args"])
             except ValueError:
                 return self.refusal(call, "Invalid tool arguments")
-        journal = EffectJournal(storage_path(self.rules.root, f"runs/{self.run_id}/effects.json"))
         if effect:
-            previous = journal.read().get(call_key(call))
-            if previous:
-                return ToolMessage(
-                    content=previous.result
-                    or (
-                        "Interrupted: this action may have run before the engine stopped. "
-                        "It was not replayed. Inspect its effects before requesting a fresh call."
-                    ),
-                    tool_call_id=call_key(call),
-                    name=call["name"],
-                )
             current_rules = RulesEngine.load(self.rules.root, self.rules.mode)
             path, command, timeout = tool_target(call["name"], call["args"])
             verdict = current_rules.decide(

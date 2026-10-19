@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 import pytest
-
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, START, StateGraph

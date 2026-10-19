@@ -69,6 +69,66 @@ class ScriptedModel(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         reply = self.replies[min(self.calls, len(self.replies) - 1)]
+        # Legacy permission scenarios now establish the real planning precondition.
+        # Keep the original scripted call IDs/turns so approval/recovery assertions still apply.
+        effects = {"write_file", "edit_file", "delete", "run_command", "git_switch"}
+        results = [item for item in messages if isinstance(item, ToolMessage)]
+        task = next((str(item.content) for item in messages if item.type == "human"), "")
+        interview_ready = not task.startswith("/grill") or any(
+            item.name == "finish_interview" and "Permission denied" not in str(item.content)
+            for item in results
+        )
+        if interview_ready and any(item["name"] in effects for item in reply.tool_calls):
+            names = {item.name for item in results}
+            if "submit_plan" not in names:
+                paths = sorted(
+                    {
+                        str(call["args"]["file_path"]).replace("\\", "/")
+                        for message in self.replies
+                        for call in message.tool_calls
+                        if isinstance(call["args"].get("file_path"), str)
+                        and not str(call["args"]["file_path"]).startswith((".harness", "/", ".."))
+                        and ":" not in str(call["args"]["file_path"])
+                    }
+                )
+                return ChatResult(
+                    generations=[
+                        ChatGeneration(
+                            message=call(
+                                "submit_plan",
+                                {
+                                    "steps": [
+                                        {
+                                            "id": "fixture",
+                                            "title": "Exercise permission scenario",
+                                            "expected_files": paths,
+                                        }
+                                    ]
+                                },
+                                "fixture-plan",
+                            )
+                        )
+                    ]
+                )
+            if "write_todos" not in names:
+                return ChatResult(
+                    generations=[
+                        ChatGeneration(
+                            message=call(
+                                "write_todos",
+                                {
+                                    "todos": [
+                                        {
+                                            "content": "[fixture] Exercise permission scenario",
+                                            "status": "in_progress",
+                                        }
+                                    ]
+                                },
+                                "fixture-progress",
+                            )
+                        )
+                    ]
+                )
         self.calls += 1
         return ChatResult(generations=[ChatGeneration(message=reply)])
 
@@ -113,7 +173,12 @@ def run_graph(graph: Any, config: dict[str, Any], task: str = "do the thing") ->
 
 
 def tool_results(state: dict[str, Any]) -> list[ToolMessage]:
-    return [item for item in state["messages"] if isinstance(item, ToolMessage)]
+    return [
+        item
+        for item in state["messages"]
+        if isinstance(item, ToolMessage)
+        and item.tool_call_id not in {"fixture-plan", "fixture-progress"}
+    ]
 
 
 def approvals(state: dict[str, Any]) -> list[dict[str, Any]]:

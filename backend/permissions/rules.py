@@ -16,7 +16,7 @@ WRITE_TOOLS = frozenset({"write_file", "edit_file"})
 DELETE_TOOLS = frozenset({"delete"})
 COMMAND_TOOLS = frozenset({"run_command", "git_switch", "worktree_create"})
 WEB_TOOLS = frozenset({"web_search"})
-INTERNAL_TOOLS = frozenset({"write_todos", "task"})
+INTERNAL_TOOLS = frozenset({"write_todos", "submit_plan", "task"})
 """Tools that only mutate graph state and never touch the workspace.
 
 They are not permissioned: asking a person to approve a todo list would train them to

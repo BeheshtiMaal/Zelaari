@@ -6,6 +6,8 @@ from fastapi import APIRouter, HTTPException
 
 from permissions.rules import DEFAULTS, RulesEngine
 from permissions.types import ApprovalRecord, RulesFile
+from planning.policy import load_settings
+from planning.types import PlanningSettings
 from store.actions import ActionApprovals
 from tools.jail import JailError, workspace_root
 from tools.types import RulesResponse
@@ -33,6 +35,20 @@ def _root(value: str) -> Path:
 
 def rules_routes(actions: ActionApprovals) -> APIRouter:
     router = APIRouter()
+
+    @router.get("/planning/settings")
+    def read_planning_settings(workspace: str) -> PlanningSettings:
+        try:
+            return load_settings(_root(workspace))[0]
+        except (OSError, ValueError):
+            raise HTTPException(409, "Workspace configuration needs repair") from None
+
+    @router.put("/planning/settings", status_code=202)
+    def write_planning_settings(workspace: str, value: PlanningSettings) -> ApprovalRecord:
+        try:
+            return actions.propose_planning(_root(workspace), value)
+        except (OSError, ValueError):
+            raise HTTPException(409, "Planning settings could not be proposed") from None
 
     @router.get("/rules")
     def read_rules(workspace: str) -> RulesResponse:

@@ -32,7 +32,7 @@ class PlanStep(PlanningModel):
         Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
         | None
     ) = None
-    high_risk: bool = False
+    high_risk: bool = Field(default=False, strict=True)
 
     @field_validator("expected_files")
     @classmethod
@@ -92,6 +92,16 @@ class PlanRecord(PlanningModel):
     gate_reasons: list[str] = Field(default_factory=list, max_length=16)
     file_scope: FileScope
     settings: PlanningSettings
+
+    @model_validator(mode="after")
+    def consistent_progress(self) -> Self:
+        if [item.step_id for item in self.progress] != [step.id for step in self.submission.steps]:
+            raise ValueError("Progress must match accepted ordered step IDs")
+        if len(set(self.baseline_ids)) != len(self.baseline_ids):
+            raise ValueError("Baseline step IDs must be unique")
+        if sum(item.status == "in_progress" for item in self.progress) > 1:
+            raise ValueError("Only one parent step can be active")
+        return self
 
 
 class ActivityScope(PlanningModel):

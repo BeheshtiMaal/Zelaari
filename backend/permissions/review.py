@@ -6,7 +6,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from permissions.types import ApprovalRequest
+from permissions.classifier import assess
+from permissions.types import ApprovalRequest, RiskAssessment
+from planning.policy import merged_settings
+from planning.review import plan_review
+from planning.types import PlanningSettings, PlanSubmission
 from tools.jail import MAX_TEXT_BYTES, resolve_virtual
 
 
@@ -14,9 +18,46 @@ def prepare_review(root: Path, request: ApprovalRequest) -> ApprovalRequest:
     before: bytes | None = None
     resolved_path: str | None = None
     after = ""
-    if request.path and request.tool in {"write_file", "edit_file", "delete", "rules_update"}:
+    material, plan_diff = plan_review(
+        root, request.tool, request.args, request.plan_before, request.step_id
+    )
+    request = request.model_copy(update={"diff": plan_diff})
+    if material is not None:
+        proposed_plan = PlanSubmission.model_validate(material["submission"])
+        risky = any(
+            step.high_risk
+            or (step.verify_command and assess(step.verify_command, root).level == "high")
+            for step in proposed_plan.steps
+        )
+        if risky:
+            request = request.model_copy(
+                update={
+                    "risk": RiskAssessment(
+                        level="high",
+                        reasons=list(dict.fromkeys([*request.risk.reasons, "high-risk plan step"])),
+                    )
+                }
+            )
+        elif request.tool == "submit_plan":
+            request = request.model_copy(update={"risk": RiskAssessment()})
+    if request.tool == "planning_settings_update":
+        proposed_config = json.loads(str(request.args.get("content", "")))
+        if not isinstance(proposed_config, dict):
+            raise ValueError("Workspace config must be an object")
+        settings = PlanningSettings.model_validate(proposed_config.get("planning"))
+        if json.loads(merged_settings(root, settings)) != proposed_config:
+            raise ValueError("Only planning settings may be changed by this proposal")
+    if request.path and request.tool in {
+        "write_file",
+        "edit_file",
+        "delete",
+        "rules_update",
+        "planning_settings_update",
+    }:
         target = resolve_virtual(
-            root, request.path, allow_protected=request.tool == "rules_update"
+            root,
+            request.path,
+            allow_protected=request.tool in {"rules_update", "planning_settings_update"},
         ).path
         resolved_path = str(target)
         if target.is_file():
@@ -31,7 +72,7 @@ def prepare_review(root: Path, request: ApprovalRequest) -> ApprovalRequest:
                 raise ValueError("Only text files can be edited") from None
             binary_delete = True
             text = ""
-        if request.tool in {"write_file", "rules_update"}:
+        if request.tool in {"write_file", "rules_update", "planning_settings_update"}:
             after = str(request.args.get("content", ""))
         elif request.tool == "edit_file":
             # WorkspaceBackend.edit uses read_text's universal newline conversion.
@@ -59,6 +100,7 @@ def prepare_review(root: Path, request: ApprovalRequest) -> ApprovalRequest:
                         line if line.endswith("\n") else line + "\n\\ No newline at end of file\n"
                         for line in lines
                     )
+                    + ("\n" + plan_diff if plan_diff else "")
                 )
             }
         )
@@ -69,6 +111,7 @@ def prepare_review(root: Path, request: ApprovalRequest) -> ApprovalRequest:
                 "args": request.args,
                 "before": before.hex() if before is not None else None,
                 "resolved_path": resolved_path,
+                **({"planning": material} if material is not None else {}),
             },
             sort_keys=True,
         ).encode()

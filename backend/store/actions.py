@@ -18,6 +18,8 @@ from permissions.types import (
     RulesFile,
     UnknownApproval,
 )
+from planning.policy import merged_settings
+from planning.types import PlanningSettings
 from store.approvals import ApprovalLedger
 from store.catalog import Catalog
 from store.workspaces import select_workspace
@@ -89,7 +91,11 @@ class ActionApprovals:
         args = decision.edited_args if decision.edited_args is not None else request.args
         if self.catalog.redactor.value(args) != args:
             raise ValueError("Secret in proposed arguments")
-        if request.tool == "rules_update":
+        if request.tool == "planning_settings_update":
+            if set(args) != {"content"}:
+                raise ValueError("Invalid planning settings input")
+            request = request.model_copy(update={"args": args})
+        elif request.tool == "rules_update":
             if set(args) not in ({"content"}, {"content", "remove"}):
                 raise ValueError("Invalid rules input")
             if args.get("remove") is True:
@@ -177,6 +183,26 @@ class ActionApprovals:
         )
         return self.propose(root, request)
 
+    def propose_planning(self, root: Path, value: PlanningSettings) -> ApprovalRecord:
+        content = merged_settings(root, value)
+        if self.catalog.redactor.text(content) != content:
+            raise ValueError("Secret in workspace configuration")
+        return self.propose(
+            root,
+            ApprovalRequest(
+                approval_id="",
+                run_id="",
+                kind="tool",
+                tool="planning_settings_update",
+                path=".harness/config.json",
+                source_kind="configuration",
+                source_title="Planning settings",
+                policy_code="planning_settings_change",
+                reason="Changes to engine configuration always require approval",
+                args={"content": content},
+            ),
+        )
+
     @serialized
     def propose(self, root: Path, request: ApprovalRequest) -> ApprovalRecord:
         request = ApprovalRequest.model_validate(
@@ -260,7 +286,8 @@ class ActionApprovals:
                 ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
                 return
             remove = request.args.get("remove") is True
-            if not remove:
+            planning = request.tool == "planning_settings_update"
+            if not remove and not planning:
                 RulesFile.model_validate_json(str(request.args["content"]))
             # An answer is durable before mutation. If the process dies in between,
             # the proposal stays decided and is never automatically applied again.
@@ -268,11 +295,15 @@ class ActionApprovals:
             ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
             try:
                 SnapshotStore(root, redactor=self.catalog.redactor).capture(
-                    resolve_virtual(root, ".harness/rules.json", allow_protected=True),
-                    tool="rules_update",
+                    resolve_virtual(
+                        root,
+                        ".harness/config.json" if planning else ".harness/rules.json",
+                        allow_protected=True,
+                    ),
+                    tool="planning_settings_update" if planning else "rules_update",
                     call_id=approval_id,
                 )
-                target = storage_path(root, "rules.json")
+                target = storage_path(root, "config.json" if planning else "rules.json")
                 if remove:
                     target.unlink(missing_ok=True)
                 else:
@@ -283,7 +314,7 @@ class ActionApprovals:
                 ledger.save()
                 raise ValueError(record.result) from None
             record.execution_status = "completed"
-            record.result = "Rules saved."
+            record.result = "Planning settings saved." if planning else "Rules saved."
             ledger.save()
         else:
             ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))

@@ -65,7 +65,9 @@ def test_pending_batch_partial_answer_restart_and_exactly_once(
         assert [event.seq for event in history] == list(range(1, len(history) + 1))
         assert sum(event.type == "run.started" for event in history) == 1
         assert sum(event.type == "approval.requested" for event in history) == 2
-        assert sum(event.type == "tool.result" for event in history) == 2
+        assert sum(
+            event.type == "tool.result" and event.call_id in {"one", "two"} for event in history
+        ) == 2
         await restarted.close()
 
     asyncio.run(scenario())

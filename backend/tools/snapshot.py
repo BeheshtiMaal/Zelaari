@@ -113,8 +113,11 @@ class SnapshotStore:
                 self.root,
                 meta.path,
                 allow_protected=(
-                    meta.path.replace("\\", "/").casefold() == ".harness/rules.json"
-                    and meta.tool == "rules_update"
+                    (meta.path.replace("\\", "/").casefold(), meta.tool)
+                    in {
+                        (".harness/rules.json", "rules_update"),
+                        (".harness/config.json", "planning_settings_update"),
+                    }
                 ),
             )
             return meta
@@ -180,7 +183,10 @@ class SnapshotStore:
     # -- revert ------------------------------------------------------------
     def revert(self, snapshot_id: str) -> RevertResult:
         meta = self.meta(snapshot_id)
-        if meta.path.replace("\\", "/").casefold() == ".harness/rules.json":
+        if meta.path.replace("\\", "/").casefold() in {
+            ".harness/rules.json",
+            ".harness/config.json",
+        }:
             raise SnapshotError("Rules restoration requires an approval proposal")
         target = resolve(self.root, meta.path)
         if target.path.is_dir():

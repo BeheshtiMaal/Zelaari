@@ -87,6 +87,11 @@ export type AgentReason = string | null;
 export type PolicyCode = string;
 export type Diff = string;
 export type Revision = string | null;
+export type PlanId = string | null;
+export type StepId1 = string | null;
+export type PlanBefore = {
+  [k: string]: JsonValue;
+} | null;
 export type CreatedAt = string;
 export type RunId8 = string;
 export type Seq7 = number;
@@ -171,7 +176,7 @@ export type Seq12 = number;
 export type Ts12 = string;
 export type Type13 = "plan.created";
 export type RunId16 = string;
-export type PlanId = string;
+export type PlanId1 = string;
 export type Revision1 = string;
 /**
  * @minItems 1
@@ -196,7 +201,7 @@ export type HighRisk = boolean;
  * @maxItems 64
  */
 export type Progress = [StepProgress, ...StepProgress[]];
-export type StepId1 = string;
+export type StepId2 = string;
 export type Status3 = "pending" | "in_progress" | "completed" | "failed";
 export type StartedAt = string | null;
 export type EndedAt = string | null;
@@ -268,7 +273,7 @@ export type RunId17 = string;
 export type Seq13 = number;
 export type Ts13 = string;
 export type Type14 = "plan.step.updated";
-export type PlanId1 = string;
+export type PlanId2 = string;
 export type Revision3 = string;
 export type RunId18 = string;
 export type Seq14 = number;
@@ -483,6 +488,7 @@ export interface Protocol {
   question_record: QuestionRecord;
   question_decision: QuestionDecision;
   steering_submission: SteeringSubmission;
+  planning_settings: PlanningSettings;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -581,6 +587,9 @@ export interface ApprovalRequest {
   policy_code?: PolicyCode;
   diff?: Diff;
   revision?: Revision;
+  plan_id?: PlanId;
+  step_id?: StepId1;
+  plan_before?: PlanBefore;
   created_at?: CreatedAt;
 }
 export interface RiskAssessment {
@@ -685,7 +694,7 @@ export interface PlanCreated {
 }
 export interface PlanRecord {
   run_id: RunId16;
-  plan_id: PlanId;
+  plan_id: PlanId1;
   revision: Revision1;
   baseline_ids: BaselineIds;
   submission: PlanSubmission;
@@ -706,7 +715,7 @@ export interface PlanStep {
   high_risk?: HighRisk;
 }
 export interface StepProgress {
-  step_id: StepId1;
+  step_id: StepId2;
   status?: Status3;
   started_at?: StartedAt;
   ended_at?: EndedAt;
@@ -726,7 +735,7 @@ export interface PlanStepUpdated {
   seq: Seq13;
   ts?: Ts13;
   type?: Type14;
-  plan_id: PlanId1;
+  plan_id: PlanId2;
   revision: Revision3;
   progress: StepProgress;
 }

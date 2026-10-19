@@ -22,7 +22,45 @@ class RecoveryModel(DemoModel):
     scenario: str
 
     def answer(self, messages: list[BaseMessage]) -> AIMessage:
-        if any(isinstance(message, ToolMessage) for message in messages):
+        results = [message for message in messages if isinstance(message, ToolMessage)]
+        names = {message.name for message in results}
+        if "submit_plan" not in names:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "submit_plan",
+                        "id": "recovery-plan",
+                        "args": {
+                            "steps": [
+                                {
+                                    "id": "effect",
+                                    "title": "Exercise recovery",
+                                    "expected_files": ["a.txt", "b.txt"]
+                                    if self.scenario == "pending"
+                                    else [],
+                                }
+                            ]
+                        },
+                    }
+                ],
+            )
+        if "write_todos" not in names:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "write_todos",
+                        "id": "recovery-progress",
+                        "args": {
+                            "todos": [
+                                {"content": "[effect] Exercise recovery", "status": "in_progress"}
+                            ]
+                        },
+                    }
+                ],
+            )
+        if any(message.name not in {"submit_plan", "write_todos"} for message in results):
             return AIMessage(content='root = Callout("done");')
         if self.scenario == "pending":
             return AIMessage(
