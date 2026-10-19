@@ -8,13 +8,20 @@ raise an approval, the same way a user-initiated rules edit does not.
 from fastapi import APIRouter, HTTPException
 
 from permissions.rules import RulesEngine
-from tools.git import switch, validate_branch
+from tools.git import list_branches, switch, validate_branch
 from tools.jail import workspace_root
-from tools.types import BranchSwitch, BranchSwitchResult
+from tools.types import BranchList, BranchSwitch, BranchSwitchResult
 
 
 def git_routes() -> APIRouter:
     router = APIRouter()
+
+    @router.get("/workspaces/branches")
+    def branches(workspace: str) -> BranchList:
+        try:
+            return list_branches(workspace_root(workspace))
+        except (ValueError, OSError):
+            raise HTTPException(400, "Select an accessible workspace") from None
 
     @router.post("/workspaces/branch")
     def switch_branch(value: BranchSwitch) -> BranchSwitchResult:

@@ -34,15 +34,11 @@ PATH_KEYS = ("file_path", "path", "target_path", "source_path", "destination_pat
 class PermissionState(AgentState[Any]):
     """Carries the per-turn resolution from the model node to the tools node."""
 
-    permission_outcomes: NotRequired[
-        Annotated[dict[str, dict[str, Any]], PrivateStateAttr]
-    ]
+    permission_outcomes: NotRequired[Annotated[dict[str, dict[str, Any]], PrivateStateAttr]]
     """`tool_call_id -> {action, reason}`. Private: the renderer never sees it."""
 
 
-def tool_target(
-    tool: str, args: dict[str, Any]
-) -> tuple[str | None, str | None, float | None]:
+def tool_target(tool: str, args: dict[str, Any]) -> tuple[str | None, str | None, float | None]:
     """Split a tool call into the (path, command, timeout) the rules engine needs.
 
     A command tool contributes its command text; a path tool contributes the first
@@ -52,8 +48,10 @@ def tool_target(
     if tool == "run_command":
         command = args.get("command")
         timeout = args.get("timeout")
-        return None, str(command) if command is not None else None, (
-            float(timeout) if isinstance(timeout, int | float) else None
+        return (
+            None,
+            str(command) if command is not None else None,
+            (float(timeout) if isinstance(timeout, int | float) else None),
         )
     if tool == "git_switch":
         branch = args.get("branch")

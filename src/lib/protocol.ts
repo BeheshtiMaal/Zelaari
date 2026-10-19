@@ -137,6 +137,8 @@ export type Mode1 = "read-only" | "ask" | "auto";
 export type Status3 = "running" | "completed" | "stopped" | "error" | "interrupted";
 export type Worktree1 = string | null;
 export type Tasks = TaskRecord[];
+export type Decision1 = "approve" | "reject";
+export type Reason2 = string | null;
 export type Command1 = string;
 export type Shell = "powershell" | "cmd";
 export type ExitCode = number | null;
@@ -177,6 +179,9 @@ export type Workspace3 = string;
 export type Branch1 = string;
 export type Branch2 = string | null;
 export type Error = string | null;
+export type Git = boolean;
+export type Current = string | null;
+export type Branches = string[];
 export type Mode2 = "read-only" | "ask" | "auto";
 export type AlwaysAsk = string[];
 
@@ -194,12 +199,14 @@ export interface Protocol {
   preset: Preset;
   workspaces: WorkspaceState;
   approval_request: ApprovalRequest;
+  approval_decision: ApprovalDecision;
   command_result: CommandResult;
   file_listing: FileListing;
   revert_result: RevertResult;
   snapshot_entry: SnapshotEntry;
   branch_switch: BranchSwitch;
   branch_switch_result: BranchSwitchResult;
+  branch_list: BranchList;
   rules_response: RulesResponse;
 }
 export interface RunStarted {
@@ -390,6 +397,10 @@ export interface TaskRecord {
   status?: Status3;
   worktree?: Worktree1;
 }
+export interface ApprovalDecision {
+  decision: Decision1;
+  reason?: Reason2;
+}
 /**
  * What `run_command` returns to the model and what the timeout card reads.
  */
@@ -452,6 +463,14 @@ export interface BranchSwitch {
 export interface BranchSwitchResult {
   branch?: Branch2;
   error?: Error;
+}
+/**
+ * What the branch chip and the Worktree checkbox need to know before a run.
+ */
+export interface BranchList {
+  git?: Git;
+  current?: Current;
+  branches?: Branches;
 }
 export interface RulesResponse {
   mode: Mode2;

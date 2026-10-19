@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { HarnessEvent } from "../lib/protocol";
+import type { ApprovalRequest, HarnessEvent } from "../lib/protocol";
 
 export type TimelineItem = { kind: "message"; id: string; text: string } |
   { kind: "tool"; id: string; name: string; args: Record<string, unknown>; result?: string };
@@ -11,9 +11,10 @@ export interface RunState {
   items: TimelineItem[];
   error: string | null;
   reasoning: Record<string, string>;
+  approval: ApprovalRequest | null;
   usage: { input: number; output: number; estimated: boolean };
 }
-export const initialRun: RunState = { runId: null, seq: 0, task: "", status: "idle", items: [], error: null, reasoning: {}, usage: { input: 0, output: 0, estimated: false } };
+export const initialRun: RunState = { runId: null, seq: 0, task: "", status: "idle", items: [], error: null, reasoning: {}, approval: null, usage: { input: 0, output: 0, estimated: false } };
 
 export function reduceEvent(state: RunState, event: HarnessEvent): RunState {
   if (event.type === "run.started" && event.run_id !== state.runId) {
@@ -33,8 +34,10 @@ export function reduceEvent(state: RunState, event: HarnessEvent): RunState {
     }
     case "tool.call": next.items = [...state.items, { kind: "tool", id: event.call_id, name: event.name, args: event.args }]; break;
     case "tool.result": next.items = state.items.map(item => item.kind === "tool" && item.id === event.call_id ? { ...item, result: event.text } : item); break;
-    case "run.error": next.error = event.message; next.status = "error"; break;
-    case "run.finished": next.status = event.status; break;
+    case "approval.requested": next.approval = event.approval; break;
+    case "approval.resolved": next.approval = null; break;
+    case "run.error": next.error = event.message; next.status = "error"; next.approval = null; break;
+    case "run.finished": next.status = event.status; next.approval = null; break;
   }
   return next;
 }

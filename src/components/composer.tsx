@@ -22,8 +22,14 @@ export function Composer({ t, task, setTask, session: s, submit }: {t: Dictionar
     </div>
     <div className="workspace-toolbar">
       <div className="workspace-picker"><FolderIcon size={16} /><select aria-label={t.workspaceSelect} value={s.workspace} disabled={!s.ready || s.busy} onChange={event => { if (event.target.value === "__pick") void s.pickWorkspace(); else void s.selectWorkspace(event.target.value); }}><option value="">{t.workspaceSelect}</option>{s.spaces.recent?.map(workspace => <option key={workspace.path} value={workspace.path}>{workspace.name}</option>)}<option value="__pick">{t.workspace}…</option></select><button type="button" className="toolbar-button" onClick={() => void s.pickWorkspace()} disabled={!s.ready || s.busy} data-testid="pick-workspace" aria-label={t.workspace}>…</button></div>
-      {s.branch && <span className="toolbar-button" data-testid="branch"><GitBranchIcon size={16} /><span dir="ltr">{s.branch}</span></span>}
-      <Hint text={t.phase3}><label className="worktree"><input type="checkbox" disabled />Worktree</label></Hint>
+      {s.branches.git && (s.branches.branches ?? []).length > 0 ?
+        <label className="toolbar-button branch-chip" data-testid="branch"><GitBranchIcon size={16} /><span className="sr-only">{t.branch}</span>
+          <select aria-label={t.branch} value={s.branch ?? ""} disabled={s.busy} onChange={event => void s.switchBranch(event.target.value)}>
+            {(s.branches.branches ?? []).map(name => <option key={name} value={name}>{name}</option>)}
+          </select>
+        </label> :
+        s.branch ? <span className="toolbar-button" data-testid="branch"><GitBranchIcon size={16} /><span dir="ltr">{s.branch}</span></span> : null}
+      <Hint text={s.branches.git ? t.worktreeHelp : t.worktreeUnavailable}><label className="worktree"><input type="checkbox" data-testid="worktree" checked={s.worktree} disabled={s.busy || !s.branches.git} onChange={event => s.setWorktree(event.target.checked)} />{t.worktree}</label></Hint>
       <label className="toolbar-button"><ShieldCheckIcon size={16} /><span className="sr-only">{t.mode}</span><select aria-label={t.mode} disabled={s.busy} value={s.mode} onChange={e => s.setMode(e.target.value as "ask" | "auto" | "read-only")}><option value="ask">{t.mode}</option><option value="read-only">{t.readOnly}</option><option value="auto">{t.auto}</option></select></label>
     </div>
   </form>;

@@ -1,11 +1,20 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import type { ModelInput, Preset, ProviderRecord, RunRequest, RunResponse, Settings, WorkspaceState } from "./protocol";
+import type { ApprovalRequest, BranchList, ModelInput, Preset, ProviderRecord, RunRequest, RunResponse, Settings, WorkspaceState } from "./protocol";
 import { connection } from "./desktop";
-import { api } from "./api";
+import { api, ApiError } from "./api";
+import { decision } from "./approvals";
 import { decodeSSE, subscribe } from "./sse";
 import { useRun } from "../store/run";
 import type { Locale } from "../i18n";
+
+const NO_BRANCHES: BranchList = { git: false, current: null, branches: [] };
+
+function pendingWorktreeApproval(error: unknown): ApprovalRequest | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null;
+  const body = error.body as { approval?: ApprovalRequest } | null;
+  return body?.approval ?? null;
+}
 
 export function useSession() {
   const [ready, setReady] = useState(false), [failed, setFailed] = useState(false);
@@ -17,6 +26,10 @@ export function useSession() {
   const [mode, setMode] = useState<RunRequest["mode"]>("ask");
   const [vaultOk, setVaultOk] = useState(true);
   const [workspaceError, setWorkspaceError] = useState(false);
+  const [branches, setBranches] = useState<BranchList>(NO_BRANCHES);
+  const [worktree, setWorktree] = useState(false);
+  const [worktreeApproval, setWorktreeApproval] = useState<ApprovalRequest | null>(null);
+  const waitingTask = useRef<string | null>(null);
   const active = useRef<AbortController | null>(null);
   const locale: Locale = settings.locale === "en" ? "en" : "fa";
   const workspace = spaces.selected ?? "";
@@ -52,6 +65,14 @@ export function useSession() {
     void health();
     return () => { controller.abort(); active.current?.abort(); };
   }, []);
+  useEffect(() => {
+    if (!workspace) { setBranches(NO_BRANCHES); setWorktree(false); return; }
+    let live = true;
+    void api<BranchList>(`/workspaces/branches?workspace=${encodeURIComponent(workspace)}`)
+      .then(value => { if (live) setBranches(value); })
+      .catch(() => { if (live) setBranches(NO_BRANCHES); });
+    return () => { live = false; };
+  }, [workspace]);
   async function selectWorkspace(path: string) {
     try { setSpaces(await api<WorkspaceState>("/workspaces", "POST", { path })); setFailed(false); setWorkspaceError(false); }
     catch { setWorkspaceError(true); }
@@ -59,6 +80,15 @@ export function useSession() {
   async function pickWorkspace() {
     try { const path = await connection()?.pickWorkspace(); if (path) await selectWorkspace(path); }
     catch { setWorkspaceError(true); }
+  }
+  async function revealWorkspace() {
+    if (!workspace) return;
+    try { await connection()?.revealWorkspace(workspace); } catch { setFailed(true); }
+  }
+  async function switchBranch(name: string) {
+    if (!workspace || name === branch) return;
+    try { await api("/workspaces/branch", "POST", { workspace, branch: name }); await refresh(); }
+    catch { setFailed(true); }
   }
   async function changeSettings(value: Settings) {
     try { setSettings(await api<Settings>("/settings", "PUT", value)); setFailed(false); return true; }
@@ -82,17 +112,43 @@ export function useSession() {
       setVaultOk(true); await refresh(); return true;
     } catch { setVaultOk(false); return false; }
   }
-  async function start(task: string) {
+  async function start(task: string, approved = false) {
     const bridge = connection();
     if (!bridge || !ready || busy || !workspace || !usableModel) return;
     active.current?.abort();
     const controller = new AbortController(); active.current = controller;
     setBusy(true); setFailed(false); useRun.getState().reset();
+    const request: RunRequest = { task, workspace, model, mode, ...(worktree ? { worktree: true, worktree_approved: approved } : {}) };
     try {
-      const result = await api<RunResponse>("/runs", "POST", { task, workspace, model, mode }, controller.signal);
+      const result = await api<RunResponse>("/runs", "POST", request, controller.signal);
       await subscribe(bridge.baseUrl, bridge.token, result.run_id, useRun.getState().receive, controller.signal);
-    } catch { if (!controller.signal.aborted) setFailed(true); }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      // A worktree is gated before the run exists, so its approval arrives here rather
+      // than as an approval.requested event on the stream.
+      const pending = pendingWorktreeApproval(error);
+      if (pending) { waitingTask.current = task; setWorktreeApproval(pending); return; }
+      setFailed(true);
+    }
     finally { setBusy(false); await refresh().catch(() => undefined); }
+  }
+  async function approveWorktree() {
+    const task = waitingTask.current;
+    setWorktreeApproval(null); waitingTask.current = null;
+    if (task) await start(task, true);
+  }
+  function rejectWorktree() { setWorktreeApproval(null); waitingTask.current = null; }
+  async function retryWithLongerTimeout(command: string) {
+    // The engine refuses a longer timeout without a fresh approval, so this starts a
+    // new run whose `run_command` call asks again. Phase 4 replaces it with a real
+    // "retry this call with new arguments" channel.
+    await start(`Run this command again with a timeout of 300 seconds: ${command}`);
+  }
+  async function resolveApproval(verdict: "approve" | "reject") {
+    const state = useRun.getState(), pending = state.approval, id = state.runId;
+    if (!pending || !id) return;
+    try { await api(`/runs/${id}/interrupts/${pending.approval_id}`, "POST", decision(verdict)); }
+    catch { setFailed(true); }
   }
   async function openTask(id: string) {
     if (busy) return;
@@ -113,6 +169,7 @@ export function useSession() {
     try { await api(`/runs/${id}/stop`, "POST"); } catch { setFailed(true); }
   }
   return { ready, failed, busy, testing, workspace, branch, spaces, models, presets, settings, model, mode, locale, vaultOk, usableModel, workspaceError,
-    setModel, setMode, setLocale, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace, start, stop, openTask };
+    branches, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace,
+    revealWorkspace, switchBranch, start, approveWorktree, rejectWorktree, resolveApproval, retryWithLongerTimeout, stop, openTask };
 }
 export type Session = ReturnType<typeof useSession>;

@@ -422,9 +422,7 @@ class FakeService:
     async def stop(self, run_id: str) -> None:
         return None
 
-    async def resolve(
-        self, run_id: str, approval_id: str, decision: ApprovalDecision
-    ) -> None:
+    async def resolve(self, run_id: str, approval_id: str, decision: ApprovalDecision) -> None:
         if approval_id != "known":
             raise UnknownApproval(approval_id)
         self.resolved.append((run_id, approval_id, decision.decision))

@@ -19,6 +19,7 @@ export function Sidebar({ t, session, settings, reset, openSettings, openTask }:
     <div className="workspace-history">{session.spaces.recent?.map(workspace => <details key={workspace.path} open={session.workspace === workspace.path}>
       <summary><FolderIcon size={18} /><span dir="auto">{workspace.name}</span></summary>
       <button className="workspace-select-action" disabled={session.busy} onClick={() => void session.selectWorkspace(workspace.path)}>{t.workspaceSelect}</button>
+      <a className="workspace-select-action" href={`/workspaces/?path=${encodeURIComponent(workspace.path)}`}>{t.openWorkspace}</a>
       {!session.spaces.tasks?.some(task => task.workspace === workspace.path) && <p className="muted">{t.noTasks}</p>}
       {session.spaces.tasks?.filter(task => task.workspace === workspace.path).map(task => <button key={task.id} className="task-link" disabled={session.busy} onClick={() => openTask(task.id)}><span className={`task-dot ${task.status}`} /><span dir="auto">{task.title}</span><span className="sr-only">{task.status}</span></button>)}
     </details>)}</div>

@@ -71,6 +71,14 @@ class RunManager:
     def contains(self, run_id: str) -> bool:
         return run_id in self.runs
 
+    def pending_paths(self) -> set[str]:
+        """Paths a paused run is waiting on, so the file viewer can badge them."""
+        return {
+            run.pending.path.replace("\\", "/")
+            for run in self.runs.values()
+            if run.pending is not None and run.pending.path
+        }
+
     async def start(self, request: RunRequest) -> str:
         workspace = workspace_root(request.workspace)
         record = self.catalog.require(request.model)
@@ -170,9 +178,7 @@ class RunManager:
                                         )
                                         text = buffer.push(value)
                                         if text:
-                                            await bus.emit(
-                                                kind, message_id=identifier, text=text
-                                            )
+                                            await bus.emit(kind, message_id=identifier, text=text)
                             elif mode == "updates":
                                 if "__interrupt__" in update:
                                     await self._announce(run, update["__interrupt__"])
@@ -282,9 +288,7 @@ class RunManager:
         run.pending = None
         return answer
 
-    async def resolve(
-        self, run_id: str, approval_id: str, decision: ApprovalDecision
-    ) -> None:
+    async def resolve(self, run_id: str, approval_id: str, decision: ApprovalDecision) -> None:
         run = self.runs[run_id]
         pending = run.pending
         if pending is None or pending.approval_id != approval_id or run.answer is not None:

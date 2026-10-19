@@ -6,6 +6,7 @@ import { useRun } from "../store/run";
 import { Message } from "../genui/message";
 import { Sidebar } from "./shell/sidebar";
 import { Composer } from "./composer";
+import { ApprovalModal } from "./approval-modal";
 import { SettingsScreen } from "./settings/settings-screen";
 import { Hint } from "./hint";
 import { CaretRightIcon } from "@phosphor-icons/react/dist/csr/CaretRight";
@@ -29,7 +30,7 @@ export function TaskScreen() {
       {view !== "home" ? <SettingsScreen key={view} session={session} t={t} addInitially={view === "add-model"} /> : <>
         {running && <header className="run-header"><h1>{run.task}</h1><div className="run-actions">
           {total > 0 && <span data-testid="token-meter">{run.usage.estimated ? "~" : ""}{new Intl.NumberFormat(session.locale).format(total)} {t.tokens}</span>}
-          <span role="status">{run.status === "completed" ? t.completed : run.status === "stopped" ? t.stopped : run.status === "error" ? t.error : t.reading}</span>
+          <span role="status">{run.approval ? t.paused : run.status === "completed" ? t.completed : run.status === "stopped" ? t.stopped : run.status === "error" ? t.error : t.reading}</span>
           <button className="stop" disabled={!session.busy} onClick={() => void session.stop()}>{t.stop}</button>
         </div></header>}
         {running ? <div className="timeline" aria-live="polite"><div className="chat-column">
@@ -51,5 +52,7 @@ export function TaskScreen() {
         </div></div>
       </>}
     </main>
+    {run.approval && <ApprovalModal t={t} approval={run.approval} onApprove={() => void session.resolveApproval("approve")} onReject={() => void session.resolveApproval("reject")} />}
+    {session.worktreeApproval && <ApprovalModal t={t} approval={session.worktreeApproval} onApprove={() => void session.approveWorktree()} onReject={session.rejectWorktree} />}
   </div>;
 }

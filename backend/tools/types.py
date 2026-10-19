@@ -90,6 +90,14 @@ class BranchSwitchResult(ToolModel):
     error: str | None = None
 
 
+class BranchList(ToolModel):
+    """What the branch chip and the Worktree checkbox need to know before a run."""
+
+    git: bool = False
+    current: str | None = None
+    branches: list[str] = Field(default_factory=list)
+
+
 class RulesResponse(ToolModel):
     mode: Literal["read-only", "ask", "auto"]
     tools: dict[str, list[dict[str, str]]] = Field(default_factory=dict)

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, shell } from "electron";
 import { existsSync, statSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -91,6 +91,13 @@ app.whenReady().then(async () => {
     if (result.canceled || !result.filePaths[0]) return null;
     try { return await validateWorkspace(result.filePaths[0]); }
     catch { throw new Error("Choose an accessible project folder, not a root or home"); }
+  });
+  // Opening Explorer is the only OS action the renderer can ask for, and only for a
+  // folder that passes the same validation as the picker.
+  ipcMain.handle("reveal-workspace", async (event, value: unknown) => {
+    if (!trustedFrame(event.senderFrame?.url)) return false;
+    try { const path = await validateWorkspace(String(value)); return (await shell.openPath(path)) === ""; }
+    catch { return false; }
   });
   const out = resolve(root, "out");
   protocol.handle("app", request => {

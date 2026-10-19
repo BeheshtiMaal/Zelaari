@@ -15,7 +15,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from tools.jail import storage_path
-from tools.types import BranchSwitchResult
+from tools.types import BranchList, BranchSwitchResult
 
 TIMEOUT = 30.0
 
@@ -71,6 +71,51 @@ def switch(root: Path, branch: str) -> BranchSwitchResult:
     if done.returncode != 0:
         return BranchSwitchResult(error=(done.stderr or done.stdout).strip()[:2000])
     return BranchSwitchResult(branch=name)
+
+
+def list_branches(root: Path) -> BranchList:
+    """Local branches plus the current one. `git: false` disables the Worktree option."""
+    if repository(root) is None:
+        return BranchList()
+    git = git_executable()
+    if git is None:
+        return BranchList()
+    try:
+        done = subprocess.run(  # noqa: S603 - fixed executable and format string
+            [git, "for-each-ref", "--format=%(refname:short)", "refs/heads"],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return BranchList()
+    if done.returncode != 0:
+        return BranchList()
+    names = sorted({line.strip() for line in done.stdout.splitlines() if line.strip()})
+    return BranchList(git=True, current=_head_branch(root), branches=names)
+
+
+def _head_branch(root: Path) -> str | None:
+    for folder in [root, *root.parents]:
+        marker = folder / ".git"
+        target = marker
+        if marker.is_file():
+            try:
+                pointer = marker.read_text(encoding="utf-8").strip()
+            except OSError:
+                return None
+            if not pointer.startswith("gitdir: "):
+                return None
+            target = (folder / pointer[8:]).resolve()
+        if target.is_dir():
+            try:
+                head = (target / "HEAD").read_text(encoding="utf-8").strip()
+            except OSError:
+                return None
+            return head[16:] if head.startswith("ref: refs/heads/") else None
+    return None
 
 
 def worktree_path(root: Path, task_id: str) -> Path:

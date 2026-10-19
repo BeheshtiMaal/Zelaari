@@ -5,9 +5,10 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
-from permissions.types import ApprovalRequest
+from permissions.types import ApprovalDecision, ApprovalRequest
 from providers.base import ModelInput, Preset, ProviderRecord, Settings, WorkspaceState
 from tools.types import (
+    BranchList,
     BranchSwitch,
     BranchSwitchResult,
     CommandResult,
@@ -160,10 +161,12 @@ class Protocol(WireModel):
     preset: Preset
     workspaces: WorkspaceState
     approval_request: ApprovalRequest
+    approval_decision: ApprovalDecision
     command_result: CommandResult
     file_listing: FileListing
     revert_result: RevertResult
     snapshot_entry: SnapshotEntry
     branch_switch: BranchSwitch
     branch_switch_result: BranchSwitchResult
+    branch_list: BranchList
     rules_response: RulesResponse
