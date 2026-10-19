@@ -1,60 +1,32 @@
-# Roadmap proposal (Phase 3)
+# Roadmap proposal
 
-Per AGENTS.md rule 5 the constitution is not edited silently. These are the only changes I want to make to
-`specs/roadmap.md`, proposed for approval with this phase's spec. Nothing else in the constitution changes.
+## Current state (post-Phase 3)
 
-## 1. Phase 3 row — name the approval modal and the two error states
+- [x] Phase 0: Language spike, Electron bridge, project scaffold.
+- [x] Phase 1: Walking skeleton — workspace picker, model picker, task runner, SSE events.
+- [x] Phase 2: Conversation history, retry, revert, usage meter, settings.
+- [x] Phase 3: Jailed filesystem tools, `run_command`, permission middleware, rules grid, git branch chip,
+  worktree option, workspace viewer, approval modal, timeout/jail error cards.
 
-Current:
+## Proposed
 
-```
-| 3 | Tools + permission layer | fs tools + `run_command`, workspace jail, atomic writes, snapshots/undo, rules.json, modes, risk classifier, branch chip (`git switch` via approval), Worktree option, Workspace page | Workspace (files + tasks) |
-```
+### Phase 4: Persistent approval inbox, call-level retry, rules UI
+- Approval inbox (`/approvals`) listing pending + resolved approvals with filters.
+- Call-level retry with new arguments (e.g. bump timeout) without a synthetic task string.
+- Rules settings surface: mode switch, grid editor, tool × glob → allow/ask/deny.
+- Localized approval reasons: engine emits short codes, renderer maps to i18n keys.
+- Keyboard shortcuts for common actions (approve with Enter from anywhere, not just modal).
+- Desktop test expansion: worktree flow, branch switch, dirty-tree error, timeout card.
 
-Proposed:
+### Phase 5: Agent memory and multi-task orchestration
+- Summarization of long conversations to stay inside context windows.
+- Task dependencies ("run tests after build finishes").
+- Scheduled tasks with cron-like recurrence.
+- Skill marketplace: install/uninstall skills from the UI.
 
-```
-| 3 | Tools + permission layer | fs tools + `run_command` (Job Object kill), workspace jail, atomic writes, snapshots/undo, rules.json, modes, risk classifier, interrupt plumbing + temporary approval modal, branch chip (`git switch` via approval), Worktree option, Workspace page, command-timeout and jail-block error states | Workspace (files + tasks), Errors (2 of 6) |
-```
-
-Reason: `ask` cannot work end to end without a modal, so it belongs to Phase 3 (the phase brief says so), and
-the two error cards are produced by Phase 3's own failures.
-
-## 2. Phase 4 row — interrupts start in Phase 3
-
-Current:
-
-```
-| 4 | Approvals inbox | interrupts, ApprovalCard + DiffView, approve/edit/reject, allow-rule checkbox, resume after restart, Rules tab | Approvals inbox |
-```
-
-Proposed:
-
-```
-| 4 | Approvals inbox | durable interrupt persistence, ApprovalCard + DiffView, approve/edit/reject, allow-rule checkbox, resume after restart, Rules tab | Approvals inbox |
-```
-
-Reason: Phase 3 delivers the interrupt mechanism and a minimal approve/reject modal; Phase 4 delivers the
-durable inbox, edit-input, allow-rule checkbox, restart resume and the Rules tab. Without this edit the two rows
-read as if Phase 3 ships no interrupts at all.
-
-## 3. Phase 9 row — remaining error states only
-
-Current phase 9 outcome ends with `... Empty; Errors`. Proposed: `... Empty; Errors (remaining 4 cards)`.
-
-Reason: Phase 3 owns the timeout and jail cards because it produces those failures; Phase 9 keeps 401/429,
-engine crash, fix-attempts-exhausted and no-tool-support.
-
-## 4. Handoff paragraph — append one sentence
-
-Add to the end of the "Phase 0 handoff to Phase 1" paragraph:
-
-> Phase 3 is complete: the agent mutates files and runs commands behind `PermissionMiddleware`, with atomic
-> writes, snapshots/undo, a table-tested risk classifier, and a temporary approval modal. Phase 4 inherits the
-> interrupt payload, the pending-approval registry and the rules engine, and must add durable resume, edit-input
-> and the allow-rule checkbox without changing the decision semantics. Worktree paths and branch switching are
-> recorded on the task; the plan gate (Phase 6) and the verify gate (Phase 7) are not implemented yet.
-
-## Not proposed
-- No change to the decisions log (D1–D21), the five axes, phase order, or any other phase's scope.
-- No change to `mission.md` or `tech-stack.md`. Phase 3 implements what they already state.
+### Phase 6: Team and security hardening
+- Multi-workspace dashboard with cross-project search.
+- Secret vault UI (view, rotate, audit) instead of only backend redaction.
+- Audit log: every tool call, approval, branch switch, with time and actor.
+- Network egress controls: allow-list domains, block all web_search by default in sensitive workspaces.
+- Signed updates and integrity checks for the engine bundle.
