@@ -5,4 +5,6 @@ const connection = ipcRenderer.sendSync("engine-connection") as EngineConnection
 contextBridge.exposeInMainWorld("harness", Object.freeze({
   baseUrl: connection.baseUrl, token: connection.token,
   pickWorkspace: (): Promise<string | null> => ipcRenderer.invoke("pick-workspace"),
+  saveModel: (value: unknown): Promise<{ok: boolean}> => ipcRenderer.invoke("save-model", value),
+  vaultStatus: (): Promise<boolean> => ipcRenderer.invoke("vault-status"),
 }));

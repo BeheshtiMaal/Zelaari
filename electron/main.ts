@@ -1,9 +1,9 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage } from "electron";
 import { existsSync, statSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { startSidecar, type Sidecar } from "./sidecar";
-import { loadProviderConfig } from "./provider-config";
+import { Vault, modelSubmission, trustedFrame } from "./vault";
 
 app.disableHardwareAcceleration();
 protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: {
@@ -14,23 +14,65 @@ const root = app.isPackaged ? process.resourcesPath : resolve(__dirname, "..");
 let sidecar: Sidecar | undefined;
 
 app.whenReady().then(async () => {
-  loadProviderConfig();
-  // Keep the native window responsive during cold Python imports.
-  ipcMain.on("engine-connection", (event) => {
-    if (!event.senderFrame?.url.startsWith("app://codeharness/")) {
-      event.returnValue = { baseUrl: "", token: "" };
-      return;
-    }
+  const vault = new Vault(resolve(app.getPath("userData"), "vault.json"), safeStorage);
+  let vaultError = false;
+  let initialized: Promise<import("./sidecar").EngineConnection> | undefined;
+  const connect = () => initialized ??= (async () => {
     sidecar ??= startSidecar(root, app.isPackaged, () => {
       for (const window of BrowserWindow.getAllWindows()) window.destroy();
       app.quit();
-    });
-    void sidecar!.ready.then(connection => { event.returnValue = connection; }, () => {
+    }, app.getPath("userData"));
+    const connection = await sidecar.ready;
+    for (let attempt = 0; attempt < 120; attempt++) {
+      try { if ((await fetch(connection.baseUrl + "/health", { headers: { Authorization: `Bearer ${connection.token}` } })).ok) break; }
+      catch { /* Socket is announced just before the HTTP server starts. */ }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    try {
+      for (const [id, key] of Object.entries(await vault.all())) {
+        const response = await fetch(connection.baseUrl + "/internal/credentials", {
+          method: "POST", headers: { Authorization: `Bearer ${connection.token}`, "Content-Type": "application/json" }, body: JSON.stringify({ id, key }),
+        });
+        if (!response.ok) throw new Error();
+      }
+    } catch { vaultError = true; }
+    return connection;
+  })();
+  // Keep the native window responsive during cold Python imports.
+  ipcMain.on("engine-connection", (event) => {
+    if (!trustedFrame(event.senderFrame?.url)) {
+      event.returnValue = { baseUrl: "", token: "" };
+      return;
+    }
+    void connect().then(connection => { event.returnValue = connection; }, () => {
       event.returnValue = { baseUrl: "", token: "" };
     });
   });
+  ipcMain.handle("vault-status", event => trustedFrame(event.senderFrame?.url) && !vaultError);
+  let saveQueue: Promise<unknown> = Promise.resolve();
+  ipcMain.handle("save-model", (event, input: unknown) => {
+    if (!trustedFrame(event.senderFrame?.url)) return { ok: false };
+    const work = saveQueue.then(async () => {
+      try {
+        const { api_key, ...metadata } = modelSubmission.parse(input);
+        const connection = await connect();
+        const headers = { Authorization: `Bearer ${connection.token}`, "Content-Type": "application/json" };
+        if (api_key) {
+          await vault.put(metadata.id, api_key);
+          const result = await fetch(connection.baseUrl + "/internal/credentials", { method: "POST", headers, body: JSON.stringify({ id: metadata.id, key: api_key }) });
+          if (!result.ok) throw new Error();
+        }
+        const result = await fetch(connection.baseUrl + "/models", { method: "POST", headers, body: JSON.stringify(metadata) });
+        if (!result.ok) throw new Error();
+        vaultError = false;
+        return { ok: true };
+      } catch { return { ok: false }; }
+    });
+    saveQueue = work.catch(() => undefined);
+    return work;
+  });
   ipcMain.handle("pick-workspace", async (event) => {
-    if (!event.senderFrame?.url.startsWith("app://codeharness/")) return null;
+    if (!trustedFrame(event.senderFrame?.url)) return null;
     const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
     return result.canceled ? null : result.filePaths[0] ?? null;
   });

@@ -21,15 +21,9 @@ export function childEnvironment(): NodeJS.ProcessEnv {
   return env;
 }
 
-export function startSidecar(root: string, packaged: boolean, onExit: () => void): Sidecar {
+export function startSidecar(root: string, packaged: boolean, onExit: () => void, appData?: string): Sidecar {
   const token = randomBytes(32).toString("hex");
-  // Read opt-in provider configuration, then remove it before any child is spawned.
-  const provider = {
-    CODEHARNESS_API_KEY: process.env.CODEHARNESS_API_KEY,
-    CODEHARNESS_BASE_URL: process.env.CODEHARNESS_BASE_URL,
-    CODEHARNESS_MODEL: process.env.CODEHARNESS_MODEL,
-  };
-  for (const key of Object.keys(provider)) delete process.env[key];
+  for (const key of ["CODEHARNESS_API_KEY", "CODEHARNESS_BASE_URL", "CODEHARNESS_MODEL"]) delete process.env[key];
   const python = resolve(root, "backend/.venv/Scripts/python.exe");
   const watchdog = resolve(root, "build/engine/watchdog/watchdog.exe");
   const engine = resolve(root, "build/engine/engine/engine.exe");
@@ -53,7 +47,7 @@ export function startSidecar(root: string, packaged: boolean, onExit: () => void
     child.on("error", fail);
     // Engine logs can include provider diagnostics. Do not forward stderr or persist it.
     child.stderr.resume();
-    child.stdin.write(JSON.stringify({ token, provider, parent_pid: process.pid }) + "\n");
+    child.stdin.write(JSON.stringify({ token, app_data: appData, parent_pid: process.pid }) + "\n");
     let first = true;
     createInterface({ input: child.stdout }).on("line", (line) => {
       if (!first) return;

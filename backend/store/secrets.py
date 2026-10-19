@@ -22,6 +22,11 @@ class Redactor:
             value = value.replace(secret, "[REDACTED]")
         return value
 
+    def add(self, secret: str) -> None:
+        if secret and secret not in self.values:
+            self.values.append(secret)
+            self.values.sort(key=len, reverse=True)
+
     def value(self, value: JsonValue) -> JsonValue:
         if isinstance(value, str):
             return self.text(value)

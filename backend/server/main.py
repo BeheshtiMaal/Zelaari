@@ -4,21 +4,19 @@ import json
 import os
 import socket
 import sys
+from pathlib import Path
 
 
 def main() -> None:
     dev = "--dev" in sys.argv
     bootstrap = "" if dev else sys.stdin.readline().strip()
     token = bootstrap
+    app_data: Path | None = None
     if bootstrap.startswith("{"):
         config = json.loads(bootstrap)
         token = str(config["token"])
-        for key, value in config.get("provider", {}).items():
-            if (
-                key in {"CODEHARNESS_API_KEY", "CODEHARNESS_BASE_URL", "CODEHARNESS_MODEL"}
-                and value
-            ):
-                os.environ[key] = str(value)
+        if config.get("app_data"):
+            app_data = Path(config["app_data"])
     if not token and not dev:
         raise SystemExit(2)
     for key in list(os.environ):
@@ -36,5 +34,8 @@ def main() -> None:
         listener.listen(128)
         print(json.dumps({"port": listener.getsockname()[1]}), flush=True)
         uvicorn.Server(
-            uvicorn.Config(create_app(token, dev=dev), log_level="critical", access_log=False)
+            uvicorn.Config(
+                create_app(token, dev=dev, app_data=app_data),
+                log_level="critical", access_log=False,
+            )
         ).run(sockets=[listener])

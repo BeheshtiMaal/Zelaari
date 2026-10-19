@@ -3,12 +3,19 @@
 import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated, Protocol
 
-from agent.events import Event, HealthResponse, RunRequest, RunResponse
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+
+from agent.events import Event, HealthResponse, RunRequest, RunResponse
+from server.models import model_routes
+from store.catalog import Catalog
+from store.secrets import Redactor
 
 
 class RunService(Protocol):
@@ -19,9 +26,15 @@ class RunService(Protocol):
     async def close(self) -> None: ...
 
 
-def create_app(token: str, service: RunService | None = None, *, dev: bool = False) -> FastAPI:
+def create_app(
+    token: str, service: RunService | None = None, *, dev: bool = False,
+    catalog: Catalog | None = None, app_data: Path | None = None,
+) -> FastAPI:
     if not token and not dev:
         raise ValueError("A per-launch token is required")
+    catalog = catalog or Catalog(
+        app_data / "catalog.json" if app_data else None, Redactor([token])
+    )
 
     def runs() -> RunService:
         nonlocal service
@@ -51,9 +64,15 @@ def create_app(token: str, service: RunService | None = None, *, dev: bool = Fal
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["app://codeharness", "http://localhost:3000"],
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PUT"],
         allow_headers=["Authorization", "Last-Event-ID", "Content-Type"],
     )
+    app.include_router(model_routes(catalog))
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_input(request: object, error: RequestValidationError) -> JSONResponse:
+        # Pydantic errors contain input values, including submitted credentials.
+        return JSONResponse({"detail": "Invalid request"}, status_code=422)
 
     @app.get("/health")
     def health() -> HealthResponse:
