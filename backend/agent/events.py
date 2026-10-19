@@ -5,6 +5,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from providers.base import ModelInput, Preset, ProviderRecord, Settings, WorkspaceState
+
 
 class WireModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -57,7 +59,6 @@ class FutureEvent(EventBase):
     type: Literal[
         "plan.created",
         "plan.step.updated",
-        "reasoning.delta",
         "subagent.started",
         "subagent.finished",
         "context.summarized",
@@ -67,13 +68,26 @@ class FutureEvent(EventBase):
         "question.answered",
         "ui.render",
         "test.result",
-        "usage.updated",
     ]
     data: dict[str, JsonValue]
 
 
+class ReasoningDelta(EventBase):
+    type: Literal["reasoning.delta"] = "reasoning.delta"
+    message_id: str
+    text: str
+
+
+class UsageUpdated(EventBase):
+    type: Literal["usage.updated"] = "usage.updated"
+    input_tokens: int = Field(ge=0)
+    output_tokens: int = Field(ge=0)
+    estimated: bool
+
+
 Event = Annotated[
-    RunStarted | MessageDelta | ToolCall | ToolResult | RunFinished | RunError | FutureEvent,
+    RunStarted | MessageDelta | ReasoningDelta | UsageUpdated | ToolCall | ToolResult
+    | RunFinished | RunError | FutureEvent,
     Field(discriminator="type"),
 ]
 event_adapter: TypeAdapter[Event] = TypeAdapter(Event)
@@ -82,7 +96,8 @@ event_adapter: TypeAdapter[Event] = TypeAdapter(Event)
 class RunRequest(WireModel):
     task: str = Field(min_length=1, max_length=32000)
     workspace: str
-    model: Literal["demo", "openai-compatible"] = "demo"
+    model: str = Field(default="demo", pattern=r"^[a-zA-Z0-9_-]{1,64}$")
+    mode: Literal["read-only", "ask", "auto"] = "ask"
 
 
 class RunResponse(WireModel):
@@ -100,3 +115,8 @@ class Protocol(WireModel):
     run_request: RunRequest
     run_response: RunResponse
     health: HealthResponse
+    model_input: ModelInput
+    provider: ProviderRecord
+    settings: Settings
+    preset: Preset
+    workspaces: WorkspaceState

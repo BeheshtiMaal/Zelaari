@@ -1,0 +1,7 @@
+[
+  {"name": "OpenAI", "url": "https://api.openai.com/v1"},
+  {"name": "Anthropic", "url": "https://api.anthropic.com"},
+  {"name": "Jev", "url": null},
+  {"name": "AvalAI", "url": "https://api.avalai.ir/v1"},
+  {"name": "Metis", "url": null}
+]
