@@ -17,6 +17,7 @@ from permissions.types import ApprovalDecision, UnknownApproval
 from server.files import file_routes
 from server.git import git_routes
 from server.models import model_routes
+from server.rules import rules_routes
 from server.snapshots import snapshot_routes
 from server.workspaces import workspace_routes
 from store.catalog import Catalog
@@ -81,6 +82,7 @@ def create_app(
     app.include_router(snapshot_routes())
     app.include_router(git_routes())
     app.include_router(file_routes(lambda: service.pending_paths() if service else set()))
+    app.include_router(rules_routes())
 
     @app.exception_handler(RequestValidationError)
     async def invalid_input(request: object, error: RequestValidationError) -> JSONResponse:

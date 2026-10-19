@@ -47,6 +47,22 @@ def storage_path(root: Path, relative: str) -> Path:
     return target
 
 
+BLOCK_NOTE = "Access is never allowed, even with approval."
+
+
+def jail_message(root: Path, value: str) -> str:
+    """The one sentence a jail rejection produces, for the model and the error card.
+
+    The renderer recognises the prefix and renders the block card, so this string is
+    part of the contract: change it in both places or not at all.
+    """
+    try:
+        target = str((root / value).resolve())
+    except (OSError, ValueError):
+        target = value
+    return f"Access blocked: {target} is outside the workspace. {BLOCK_NOTE}"
+
+
 def _reject_forms(value: str) -> None:
     """Reject the spellings that bypass a naive relative-path join."""
     windows = PureWindowsPath(value)

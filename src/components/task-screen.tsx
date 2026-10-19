@@ -7,6 +7,8 @@ import { Message } from "../genui/message";
 import { Sidebar } from "./shell/sidebar";
 import { Composer } from "./composer";
 import { ApprovalModal } from "./approval-modal";
+import { ToolErrorCard } from "./tool-error-card";
+import { toolFailure } from "../lib/errors";
 import { SettingsScreen } from "./settings/settings-screen";
 import { Hint } from "./hint";
 import { CaretRightIcon } from "@phosphor-icons/react/dist/csr/CaretRight";
@@ -37,7 +39,9 @@ export function TaskScreen() {
           <div className="user-message" dir="auto">{run.task}</div>
           {run.items.map((item, index) => item.kind === "message" ?
             <Message key={item.id} text={item.text} streaming={session.busy && index === run.items.length - 1} /> :
-            <details className="tool-line" key={item.id} data-testid="tool-line"><summary><span className="status-dot" />{t.reading} <code>{String(item.args.file_path ?? item.name)}</code></summary><pre className="readable" dir="auto">{item.result ?? "…"}</pre></details>)}
+            item.result && toolFailure(item.result) ?
+              <ToolErrorCard key={item.id} text={item.result} t={t} locale={session.locale} onRetry={command => void session.retryWithLongerTimeout(command)} /> :
+              <details className="tool-line" key={item.id} data-testid="tool-line"><summary><span className="status-dot" />{t.reading} <code>{String(item.args.file_path ?? item.name)}</code></summary><pre className="readable" dir="auto">{item.result ?? "…"}</pre></details>)}
           <div ref={end} />
         </div></div> : <h1 className="home-title">{t.title}</h1>}
         <div className="compose-region"><div className="chat-column">

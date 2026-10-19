@@ -22,6 +22,7 @@ from tools.jail import (
     PROTECTED,
     JailError,
     Resolved,
+    jail_message,
     resolve_virtual,
 )
 from tools.snapshot import SnapshotError
@@ -42,6 +43,17 @@ def _virtual(resolved: Resolved) -> str:
 
 def _visible(relative: str) -> bool:
     return relative.split("/")[0].casefold() != PROTECTED
+
+
+def _denial(action: str, error: Exception, root: Path, value: str) -> str:
+    """A jail block names the path and says it can never be approved.
+
+    Anything else (a missing file, a locked handle) keeps the generic wording, because
+    those are ordinary failures the model should retry differently.
+    """
+    if isinstance(error, JailError):
+        return jail_message(root, value)
+    return f"{action} denied: invalid, inaccessible, or outside workspace path"
 
 
 class WorkspaceBackend(FilesystemBackend):
@@ -91,8 +103,8 @@ class WorkspaceBackend(FilesystemBackend):
                 end_line=end,
                 next_offset=end if end < len(lines) else None,
             )
-        except (JailError, OSError, RuntimeError, UnicodeError):
-            return ReadResult(error="Read denied: invalid, inaccessible, or outside workspace path")
+        except (JailError, OSError, RuntimeError, UnicodeError) as error:
+            return ReadResult(error=_denial("Read", error, self.root, file_path))
 
     def ls(self, path: str) -> LsResult:
         try:
@@ -113,8 +125,8 @@ class WorkspaceBackend(FilesystemBackend):
                     }
                 )
             return LsResult(entries=entries)  # type: ignore[arg-type]
-        except (JailError, OSError, RuntimeError):
-            return LsResult(error="List denied: invalid, inaccessible, or outside workspace path")
+        except (JailError, OSError, RuntimeError) as error:
+            return LsResult(error=_denial("List", error, self.root, path))
 
     def glob(self, pattern: str, path: str | None = None) -> GlobResult:
         try:
@@ -138,8 +150,8 @@ class WorkspaceBackend(FilesystemBackend):
                     }
                 )
             return GlobResult(matches=matches)  # type: ignore[arg-type]
-        except (JailError, OSError, RuntimeError, ValueError):
-            return GlobResult(error="Glob denied: invalid pattern or outside workspace")
+        except (JailError, OSError, RuntimeError, ValueError) as error:
+            return GlobResult(error=_denial("Glob", error, self.root, path or "."))
 
     def grep(
         self,
@@ -197,8 +209,8 @@ class WorkspaceBackend(FilesystemBackend):
                         truncated = True
                         break
             return GrepResult(matches=matches, truncated=truncated)  # type: ignore[arg-type]
-        except (JailError, OSError, RuntimeError, ValueError):
-            return GrepResult(error="Grep denied: invalid pattern or outside workspace")
+        except (JailError, OSError, RuntimeError, ValueError) as error:
+            return GrepResult(error=_denial("Grep", error, self.root, path or "."))
 
     # -- mutations ---------------------------------------------------------
     def _capture(self, target: Resolved, tool: str) -> None:
@@ -215,10 +227,8 @@ class WorkspaceBackend(FilesystemBackend):
             return WriteResult(path=_virtual(target))
         except SnapshotError as error:
             return WriteResult(error=f"Blocked: {error}")
-        except (JailError, OSError, RuntimeError):
-            return WriteResult(
-                error="Write denied: invalid, inaccessible, or outside workspace path"
-            )
+        except (JailError, OSError, RuntimeError) as error:
+            return WriteResult(error=_denial("Write", error, self.root, file_path))
 
     def edit(
         self,
@@ -254,8 +264,8 @@ class WorkspaceBackend(FilesystemBackend):
             return EditResult(path=_virtual(target), occurrences=occurrences if replace_all else 1)
         except SnapshotError as error:
             return EditResult(error=f"Blocked: {error}")
-        except (JailError, OSError, RuntimeError, UnicodeError):
-            return EditResult(error="Edit denied: invalid, inaccessible, or outside workspace path")
+        except (JailError, OSError, RuntimeError, UnicodeError) as error:
+            return EditResult(error=_denial("Edit", error, self.root, file_path))
 
     def delete(self, file_path: str) -> DeleteResult:
         try:
@@ -269,7 +279,5 @@ class WorkspaceBackend(FilesystemBackend):
             return DeleteResult(path=_virtual(target))
         except SnapshotError as error:
             return DeleteResult(error=f"Blocked: {error}")
-        except (JailError, OSError, RuntimeError):
-            return DeleteResult(
-                error="Delete denied: invalid, inaccessible, or outside workspace path"
-            )
+        except (JailError, OSError, RuntimeError) as error:
+            return DeleteResult(error=_denial("Delete", error, self.root, file_path))
