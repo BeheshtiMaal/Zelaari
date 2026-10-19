@@ -35,15 +35,25 @@ def test_model_auth_validation_and_write_only_credentials() -> None:
     with TestClient(create_app("token", catalog=catalog)) as client:
         assert client.get("/models").status_code == 401
         headers = {"Authorization": "Bearer token"}
-        assert client.post("/internal/credentials", headers=headers, json={
-            "id": "bad/secret", "key": "canary-credential"
-        }).text == '{"detail":"Invalid request"}'
+        assert (
+            client.post(
+                "/internal/credentials",
+                headers=headers,
+                json={"id": "bad/secret", "key": "canary-credential"},
+            ).text
+            == '{"detail":"Invalid request"}'
+        )
         assert client.get("/internal/credentials", headers=headers).status_code == 405
-        response = client.post("/internal/credentials", headers=headers, json={
-            "id": "mine", "key": "canary-credential"
-        })
+        response = client.post(
+            "/internal/credentials",
+            headers=headers,
+            json={"id": "mine", "key": "canary-credential"},
+        )
         assert response.json() == {"status": "ok"}
         assert "canary-credential" not in client.get("/models", headers=headers).text
-        assert client.put("/settings", headers=headers, json={
-            "locale": "en", "default_model": "demo"
-        }).status_code == 200
+        assert (
+            client.put(
+                "/settings", headers=headers, json={"locale": "en", "default_model": "demo"}
+            ).status_code
+            == 200
+        )

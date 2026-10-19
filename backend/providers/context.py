@@ -28,7 +28,9 @@ def detect_context(model: str, metadata: object = None, error: str = "") -> Cont
     match = re.search(
         r"(?:maximum context length is|context (?:window|length|limit)(?: is|:)?"
         r"|maximum number of tokens (?:is|allowed is))"
-        r"\s*([\d,]+)\s*(?:tokens)?", error, re.I,
+        r"\s*([\d,]+)\s*(?:tokens)?",
+        error,
+        re.I,
     )
     if match and (tokens := positive(int(match[1].replace(",", "")))):
         return Context(tokens=tokens, source="error", estimated=False)

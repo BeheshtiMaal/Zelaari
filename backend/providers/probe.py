@@ -12,16 +12,24 @@ from providers.context import detect_context, model_metadata
 from store.catalog import Catalog
 
 PROBE_TOOL = {
-    "type": "function", "function": {
-        "name": "harness_probe", "description": "Return the supplied connection-test marker.",
-        "parameters": {"type": "object", "properties": {"marker": {"type": "string"}},
-                       "required": ["marker"], "additionalProperties": False},
+    "type": "function",
+    "function": {
+        "name": "harness_probe",
+        "description": "Return the supplied connection-test marker.",
+        "parameters": {
+            "type": "object",
+            "properties": {"marker": {"type": "string"}},
+            "required": ["marker"],
+            "additionalProperties": False,
+        },
     },
 }
 
 
 async def test_connection(
-    catalog: Catalog, identifier: str, *,
+    catalog: Catalog,
+    identifier: str,
+    *,
     factory: Callable[..., BaseChatModel] = chat_model,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     metadata: Callable[..., Awaitable[object]] = model_metadata,
@@ -45,9 +53,13 @@ async def test_connection(
         for attempt in range(1, 4):
             record.probe = Probe(status="testing", attempt=attempt)
             try:
-                answer = await bound.ainvoke([HumanMessage(
-                    content="Call harness_probe exactly once with marker 'connection-ok'."
-                )])
+                answer = await bound.ainvoke(
+                    [
+                        HumanMessage(
+                            content="Call harness_probe exactly once with marker 'connection-ok'."
+                        )
+                    ]
+                )
                 valid = isinstance(answer, AIMessage) and len(answer.tool_calls) == 1
                 if valid:
                     call = answer.tool_calls[0]
@@ -56,7 +68,8 @@ async def test_connection(
                     }
                 record.supports_tools = valid
                 record.probe = Probe(
-                    status="ok" if valid else "error", code=None if valid else "no_tools",
+                    status="ok" if valid else "error",
+                    code=None if valid else "no_tools",
                     attempt=attempt,
                 )
                 break
@@ -65,17 +78,23 @@ async def test_connection(
                 parsed = detect_context(record.model, context_metadata, str(error))
                 record.context = parsed
                 if status == 429 and attempt < 3:
-                    seconds = float(2 ** attempt)
+                    seconds = float(2**attempt)
                     record.probe = Probe(
-                        status="retrying", code="rate_limit", attempt=attempt,
+                        status="retrying",
+                        code="rate_limit",
+                        attempt=attempt,
                         retry_seconds=seconds,
                     )
                     await sleep(seconds)
                     continue
                 record.probe = Probe(
-                    status="error", attempt=attempt,
-                    code="unauthorized" if status == 401 else
-                    "rate_limit" if status == 429 else "network",
+                    status="error",
+                    attempt=attempt,
+                    code="unauthorized"
+                    if status == 401
+                    else "rate_limit"
+                    if status == 429
+                    else "network",
                 )
                 break
     except asyncio.CancelledError:

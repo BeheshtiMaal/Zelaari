@@ -14,6 +14,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from agent.events import Event, HealthResponse, RunRequest, RunResponse
 from server.models import model_routes
+from server.workspaces import workspace_routes
 from store.catalog import Catalog
 from store.secrets import Redactor
 
@@ -27,21 +28,23 @@ class RunService(Protocol):
 
 
 def create_app(
-    token: str, service: RunService | None = None, *, dev: bool = False,
-    catalog: Catalog | None = None, app_data: Path | None = None,
+    token: str,
+    service: RunService | None = None,
+    *,
+    dev: bool = False,
+    catalog: Catalog | None = None,
+    app_data: Path | None = None,
 ) -> FastAPI:
     if not token and not dev:
         raise ValueError("A per-launch token is required")
-    catalog = catalog or Catalog(
-        app_data / "catalog.json" if app_data else None, Redactor([token])
-    )
+    catalog = catalog or Catalog(app_data / "catalog.json" if app_data else None, Redactor([token]))
 
     def runs() -> RunService:
         nonlocal service
         if service is None:
             from agent.bridge import RunManager
 
-            service = RunManager(secrets_to_redact=[token])
+            service = RunManager(secrets_to_redact=[token], catalog=catalog)
         return service
 
     @asynccontextmanager
@@ -68,6 +71,7 @@ def create_app(
         allow_headers=["Authorization", "Last-Event-ID", "Content-Type"],
     )
     app.include_router(model_routes(catalog))
+    app.include_router(workspace_routes(catalog))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_input(request: object, error: RequestValidationError) -> JSONResponse:

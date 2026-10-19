@@ -4,6 +4,7 @@ import { resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { startSidecar, type Sidecar } from "./sidecar";
 import { Vault, modelSubmission, trustedFrame } from "./vault";
+import { validateWorkspace } from "./workspace";
 
 app.disableHardwareAcceleration();
 protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: {
@@ -74,7 +75,9 @@ app.whenReady().then(async () => {
   ipcMain.handle("pick-workspace", async (event) => {
     if (!trustedFrame(event.senderFrame?.url)) return null;
     const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
-    return result.canceled ? null : result.filePaths[0] ?? null;
+    if (result.canceled || !result.filePaths[0]) return null;
+    try { return await validateWorkspace(result.filePaths[0]); }
+    catch { throw new Error("Choose an accessible project folder, not a root or home"); }
   });
   const out = resolve(root, "out");
   protocol.handle("app", request => {

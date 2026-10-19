@@ -86,8 +86,15 @@ class UsageUpdated(EventBase):
 
 
 Event = Annotated[
-    RunStarted | MessageDelta | ReasoningDelta | UsageUpdated | ToolCall | ToolResult
-    | RunFinished | RunError | FutureEvent,
+    RunStarted
+    | MessageDelta
+    | ReasoningDelta
+    | UsageUpdated
+    | ToolCall
+    | ToolResult
+    | RunFinished
+    | RunError
+    | FutureEvent,
     Field(discriminator="type"),
 ]
 event_adapter: TypeAdapter[Event] = TypeAdapter(Event)

@@ -92,13 +92,18 @@ class Catalog:
         old = self.data.models.get(value.id)
         same = old and old.base_url == value.base_url and old.model == value.model
         record = ProviderRecord(
-            **value.model_dump(), kind=infer_kind(value.base_url), api_key_ref=value.id,
+            **value.model_dump(),
+            kind=infer_kind(value.base_url),
+            api_key_ref=value.id,
             key_suffix=self.keys[value.id].get_secret_value()[-4:]
-            if len(self.keys[value.id].get_secret_value()) > 4 else "",
+            if len(self.keys[value.id].get_secret_value()) > 4
+            else "",
         )
         if same and old:
             record.probe, record.supports_tools, record.context = (
-                old.probe, old.supports_tools, old.context
+                old.probe,
+                old.supports_tools,
+                old.context,
             )
         self.data.models[value.id] = record
         self.persist()

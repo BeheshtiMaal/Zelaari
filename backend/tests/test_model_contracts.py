@@ -12,8 +12,11 @@ def test_presets_and_inference() -> None:
     path = Path(__file__).parents[1] / "providers" / "presets.json"
     values = {item["name"]: item["url"] for item in json.loads(path.read_text())}
     assert values == {
-        "OpenAI": "https://api.openai.com/v1", "Anthropic": "https://api.anthropic.com",
-        "Jev": None, "AvalAI": "https://api.avalai.ir/v1", "Metis": None,
+        "OpenAI": "https://api.openai.com/v1",
+        "Anthropic": "https://api.anthropic.com",
+        "Jev": None,
+        "AvalAI": "https://api.avalai.ir/v1",
+        "Metis": None,
     }
     assert infer_kind(values["Anthropic"]) == "anthropic"
     assert infer_kind("https://api.anthropic.com.evil.invalid") == "openai-compatible"

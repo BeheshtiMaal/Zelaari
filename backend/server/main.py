@@ -36,6 +36,7 @@ def main() -> None:
         uvicorn.Server(
             uvicorn.Config(
                 create_app(token, dev=dev, app_data=app_data),
-                log_level="critical", access_log=False,
+                log_level="critical",
+                access_log=False,
             )
         ).run(sockets=[listener])

@@ -14,8 +14,8 @@ from agent.events import Event, RunRequest
 from agent.factory import build_agent
 from agent.meter import TokenMeter, content_parts
 from providers.adapters import chat_model
-from providers.context import detect_context
 from providers.base import TaskRecord
+from providers.context import detect_context
 from providers.demo import DemoModel
 from store.catalog import Catalog
 from store.eventlog import EventBus
@@ -50,8 +50,10 @@ class RunManager:
     async def start(self, request: RunRequest) -> str:
         root = workspace_root(request.workspace)
         record = self.catalog.require(request.model)
-        model = DemoModel(delay=self.demo_delay) if record.kind == "demo" else chat_model(
-            record, self.catalog.keys[request.model]
+        model = (
+            DemoModel(delay=self.demo_delay)
+            if record.kind == "demo"
+            else chat_model(record, self.catalog.keys[request.model])
         )
         run_id = uuid4().hex
         path = storage_path(root, f"runs/{run_id}/events.jsonl")
@@ -61,8 +63,11 @@ class RunManager:
         await bus.emit("run.started", task=safe_task, model=request.model)
         select_workspace(self.catalog, str(root))
         task_record = TaskRecord(
-            id=run_id, workspace=str(root), title=safe_task[:240],
-            model=request.model, mode=request.mode,
+            id=run_id,
+            workspace=str(root),
+            title=safe_task[:240],
+            model=request.model,
+            mode=request.mode,
         )
         add_task(self.catalog, task_record)
 
@@ -91,7 +96,8 @@ class RunManager:
                             if isinstance(chunk, AIMessageChunk):
                                 identifier = chunk.id or "assistant"
                                 for kind, value in zip(
-                                    ("message.delta", "reasoning.delta"), content_parts(chunk),
+                                    ("message.delta", "reasoning.delta"),
+                                    content_parts(chunk),
                                     strict=True,
                                 ):
                                     buffer_id = identifier + kind
@@ -112,7 +118,8 @@ class RunManager:
                                         identifier = message.id or "assistant"
                                         for kind, value in zip(
                                             ("message.delta", "reasoning.delta"),
-                                            content_parts(message), strict=True,
+                                            content_parts(message),
+                                            strict=True,
                                         ):
                                             buffer_id = identifier + kind
                                             buffer = buffers.setdefault(
@@ -136,7 +143,8 @@ class RunManager:
                                             )
                                         if meter.turn(message, identifier):
                                             await bus.emit(
-                                                "usage.updated", input_tokens=meter.input_tokens,
+                                                "usage.updated",
+                                                input_tokens=meter.input_tokens,
                                                 output_tokens=meter.output_tokens,
                                                 estimated=meter.estimated,
                                             )

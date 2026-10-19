@@ -15,7 +15,9 @@ from providers.base import ProviderRecord
 
 class ReasoningOpenAI(ChatOpenAI):
     def _convert_chunk_to_generation_chunk(
-        self, chunk: dict[str, Any], default_chunk_class: type,
+        self,
+        chunk: dict[str, Any],
+        default_chunk_class: type,
         base_generation_info: dict[str, Any] | None,
     ) -> ChatGenerationChunk | None:
         result = super()._convert_chunk_to_generation_chunk(
@@ -28,7 +30,8 @@ class ReasoningOpenAI(ChatOpenAI):
         return result
 
     def _create_chat_result(
-        self, response: dict[str, Any] | openai.BaseModel,
+        self,
+        response: dict[str, Any] | openai.BaseModel,
         generation_info: dict[str, Any] | None = None,
     ) -> ChatResult:
         result = super()._create_chat_result(response, generation_info)
@@ -40,7 +43,11 @@ class ReasoningOpenAI(ChatOpenAI):
         return result
 
     def _get_request_payload(
-        self, input_: LanguageModelInput, *, stop: list[str] | None = None, **kwargs: Any,
+        self,
+        input_: LanguageModelInput,
+        *,
+        stop: list[str] | None = None,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         result = super()._get_request_payload(input_, stop=stop, **kwargs)
         for message, outgoing in zip(
@@ -54,10 +61,20 @@ class ReasoningOpenAI(ChatOpenAI):
 def chat_model(record: ProviderRecord, key: SecretStr) -> BaseChatModel:
     if record.kind == "anthropic":
         return ChatAnthropic(
-            model_name=record.model, api_key=key, base_url=record.base_url,
-            max_retries=0, timeout=30, max_tokens=4096,
+            model_name=record.model,
+            api_key=key,
+            base_url=record.base_url,
+            max_retries=0,
+            timeout=30,
+            max_tokens_to_sample=4096,
         )
     return ReasoningOpenAI(
-        model=record.model, base_url=record.base_url, api_key=key,
-        use_responses_api=False, streaming=True, stream_usage=True, max_retries=0, timeout=30,
+        model=record.model,
+        base_url=record.base_url,
+        api_key=key,
+        use_responses_api=False,
+        streaming=True,
+        stream_usage=True,
+        max_retries=0,
+        timeout=30,
     )
