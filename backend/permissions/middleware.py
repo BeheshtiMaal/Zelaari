@@ -24,8 +24,9 @@ from langchain_core.messages import AIMessage, ToolCall, ToolMessage
 from langgraph.runtime import Runtime
 from langgraph.types import Command, interrupt
 
-from permissions.rules import COMMAND_TOOLS, RulesEngine
+from permissions.rules import COMMAND_TOOLS, DELETE_TOOLS, READ_TOOLS, WRITE_TOOLS, RulesEngine
 from permissions.types import ApprovalAnswer, ApprovalRequest, PermissionOutcome
+from tools.jail import JailError, jail_message, resolve_virtual
 
 PATH_KEYS = ("file_path", "path", "target_path", "source_path", "destination_path")
 """Argument names the filesystem tools use for the path they act on."""
@@ -82,7 +83,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
         return self.rules.decide(call["name"], path=path, command=command, timeout=timeout)
 
     def approval(self, call: ToolCall, outcome: PermissionOutcome) -> ApprovalRequest:
-        path, command, _timeout = tool_target(call["name"], call.get("args") or {})
+        path, command, timeout = tool_target(call["name"], call.get("args") or {})
         return ApprovalRequest(
             approval_id=call_key(call),
             run_id=self.run_id,
@@ -91,7 +92,11 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             path=path,
             command=command,
             risk=outcome.risk,
-            reason=outcome.reason,
+            reason=(
+                f"{outcome.reason}. Requested timeout: {timeout:g}s"
+                if timeout is not None
+                else outcome.reason
+            ),
         )
 
     def _ask(self, call: ToolCall, outcome: PermissionOutcome) -> PermissionOutcome:
@@ -161,9 +166,21 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             outcome = self.decide(call)
             if outcome.action != "allow":
                 return self.refusal(call, outcome.reason or "no rule allowed this call")
-            return await handler(request)
-        if recorded["action"] == "deny":
+        elif recorded["action"] == "deny":
             return self.refusal(call, str(recorded.get("reason") or "denied"))
+        # Upstream filesystem tools reject Windows absolute paths before calling
+        # the backend. Preserve our model/UI jail contract at this outer boundary.
+        if call["name"] in READ_TOOLS | WRITE_TOOLS | DELETE_TOOLS:
+            path, _, _ = tool_target(call["name"], call.get("args") or {})
+            if path:
+                try:
+                    resolve_virtual(self.rules.root, path)
+                except JailError:
+                    return ToolMessage(
+                        content=jail_message(self.rules.root, path),
+                        tool_call_id=call_key(call),
+                        name=call["name"],
+                    )
         return await handler(request)
 
 

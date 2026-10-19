@@ -177,12 +177,14 @@ export type Bytes = number;
 export type Tool1 = string;
 export type Workspace3 = string;
 export type Branch1 = string;
+export type Approved = boolean;
+export type Mode2 = ("read-only" | "ask" | "auto") | null;
 export type Branch2 = string | null;
 export type Error = string | null;
 export type Git = boolean;
 export type Current = string | null;
 export type Branches = string[];
-export type Mode2 = "read-only" | "ask" | "auto";
+export type Mode3 = "read-only" | "ask" | "auto";
 export type AlwaysAsk = string[];
 
 /**
@@ -459,6 +461,8 @@ export interface SnapshotEntry {
 export interface BranchSwitch {
   workspace: Workspace3;
   branch: Branch1;
+  approved?: Approved;
+  mode?: Mode2;
 }
 export interface BranchSwitchResult {
   branch?: Branch2;
@@ -473,7 +477,7 @@ export interface BranchList {
   branches?: Branches;
 }
 export interface RulesResponse {
-  mode: Mode2;
+  mode: Mode3;
   tools?: Tools;
   defaults?: Defaults;
   always_ask?: AlwaysAsk;

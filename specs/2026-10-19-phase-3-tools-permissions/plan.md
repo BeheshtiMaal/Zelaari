@@ -1,6 +1,6 @@
 # Phase 3: Tools and permission layer. Plan
 
-Status: **Draft for approval (Step A).** Do not write product code until the user replies "approved".
+Status: Implemented; validation completion and repairs authorized by the user's request to inspect and fix the unchecked Phase 3 checks.
 Implement top to bottom, one commit per completed step.
 
 ## Step 1: Verify contracts, define the data
@@ -107,3 +107,12 @@ Implement top to bottom, one commit per completed step.
 - Run every automated and manual item in `validation.md`; attach real test names and screenshot references.
 - Write `learnings.md` (verified APIs/versions, deviations, surprises, every deferred TODO, known limitations).
 - Propose the roadmap edit in `roadmap-proposal.md` and wait for approval before touching `roadmap.md`.
+
+### Validation completion repairs
+- The branch route treats a UI click as consent, contradicting R24 and the constitution. Restore approval: return a 409 approval payload before switching; repeat with explicit approval, rechecking permissions. Show git stderr in the UI and preserve HEAD on refusal.
+- Add the missing user-initiated undo action to the Workspace viewer using existing snapshot listing/revert APIs. Keep snapshot selection and mutation logic outside React components; refresh the viewer and handle reverting a newly created file.
+- Extend the real Electron desktop test with timeout/retry/dismiss, jail denial and model continuation, branch approve/reject/dirty failure, isolated worktree writes, and byte-exact UI undo. Capture screenshots and only tick checks after passing.
+- Electron exposed upstream filesystem validation rejecting Windows absolute paths before the backend can supply R31's jail sentence. Validate filesystem paths immediately before executing allowed calls in the permission wrapper, returning the shared jail result before upstream validation can obscure it. Cover this through the actual graph.
+- Screenshot review exposed missing CSS for both tool error cards. Restore the tinted panels, borders, spacing and LTR command blocks from `Errors.dc.html`, and assert computed card styles in the desktop test.
+- Include the requested command timeout in the approval reason so a 300-second retry is reviewable in the modal, rather than showing only the default-limit policy.
+- Correct the roadmap proposal to preserve the constitution's phase sequence. Applying it still requires approval.

@@ -1,5 +1,6 @@
 import type { fa } from "./fa";
 export const en: { [Key in keyof typeof fa]: typeof fa[Key] } = {
+  undoChange: "Undo last change", undoFailed: "Could not undo the change. Try reopening the file.",
   sections: ["Models and keys", "Appearance and language", "Permissions and safety", "Context and compaction", "Terminal and tests", "Data and privacy", "About"],
   modelsIntro: "Any model with your own key; keys stay on this device.",
   invalidWorkspace: "Choose an accessible project folder; drive roots and your home folder are not allowed.",

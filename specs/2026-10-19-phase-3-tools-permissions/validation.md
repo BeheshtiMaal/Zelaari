@@ -4,7 +4,7 @@ Done only when every box is checked with evidence (test name, command output, or
 
 ## Automated (CI)
 
-- [x] `ruff`, `mypy --strict backend`, `pytest`, `tsc --noEmit` green. Evidence: ruff clean; strict mypy 74 source files; pytest 244 passed (43.95s); TypeScript clean; UI unit tests 27 pass.
+- [x] `ruff`, `mypy --strict backend`, `pytest`, `tsc --noEmit` green. Evidence: ruff clean; strict mypy 74 source files; pytest 248 passed (49.20s); TypeScript clean; UI unit tests 27 pass.
 - [x] **Jail / symlink:** a real NTFS junction and a real symlink pointing outside the workspace are both
     
   rejected for `read_file`, `write_file`, `edit_file`, `delete`, `glob` and `grep`. Links are created by the
@@ -89,26 +89,25 @@ Done only when every box is checked with evidence (test name, command output, or
   **Evidence:** `tests/phase3-desktop.ts` approve + reject flows; `artifacts/phase3/approval-modal-fa.png`.
 - [x] Trigger a high-risk command (`git push --force`) in **Auto** mode: an approval is still required.
   **Evidence:** Backend `test_auto_still_asks` in `backend/tests/test_permissions.py`.
-- [ ] Trigger a command timeout and confirm the card matches `Errors.dc.html`, the "اجرا با مهلت ۳۰۰ ثانیه"
+- [x] Trigger a command timeout and confirm the card matches `Errors.dc.html`, the "اجرا با مهلت ۳۰۰ ثانیه"
   action raises a *new* approval, and "رد" leaves the run alive.
-  **Needs manual verification.** Backend tests verify the card shape (`test_timeout_result_carries_the_fields_the_card_reads`)
-  and the 300 s escalation (`test_the_300_second_retry_needs_a_fresh_approval`), but the actual card rendering
-  in Electron has not been screenshot.
-- [ ] Ask the agent to read `C:\Users\<me>\.ssh\id_rsa`: the jail card appears with the "never allowed, even
+  **Evidence:** `npx tsx tests/phase3-desktop.ts` passed on Windows (2026-10-19). A real 120 s command timed out; the card has the mock panel styles and Persian digits. Dismiss left the task completed without error. A second timeout's retry opened a new approval naming the requested 300 s limit; rejecting it completed normally. Screenshots: `artifacts/phase3/timeout-card-fa.png`, `artifacts/phase3/timeout-retry-fa.png`.
+
+- [x] Ask the agent to read `C:\Users\<me>\.ssh\id_rsa`: the jail card appears with the "never allowed, even
   with approval" copy, the model receives the error, and the run continues.
-  **Needs manual verification.** Backend tests verify the message contract (`test_every_tool_speaks_the_same_sentence`),
-  but the card rendering in Electron has not been screenshot.
-- [ ] Switch branch from the chip: approval appears, the switch happens, the header updates. Switch with a
+  **Evidence:** `tests/phase3-desktop.ts` called the real tool with `C:\Users\phase3-fixture\.ssh\id_rsa`, asserted the Persian never-allowed copy, no approval, the shared error in the model's next request, and successful completion. Screenshot: `artifacts/phase3/jail-card-fa.png`. Real-graph regression: `test_graph_returns_the_jail_card_sentence_and_continues`.
+
+- [x] Switch branch from the chip: approval appears, the switch happens, the header updates. Switch with a
   dirty tree: the error shows and the branch is unchanged.
-  **Needs manual verification.** Backend tests cover validation, dirty-tree refusal, and route (`test_git.py`),
-  but the desktop test does not include a git repo.
-- [ ] Run a task with **Worktree** checked: approval to create, files land under `.harness/worktrees/<task-id>`,
+  **Evidence:** `tests/phase3-desktop.ts` creates a real git repo: rejection leaves main unchanged; approval switches to feature and updates the chip; a dirty-tree switch shows git stderr and preserves byte-identical HEAD. The Workspace header shows the branch. Screenshots: `artifacts/phase3/branch-approval-fa.png`, `artifacts/phase3/branch-dirty-fa.png`, `artifacts/phase3/worktree-fa.png`.
+
+- [x] Run a task with **Worktree** checked: approval to create, files land under `.harness/worktrees/<task-id>`,
   the main checkout is untouched, and the task list shows the run.
-  **Needs manual verification.** Backend tests cover worktree path validation and approval flow (`test_git.py`),
-  but the desktop test does not include a git repo.
-- [ ] Undo: revert a change from the UI and confirm the file returns to its previous bytes.
-  **Needs manual verification.** Backend snapshot tests cover revert correctness (`test_snapshots.py`),
-  but the UI revert action has not been exercised end-to-end.
+  **Evidence:** `tests/phase3-desktop.ts` approves worktree creation and then a write, verifies the output under `.harness/worktrees/<task-id>/isolated.txt`, absence from the main checkout, byte-identical main README, and the completed task in the Workspace list. Non-git workspaces disable the checkbox. Screenshot: `artifacts/phase3/worktree-fa.png`.
+
+- [x] Undo: revert a change from the UI and confirm the file returns to its previous bytes.
+  **Evidence:** `tests/phase3-desktop.ts` edits README through the agent, sees highlighted changes, clicks the new Workspace undo action, and compares restored bytes with the original CRLF file. Screenshot: `artifacts/phase3/undo-fa.png`.
+
 - [x] Persian (RTL) and English both render correctly with no broken alignment; paths and commands stay LTR
   monospace.
   **Evidence:** Desktop test runs in Persian (`fa` locale); LTR `dir="ltr"` on path and command elements in
@@ -118,6 +117,8 @@ Done only when every box is checked with evidence (test name, command output, or
   PID after a 12 s timeout. The desktop test's `finally` block calls `app.close()`, which terminates Electron.
 
 ## Exit criteria
+
+Validation checks pass as of 2026-10-19. The user approved `roadmap-proposal.md`; the Phase 3 completion row and Phase 4 handoff are applied to `roadmap.md` together with the final phase work.
 
 All boxes checked with evidence, `learnings.md` written, roadmap proposal approved and applied, `roadmap.md`
   

@@ -36,7 +36,7 @@ from server.app import create_app
 from store.eventlog import EventBus
 from store.secrets import Redactor
 from tools.command import CommandRunner, build_run_command
-from tools.jail import storage_path
+from tools.jail import BLOCK_NOTE, jail_message, storage_path
 
 FINAL = AIMessage(content='root = Callout("done");')
 """A terminating assistant turn: no tool calls, so the graph stops."""
@@ -148,6 +148,17 @@ def test_internal_tools_are_not_gated_even_in_read_only(root: Path) -> None:
 
 
 # -- deny ------------------------------------------------------------------
+@pytest.mark.parametrize("path", [r"C:\Users\fixture\.ssh\id_rsa", "../outside/secret.txt"])
+def test_graph_returns_the_jail_card_sentence_and_continues(root: Path, path: str) -> None:
+    graph, config = build(root, "ask", [call("read_file", {"file_path": path}), FINAL])
+    state = run_graph(graph, config)
+    result = tool_results(state)[0]
+    assert result.content == jail_message(root, path)
+    assert BLOCK_NOTE in str(result.content)
+    assert "__interrupt__" not in state
+    assert state["messages"][-1].content == FINAL.content
+
+
 def test_deny_returns_a_readable_error_and_the_run_continues(root: Path) -> None:
     graph, config = build(
         root,
@@ -321,6 +332,7 @@ def test_a_longer_timeout_asks_even_in_auto(root: Path) -> None:
     pending = approvals(paused)
     assert len(pending) == 1
     assert "timeout above 120s" in pending[0]["reason"]
+    assert "Requested timeout: 300s" in pending[0]["reason"]
 
 
 # -- target extraction -----------------------------------------------------

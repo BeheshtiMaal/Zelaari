@@ -5,6 +5,7 @@ import { FileIcon } from "@phosphor-icons/react/dist/csr/File";
 import { FolderIcon } from "@phosphor-icons/react/dist/csr/Folder";
 import type { Dictionary } from "../../i18n";
 import { api } from "../../lib/api";
+import { useUndo } from "../../lib/use-undo";
 import { changedLineSet, entriesOf, fileOf, parentPath, workspaceSubtitle } from "../../lib/files";
 import type { FileEntry, FileListing } from "../../lib/protocol";
 import type { Session } from "../../lib/use-session";
@@ -38,6 +39,14 @@ export function WorkspaceScreen({ t, session, root }: { t: Dictionary; session: 
 
   const entries = useMemo(() => entriesOf(listing), [listing]);
   const file = fileOf(selected);
+  const undo = useUndo(active, file?.path);
+  async function revert() {
+    const result = await undo.revert();
+    if (!result || !file) return;
+    if (result.existed) await open({ name: file.path, path: file.path, kind: "file", size: 0 });
+    else setSelected(null);
+    await load(folder, system);
+  }
   const highlighted = useMemo(() => changedLineSet(file?.changed_lines), [file]);
   const tasks = useMemo(() => session.spaces.tasks?.filter(task => task.workspace === active) ?? [], [session.spaces.tasks, active]);
   const name = active ? active.split(/[\\/]/).filter(Boolean).pop() ?? active : "";
@@ -77,9 +86,11 @@ export function WorkspaceScreen({ t, session, root }: { t: Dictionary; session: 
         <section className="ws-viewer" aria-label={t.fileViewer}>
           <div className="ws-viewer-head">
             <span dir="ltr">{file?.path ?? t.pickFile}</span>
+            {undo.available && <button type="button" className="light-outline" data-testid="undo-file" disabled={undo.busy} onClick={() => void revert()}>{t.undoChange}</button>}
             {file?.pending_approval ? <span className="ws-badge" data-testid="waiting-badge">{t.waitingApproval}</span> :
               file && highlighted.size > 0 ? <span className="ws-badge ok">{t.changedByAgent}</span> : null}
           </div>
+          {undo.failed && <p className="error" role="alert">{t.undoFailed}</p>}
           {file?.binary ? <p className="muted ws-note">{t.binaryFile}</p> :
             file ? <div className="ws-code" dir="ltr">{rows.map((line, index) => <div key={index} className={`ws-line ${highlighted.has(index + 1) ? "changed" : ""}`}>
               <span className="ws-line-number">{index + 1}</span><span className="ws-line-text">{line || " "}</span>

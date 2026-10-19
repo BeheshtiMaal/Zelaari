@@ -178,6 +178,14 @@ def test_branch_route_switches_and_reports_errors(tmp_path: Path) -> None:
             headers=headers,
             json={"workspace": str(tmp_path), "branch": "feature"},
         )
+        assert ok.status_code == 409, ok.text
+        assert ok.json()["approval"]["tool"] == "git_switch"
+        assert branch_name(tmp_path) == "main"
+        ok = client.post(
+            "/workspaces/branch",
+            headers=headers,
+            json={"workspace": str(tmp_path), "branch": "feature", "approved": True},
+        )
         assert ok.status_code == 200, ok.text
         assert ok.json()["branch"] == "feature"
 
@@ -191,7 +199,7 @@ def test_branch_route_switches_and_reports_errors(tmp_path: Path) -> None:
         missing = client.post(
             "/workspaces/branch",
             headers=headers,
-            json={"workspace": str(tmp_path), "branch": "nope"},
+            json={"workspace": str(tmp_path), "branch": "nope", "approved": True},
         )
         assert missing.status_code == 409
         assert branch_name(tmp_path) == "feature"
@@ -214,6 +222,49 @@ def test_read_only_rules_deny_a_branch_switch(tmp_path: Path) -> None:
 
     assert response.status_code == 403
     assert branch_name(tmp_path) == "main"
+
+
+@needs_git
+def test_approval_cannot_override_a_deny_or_read_only(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    git(tmp_path, "branch", "feature")
+    headers = {"Authorization": "Bearer token"}
+    with TestClient(create_app("token")) as client:
+        body = {"workspace": str(tmp_path), "branch": "feature", "approved": True}
+        denied = client.post(
+            "/workspaces/branch", headers=headers, json={**body, "mode": "read-only"}
+        )
+        assert denied.status_code == 403
+        assert branch_name(tmp_path) == "main"
+        storage = tmp_path / ".harness"
+        storage.mkdir(exist_ok=True)
+        (storage / "rules.json").write_text(
+            json.dumps({"tools": {"git_switch": [{"glob": "*", "action": "deny"}]}}),
+            encoding="utf-8",
+        )
+        denied = client.post("/workspaces/branch", headers=headers, json=body)
+        assert denied.status_code == 403
+        assert branch_name(tmp_path) == "main"
+
+
+@needs_git
+def test_explicit_allow_switches_without_an_approval(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    git(tmp_path, "branch", "feature")
+    storage = tmp_path / ".harness"
+    storage.mkdir()
+    (storage / "rules.json").write_text(
+        json.dumps({"tools": {"git_switch": [{"glob": "*", "action": "allow"}]}}),
+        encoding="utf-8",
+    )
+    with TestClient(create_app("token")) as client:
+        response = client.post(
+            "/workspaces/branch",
+            headers={"Authorization": "Bearer token"},
+            json={"workspace": str(tmp_path), "branch": "feature"},
+        )
+        assert response.status_code == 200
+        assert branch_name(tmp_path) == "feature"
 
 
 # -- worktree approval -----------------------------------------------------

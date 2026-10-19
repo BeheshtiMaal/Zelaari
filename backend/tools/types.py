@@ -83,6 +83,8 @@ class RevertRequest(ToolModel):
 class BranchSwitch(ToolModel):
     workspace: str
     branch: str
+    approved: bool = False
+    mode: Literal["read-only", "ask", "auto"] | None = None
 
 
 class BranchSwitchResult(ToolModel):

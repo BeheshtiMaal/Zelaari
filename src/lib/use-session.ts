@@ -29,6 +29,9 @@ export function useSession() {
   const [branches, setBranches] = useState<BranchList>(NO_BRANCHES);
   const [worktree, setWorktree] = useState(false);
   const [worktreeApproval, setWorktreeApproval] = useState<ApprovalRequest | null>(null);
+  const [branchApproval, setBranchApproval] = useState<ApprovalRequest | null>(null);
+  const [branchError, setBranchError] = useState<string | null>(null);
+  const waitingBranch = useRef<string | null>(null);
   const waitingTask = useRef<string | null>(null);
   const active = useRef<AbortController | null>(null);
   const locale: Locale = settings.locale === "en" ? "en" : "fa";
@@ -85,11 +88,26 @@ export function useSession() {
     if (!workspace) return;
     try { await connection()?.revealWorkspace(workspace); } catch { setFailed(true); }
   }
-  async function switchBranch(name: string) {
+  async function switchBranch(name: string, approved = false) {
     if (!workspace || name === branch) return;
-    try { await api("/workspaces/branch", "POST", { workspace, branch: name }); await refresh(); }
-    catch { setFailed(true); }
+    setBranchError(null);
+    try {
+      await api("/workspaces/branch", "POST", { workspace, branch: name, mode, approved });
+      await refresh();
+      setBranches(await api<BranchList>(`/workspaces/branches?workspace=${encodeURIComponent(workspace)}`));
+    } catch (error) {
+      const pending = pendingWorktreeApproval(error);
+      if (pending) { waitingBranch.current = name; setBranchApproval(pending); return; }
+      const detail = error instanceof ApiError ? (error.body as { detail?: unknown } | null)?.detail : null;
+      setBranchError(typeof detail === "string" ? detail : String(error));
+    }
   }
+  async function approveBranch() {
+    const name = waitingBranch.current;
+    waitingBranch.current = null; setBranchApproval(null);
+    if (name) await switchBranch(name, true);
+  }
+  function rejectBranch() { waitingBranch.current = null; setBranchApproval(null); }
   async function changeSettings(value: Settings) {
     try { setSettings(await api<Settings>("/settings", "PUT", value)); setFailed(false); return true; }
     catch { setFailed(true); return false; }
@@ -169,7 +187,7 @@ export function useSession() {
     try { await api(`/runs/${id}/stop`, "POST"); } catch { setFailed(true); }
   }
   return { ready, failed, busy, testing, workspace, branch, spaces, models, presets, settings, model, mode, locale, vaultOk, usableModel, workspaceError,
-    branches, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace,
+    branches, branchApproval, branchError, approveBranch, rejectBranch, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace,
     revealWorkspace, switchBranch, start, approveWorktree, rejectWorktree, resolveApproval, retryWithLongerTimeout, stop, openTask };
 }
 export type Session = ReturnType<typeof useSession>;

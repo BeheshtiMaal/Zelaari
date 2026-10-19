@@ -47,6 +47,7 @@ export function TaskScreen() {
         <div className="compose-region"><div className="chat-column">
           {!running && <div className="hints">{t.hints.map(hint => <button key={hint} disabled={!session.ready} onClick={() => setTask(hint)}>{hint}</button>)}<Hint text={t.soon}><button className="more-hints" disabled aria-label={session.locale === "fa" ? "بیشتر" : "More"}><CaretRightIcon size={16} /></button></Hint></div>}
           <Composer t={t} task={task} setTask={setTask} session={session} submit={submit} />
+          {session.branchError && <pre className="error" role="alert" dir="ltr" data-testid="branch-error">{session.branchError}</pre>}
           {!running && session.ready && (!session.workspace || !selected) && <div className="empty-states">
             {!session.workspace && <section className="empty-state"><div className="empty-state-label">{t.emptyWorkspaceLabel}</div><div className="empty-state-body"><span className="empty-icon"><FolderIcon size={26} /></span><strong>{t.noWorkspace}</strong><p>{t.noWorkspaceHelp}</p><button onClick={() => void session.pickWorkspace()}>{t.workspace}</button></div></section>}
             {!selected && <section className="empty-state"><div className="empty-state-label">{t.emptyModelLabel}</div><div className="empty-state-body"><span className="empty-icon"><GearIcon size={26} /></span><strong>{t.noModel}</strong><p>{t.noModelHelp}</p><div className="button-row"><button onClick={() => setView("add-model")}>{t.addModel}</button><button onClick={() => void session.makeDefault("demo")}>{t.demo}</button></div></div></section>}
@@ -58,5 +59,6 @@ export function TaskScreen() {
     </main>
     {run.approval && <ApprovalModal t={t} approval={run.approval} onApprove={() => void session.resolveApproval("approve")} onReject={() => void session.resolveApproval("reject")} />}
     {session.worktreeApproval && <ApprovalModal t={t} approval={session.worktreeApproval} onApprove={() => void session.approveWorktree()} onReject={session.rejectWorktree} />}
+    {session.branchApproval && <ApprovalModal t={t} approval={session.branchApproval} onApprove={() => void session.approveBranch()} onReject={session.rejectBranch} />}
   </div>;
 }
