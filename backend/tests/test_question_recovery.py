@@ -14,7 +14,7 @@ from test_questions import question
 from agent.bridge import RunManager
 from agent.events import RunRequest
 from permissions.types import ApprovalDecision
-from questions.types import QuestionDecision
+from questions.types import QuestionDecision, QuestionSelection
 from server.app import create_app
 from store.catalog import Catalog
 
@@ -134,3 +134,75 @@ def test_question_routes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: 
         assert client.post(route, json={**answer, "answers": []}).status_code == 409
         assert client.post(route, json=answer).status_code == 200
         assert client.post(route, json=answer).status_code == 409
+        configuration = client.put(
+            "/rules", params={"workspace": str(tmp_path)}, json={"mode": "ask", "tools": {}}
+        ).json()
+        config_request = configuration["request"]
+        assert (
+            client.post(
+                f"/runs/{config_request['run_id']}/interrupts/{config_request['approval_id']}",
+                json=answer,
+            ).status_code
+            == 409
+        )
+        assert not (tmp_path / ".harness/rules.json").exists()
+
+
+def test_two_question_calls_hold_all_sibling_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = ScriptedModel(
+        replies=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"name": "ask_user_question", "args": {"questions": [question()]}, "id": "one"},
+                    {
+                        "name": "ask_user_question",
+                        "args": {"questions": [question("rank")]},
+                        "id": "two",
+                    },
+                    {
+                        "name": "write_file",
+                        "args": {"file_path": "effect.txt", "content": "once"},
+                        "id": "effect",
+                    },
+                ],
+            ),
+            FINAL,
+        ]
+    )
+    monkeypatch.setattr("agent.bridge.DemoModel", lambda **kwargs: model)
+
+    async def scenario() -> None:
+        manager = RunManager(catalog=Catalog(tmp_path / "catalog.json"))
+        run_id = await manager.start(
+            RunRequest(task="questions", workspace=str(tmp_path), mode="auto")
+        )
+        await wait_for(lambda: len(manager.questions(run_id)) == 2)
+        records = manager.questions(run_id)
+        await manager.answer_question(
+            run_id,
+            "two",
+            QuestionDecision(
+                interrupt_id=records[1].interrupt_id,
+                status="answered",
+                answers=[QuestionSelection(question_id="q", option_ids=["b", "a"])],
+            ),
+        )
+        assert not (tmp_path / "effect.txt").exists()
+        await manager.answer_question(
+            run_id, "one", QuestionDecision(interrupt_id=records[0].interrupt_id, status="declined")
+        )
+        await wait_for(lambda: manager.runs[run_id].bus.finished)
+        assert (tmp_path / "effect.txt").read_text() == "once"
+        results = {
+            event.call_id: json.loads(event.text)
+            for event in manager.runs[run_id].bus.history
+            if event.type == "tool.result" and event.call_id in {"one", "two"}
+        }
+        assert results["one"]["status"] == "declined"
+        assert results["two"]["answers"][0]["option_ids"] == ["b", "a"]
+        await manager.close()
+
+    asyncio.run(scenario())

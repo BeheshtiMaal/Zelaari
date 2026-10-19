@@ -7,6 +7,8 @@ const en = {
   waiting: "items waiting for you", grill: "Interview with grill-me", command: "Interview to clarify the task before implementation",
   retry: "Retry with a hint", change: "Change approach", stop: "Stop and report", hint: "Write your guidance",
   recovery: "Attempts exhausted", order: "Order", options: "Options", dismissPicker: "Close commands",
+  failedAttempts: "unsuccessful attempts",
+  range: "to",
 };
 const fa: typeof en = {
   question: "سؤال", of: "از", other: "گزینه‌ی دیگر…", send: "ارسال پاسخ", next: "بعدی", back: "قبلی",
@@ -16,5 +18,11 @@ const fa: typeof en = {
   waiting: "مورد منتظر شماست", grill: "مصاحبه با grill-me", command: "مصاحبه برای روشن شدن کار پیش از پیاده‌سازی",
   retry: "با یک راهنمایی دوباره تلاش کن", change: "رویکرد را عوض کن", stop: "متوقف شو و گزارش بده", hint: "راهنمایتان را بنویسید",
   recovery: "تلاش‌ها تمام شد", order: "ترتیب", options: "گزینه‌ها", dismissPicker: "بستن دستورها",
+  failedAttempts: "تلاش ناموفق",
+  range: "تا",
 };
 export const questionCopy = (locale: Locale) => locale === "fa" ? fa : en;
+export function waitingLabel(count: number, locale: Locale) {
+  const number = new Intl.NumberFormat(locale).format(count);
+  return locale === "fa" ? `${number} مورد منتظر شماست` : `${number} ${count === 1 ? "item" : "items"} waiting for you`;
+}

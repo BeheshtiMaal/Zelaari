@@ -1,13 +1,35 @@
 """Offline scripted question consumers using the actual tool and graph barriers."""
 
 import json
+import re
 
 from langchain_core.messages import AIMessage, ToolMessage
 
 from questions.exhausted import exhausted_question
 
 
-def sample_question(kind: str = "single", identifier: str = "approach") -> dict[str, object]:
+def sample_question(
+    kind: str = "single", identifier: str = "approach", locale: str = "en"
+) -> dict[str, object]:
+    if locale == "fa":
+        return {
+            "id": identifier,
+            "header": "رویکرد",
+            "text": "اگر ورودی تاریخ شمسی بود، چه کنم؟",
+            "type": kind,
+            "options": [
+                {
+                    "id": "small",
+                    "label": "تبدیل به میلادی",
+                    "description": "یک تابع کمکی اضافه می‌شود و تست جدید می‌نویسم.",
+                },
+                {
+                    "id": "refactor",
+                    "label": "خطای واضح بده",
+                    "description": "فقط قالب میلادی پشتیبانی می‌شود.",
+                },
+            ],
+        }
     return {
         "id": identifier,
         "header": "Approach",
@@ -28,14 +50,16 @@ def sample_question(kind: str = "single", identifier: str = "approach") -> dict[
     }
 
 
-def demo_question(task: str, results: list[ToolMessage]) -> AIMessage | None:
-    grill = task == "/grill" or task.startswith("/grill ") or task.startswith("/grill\n")
+def demo_question(task: str, results: list[ToolMessage], locale: str = "en") -> AIMessage | None:
+    grill = bool(re.match(r"^/grill(?:\s|$)", task))
     if not grill and not task.startswith("demo question"):
         return None
     answers = [item for item in results if item.name == "ask_user_question"]
     if answers and json.loads(str(answers[-1].content)).get("status") == "declined":
         return AIMessage(
             content='root = Callout("Interview declined. No implementation started.");'
+            if grill
+            else 'root = Callout("Question declined. Recorded permissions still apply.");'
         )
     if grill:
         if len(answers) < 2:
@@ -82,7 +106,7 @@ def demo_question(task: str, results: list[ToolMessage]) -> AIMessage | None:
                 3, "Demo recovery", "demo check", "Fixture failure output"
             ).model_dump()
             if "exhausted" in task
-            else {"questions": [sample_question(kind)]}
+            else {"questions": [sample_question(kind, locale=locale)]}
         )
         if "batch" in task:
             args = {

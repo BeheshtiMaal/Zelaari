@@ -106,6 +106,10 @@ export type Label = string;
 export type Description = string;
 export type Presentation = "standard" | "exhausted";
 export type Context = string;
+export type Attempts = number;
+export type Step = string;
+export type Check = string;
+export type Output = string;
 export type Kind1 = "question";
 export type RunId10 = string;
 export type CallId2 = string;
@@ -229,7 +233,7 @@ export type Command1 = string;
 export type Shell = "powershell" | "cmd";
 export type ExitCode = number | null;
 export type DurationMs = number;
-export type Output = string;
+export type Output1 = string;
 export type Truncated = boolean;
 export type TotalLines = number;
 export type Offset = number;
@@ -439,6 +443,7 @@ export interface QuestionRequest {
   questions: Questions;
   presentation?: Presentation;
   context?: Context;
+  failure?: FailureContext | null;
   kind?: Kind1;
   run_id: RunId10;
   call_id: CallId2;
@@ -455,6 +460,12 @@ export interface QuestionOption {
   id: Id1;
   label: Label;
   description: Description;
+}
+export interface FailureContext {
+  attempts: Attempts;
+  step: Step;
+  check: Check;
+  output: Output;
 }
 export interface QuestionAnswer {
   kind?: Kind2;
@@ -617,7 +628,7 @@ export interface CommandResult {
   shell: Shell;
   exit_code?: ExitCode;
   duration_ms?: DurationMs;
-  output?: Output;
+  output?: Output1;
   truncated?: Truncated;
   total_lines?: TotalLines;
   offset?: Offset;

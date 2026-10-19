@@ -1,6 +1,6 @@
 # Phase 5: AskUserQuestion GenUI. Requirements
 
-Status: **Draft; awaiting phase approval. No Phase 5 product code authorized yet.**
+Status: **Approved by the user on 2026-10-19. Implementation validated; approved roadmap update applied and included with the final phase commit.**
 
 ## Goal
 The agent can ask structured questions, pause durably, receive identity-bound answers and continue. Users answer in a docked, accessible QuestionCard in the original run. `/grill` interviews the user before implementation.

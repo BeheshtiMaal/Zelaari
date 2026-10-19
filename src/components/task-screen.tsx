@@ -8,7 +8,7 @@ import { Sidebar } from "./shell/sidebar";
 import { Composer } from "./composer";
 import { QuestionCard } from "./questions/question-card";
 import { useQuestions } from "../lib/use-questions";
-import { questionCopy } from "../i18n/questions";
+import { questionCopy, waitingLabel } from "../i18n/questions";
 import { InboxScreen } from "./approvals/inbox-screen";
 import { ApprovalCard } from "./approvals/approval-card";
 import { recordKey, useInbox } from "../lib/inbox";
@@ -50,7 +50,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
         <div className={running ? "run-layout" : "home-layout"}><div className={running ? "run-main" : "home-main"}>
         {running && <header className="run-header"><h1>{run.task}</h1><div className="run-actions">
           {total > 0 && <span data-testid="token-meter">{run.usage.estimated ? "~" : ""}{new Intl.NumberFormat(session.locale).format(total)} {t.tokens}</span>}
-          <span role="status">{run.approval || questions.some(record => record.status === "pending") ? t.paused : run.status === "completed" ? t.completed : run.status === "stopped" ? t.stopped : run.status === "error" ? t.error : t.reading}</span>
+          <span role="status">{run.approval ? t.paused : questions.some(record => record.status === "pending") ? questionCopy(session.locale).pending : run.status === "completed" ? t.completed : run.status === "stopped" ? t.stopped : run.status === "error" ? t.error : t.reading}</span>
           <button className="stop" disabled={!session.busy} onClick={() => void session.stop()}>{t.stop}</button>
         </div></header>}
         {running ? <div className="timeline" aria-live="polite"><div className="chat-column">
@@ -78,7 +78,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
           {session.failed || run.error || session.workspaceError ? <p className="error" role="alert">{session.workspaceError ? t.invalidWorkspace : session.ready ? t.error : t.offline}</p> :
             <p className="footnote" role="status">{!session.ready ? t.starting : running ? t.footer : t.ready}</p>}
         </div></div>
-        </div>{running && waiting > 0 && <aside className="run-info"><div className="current-waiting" role="status" data-testid="current-waiting">{new Intl.NumberFormat(session.locale).format(waiting)} {questionCopy(session.locale).waiting}</div></aside>}</div>
+        </div>{running && waiting > 0 && <aside className="run-info"><div className="current-waiting" role="status" data-testid="current-waiting">{waitingLabel(waiting, session.locale)}</div></aside>}</div>
       </>}
     </main>
   </div>;

@@ -36,7 +36,7 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | 2 | **Models + workspace - complete** | Implemented model settings/probes, safeStorage credentials, auto context detection, provider reasoning/usage, Home, workspace recents/task replay and remembered language. Local Windows checks, live OpenAI and Claude Home runs through the supplied compatible endpoint, and a live native Anthropic Messages adapter run pass; see `2026-10-19-phase-2-models-workspace/validation.md`. | New task (home), Settings: models, Add model |
 | 3 | **Tools + permission layer - complete** | Jailed filesystem tools, atomic writes, snapshots and UI undo, process-tree command timeout, rules and modes, risk classifier, temporary approvals, approved branch switching, isolated worktrees, Workspace viewer and timeout/jail cards. Windows Electron evidence and quality gates recorded in 2026-10-19-phase-3-tools-permissions/validation.md. | Workspace (files + tasks) |
 | 4 | **Approvals inbox - complete** | Durable SQLite approval barriers, approve/edit/reject, unified diffs, linked allow-rule review, Rules grid, global counts and waiting dots, restart recovery and no replay of uncertain effects. Offline demo and Windows Electron evidence recorded in `2026-10-19-phase-4-approvals-inbox/validation.md`. | Approvals inbox |
-| 5 | AskUserQuestion GenUI | `ask_user_question`, QuestionCard (single/multi/rank/free text), grill-me mode, amber dot for waiting tasks | Tasks (question moment) |
+| 5 | **AskUserQuestion GenUI - complete** | Durable structured questions with single/multi/rank/Other, declined results, shared docked QuestionCard, mixed question/approval barriers and restart recovery, current-task waiting summary, built-in `/grill` interview and composer picker, exhausted-attempts integration contract. Windows Electron and offline evidence recorded in `2026-10-19-phase-5-ask-user-question/validation.md`. | Tasks (question moment), Errors (exhausted card), Home (command picker) |
 | 6 | Planning + activity timeline | `submit_plan`, PlanChecklist, plan gate (D1), deviation gate, Thinking panel, sub-agent rows, context-summarized notice | Run |
 | 7 | Verify + self-correction + context ring | test detection (D2), TestResults + TerminalPanel, verify gate, reflect loop, budgets, context ring + breakdown + auto-compaction | Settings: context, terminal and tests |
 | 8 | Skills + Customize hub | loader, `load_skill`, Skills tab (installed / marketplace / mine, toggles, detail, scan), install from folder/zip/git (approval), slash commands, 5 bundled skills + example project skill, Agents and Memory tabs, Connectors (MCP) tab | Customize: Skills (Connectors tab visible, inner screen not drawn) |
@@ -74,6 +74,24 @@ credential rehydration and original provider identity checks on recovery, and ne
 incomplete effect intent. User-initiated Rules, branch, worktree and retry actions have durable
 configuration approvals without a model thread. Schedule production remains Phase 9b; plan metadata
 remains Phase 6. Existing workspace-jail race/alias limitations remain documented; this is not an OS sandbox.
+
+## Phase 5 handoff to Phase 6
+
+Phase 5 is complete; validation, installed API contracts and scope choices are recorded in
+`2026-10-19-phase-5-ask-user-question/validation.md` and `learnings.md`. Phase 6 inherits a durable
+mixed human barrier with independently keyed approvals and question answers, original graph interrupt
+identity, replayable question events and shared trusted OpenUI QuestionCard controls. Preserve the rule
+that every required request in a model turn is resolved before any sibling tool executes. Questions stay
+inline, current-task counts include question batches and approvals, the global badge counts approvals
+only, and task dots cover both. Extend these contracts for planning/activity rather than introducing
+another interrupt inside the tools node. Preserve provider/vault recovery, explicit Stop cancellation,
+redaction before checkpointing and no automatic replay of uncertain effects. Built-in `/grill` persists
+interview state and requires an answered batch plus a structured readiness summary before normal
+implementation permissions can apply. Phase 7 consumes the question tool for unknown test commands and
+the typed exhausted-attempts constructor/results for retry with hint, change approach and stop/report;
+automatic fix budgets and verification gates remain Phase 7. Phase 8 repackages interview instructions
+as the grill-me skill and extends the command picker. Context attachments, scheduler and packaging
+delivery retain their assigned scope. Existing workspace-jail limitations remain; this is not an OS sandbox.
 
 ## Audit log (D20): the mock wins
 The mock was left exactly as sketched. These spec statements were changed to match it:

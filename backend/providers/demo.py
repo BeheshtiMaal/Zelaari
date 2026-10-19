@@ -18,6 +18,7 @@ from providers.question_demo import demo_question
 
 class DemoModel(BaseChatModel):
     delay: float = 0.012
+    locale: str = "fa"
 
     @property
     def _llm_type(self) -> str:
@@ -35,7 +36,7 @@ class DemoModel(BaseChatModel):
     def answer(self, messages: list[BaseMessage]) -> AIMessage:
         results = [message for message in messages if isinstance(message, ToolMessage)]
         task = next((str(message.content) for message in messages if message.type == "human"), "")
-        question_reply = demo_question(task, results)
+        question_reply = demo_question(task, results, self.locale)
         if question_reply is not None:
             return question_reply
         edit = re.fullmatch(r"demo edit ([\w./\\-]+): (.+?) => (.+)", task, re.DOTALL)

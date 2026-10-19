@@ -1,4 +1,4 @@
-import type { Question, QuestionSelection as WireSelection } from "./protocol";
+import type { Question, QuestionRecord, QuestionSelection as WireSelection } from "./protocol";
 export type QuestionSelection = Omit<WireSelection, "option_ids"> & { option_ids: string[] };
 
 export function initialSelection(question: Question): QuestionSelection {
@@ -32,4 +32,16 @@ export function rankDrop(selection: QuestionSelection, id: string, target: strin
   if (from < 0 || to < 0) return selection;
   ids.splice(from, 1); ids.splice(to, 0, id);
   return { ...selection, option_ids: ids };
+}
+export function answeredSummary(record: QuestionRecord) {
+  return record.request.questions.map(question => {
+    const answer = record.answer?.answers?.find(answer => answer.question_id === question.id);
+    const values = (answer?.option_ids ?? []).map(id => question.options.find(option => option.id === id)?.label ?? id);
+    if (answer?.other) values.push(answer.other);
+    if (answer?.hint) values.push(answer.hint);
+    return { id: question.id, text: question.text, values: values.join(question.type === "rank" ? " → " : ", ") };
+  });
+}
+export function questionDigit(key: string, code: string): number {
+  return /^Digit[1-4]$/.test(code) ? Number(code.slice(-1)) : Number(key);
 }

@@ -2,12 +2,15 @@
 
 from langchain_core.tools import StructuredTool
 
-from questions.types import InterviewSummary, Question, QuestionInput
+from questions.types import FailureContext, InterviewSummary, Question, QuestionInput
 
 
 def build_ask_question() -> StructuredTool:
     def unanswered(
-        questions: list[Question], presentation: str = "standard", context: str = ""
+        questions: list[Question],
+        presentation: str = "standard",
+        context: str = "",
+        failure: FailureContext | None = None,
     ) -> str:
         return "Question could not be answered: the human barrier was unavailable."
 

@@ -19,8 +19,13 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, NotRequired, cast
 
 from langchain.agents.middleware import AgentMiddleware
-from langchain.agents.middleware.types import AgentState, PrivateStateAttr, ToolCallRequest
-from langchain_core.messages import AIMessage, ToolCall, ToolMessage
+from langchain.agents.middleware.types import (
+    AgentState,
+    PrivateStateAttr,
+    ToolCallRequest,
+    hook_config,
+)
+from langchain_core.messages import AIMessage, HumanMessage, ToolCall, ToolMessage
 from langgraph.runtime import Runtime
 from langgraph.types import Command, interrupt
 from pydantic import BaseModel, JsonValue
@@ -58,6 +63,7 @@ class PermissionState(AgentState[Any]):
     interview_phase: NotRequired[str]
     interview_answered: NotRequired[bool]
     interview_summary: NotRequired[dict[str, str]]
+    interview_reminders: NotRequired[int]
     """`tool_call_id -> {action, reason}`. Private: the renderer never sees it."""
 
 
@@ -164,15 +170,35 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             risk=outcome.risk,
         )
 
+    @hook_config(can_jump_to=["model"])
     async def aafter_model(
         self, state: AgentState[Any], runtime: Runtime[Any]
     ) -> dict[str, Any] | None:
         messages = state.get("messages") or []
         last = next((item for item in reversed(messages) if isinstance(item, AIMessage)), None)
-        if last is None or not last.tool_calls:
+        if last is None:
             return None
 
         phase = state.get("interview_phase", "interviewing")
+        if not last.tool_calls:
+            if self.grill and phase == "interviewing":
+                reminders = cast(int, state.get("interview_reminders", 0))
+                if reminders >= 2:
+                    raise ValueError("Interview did not produce a question or structured readiness")
+                return {
+                    "jump_to": "model",
+                    "interview_reminders": reminders + 1,
+                    "messages": [
+                        HumanMessage(
+                            content=(
+                                "The interview is not ready. Ask one structured question "
+                                "batch for missing information, or call finish_interview after "
+                                "an answered batch. Do not finish from prose alone."
+                            )
+                        )
+                    ],
+                }
+            return None
 
         def decide(call: ToolCall) -> PermissionOutcome:
             if (
@@ -192,6 +218,9 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
         invalid: set[str] = set()
         for call in last.tool_calls:
             if call["name"] == "ask_user_question" and decide(call).action != "deny":
+                if self.grill and questions:
+                    invalid.add(call_key(call))
+                    continue
                 try:
                     args = QuestionInput.model_validate(call["args"])
                     request = QuestionRequest(
@@ -287,7 +316,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 key: answer.model_dump(mode="json") for key, answer in question_answers.items()
             },
         }
-        if self.grill:
+        if self.grill and phase != "ready":
             if any(answer.status == "declined" for answer in question_answers.values()):
                 updates["interview_phase"] = "declined"
             elif question_answers:

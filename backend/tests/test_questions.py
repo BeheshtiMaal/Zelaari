@@ -84,3 +84,44 @@ def test_declined_and_wrong_identity() -> None:
     answer.validate_request(request)
     with pytest.raises(ValueError):
         answer.model_copy(update={"run_id": "other"}).validate_request(request)
+
+
+def test_option_and_answer_boundaries() -> None:
+    for count in (2, 4):
+        payload = {
+            **question(),
+            "options": [
+                {"id": f"o{i}", "label": "Option", "description": "Detail"} for i in range(count)
+            ],
+        }
+        Question.model_validate(payload)
+    for count in (1, 5):
+        with pytest.raises(ValueError):
+            Question.model_validate(
+                {
+                    **question(),
+                    "options": [
+                        {"id": f"o{i}", "label": "Option", "description": "Detail"}
+                        for i in range(count)
+                    ],
+                }
+            )
+    request = QuestionRequest.model_validate(
+        {"run_id": "run", "call_id": "call", "questions": [question()]}
+    )
+    for selections in (
+        [],
+        [{"question_id": "wrong", "option_ids": ["a"]}],
+        [{"question_id": "q", "option_ids": ["a"]}] * 2,
+    ):
+        answer = QuestionAnswer.model_validate(
+            {
+                "run_id": "run",
+                "call_id": "call",
+                "interrupt_id": "graph",
+                "status": "answered",
+                "answers": selections,
+            }
+        )
+        with pytest.raises(ValueError):
+            answer.validate_request(request)

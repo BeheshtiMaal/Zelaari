@@ -1,6 +1,6 @@
 # Phase 5: AskUserQuestion GenUI. Plan
 
-Status: **Draft; awaiting approval.**
+Status: **Approved on 2026-10-19. All six steps complete; validation passes and the approved constitution completion update is included with final phase changes.**
 
 Implement in order after approval, one commit per completed step. Verify installed packages/source before relying on their APIs. If reality contradicts these requirements, update the spec before product code. Do not change constitution files without approval of exact text.
 

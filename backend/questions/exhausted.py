@@ -9,7 +9,12 @@ def exhausted_question(attempts: int, step: str, check: str, output: str) -> Que
     return QuestionInput.model_validate(
         {
             "presentation": "exhausted",
-            "context": f"{attempts} unsuccessful attempts · {step}\n{check}\n{output}"[:12000],
+            "failure": {
+                "attempts": attempts,
+                "step": step,
+                "check": check,
+                "output": output[:10000],
+            },
             "questions": [
                 {
                     "id": "exhausted",

@@ -128,7 +128,7 @@ class RunManager:
             ):
                 raise ValueError("Restore the original model configuration before resuming")
         model = (
-            DemoModel(delay=self.demo_delay)
+            DemoModel(delay=self.demo_delay, locale=self.catalog.data.settings.locale)
             if record.kind == "demo"
             else chat_model(record, self.catalog.keys[request.model])
         )
@@ -430,6 +430,8 @@ class RunManager:
             self.catalog.persist()
 
     async def answer_question(self, run_id: str, call_id: str, decision: QuestionDecision) -> None:
+        if run_id not in self.runs:
+            raise ValueError("Question run is unavailable")
         run = self.runs[run_id]
         await asyncio.wait_for(run.available.wait(), timeout=30)
         if run.bus.finished or call_id not in run.question_barrier or not run.questions:
@@ -464,7 +466,9 @@ class RunManager:
                         and event.question.request.call_id == question_request.call_id
                         for event in run.bus.history
                     ):
-                        await run.bus.emit("question.asked", question=question_record)
+                        await run.bus.emit(
+                            "question.asked", question=question_record.model_copy(deep=True)
+                        )
                     if question_record.answer and not any(
                         event.type == "question.answered"
                         and event.answer.call_id == question_request.call_id
