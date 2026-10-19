@@ -76,6 +76,7 @@ class Workspace(Record):
 
 
 class TaskRecord(Record):
+    waiting_on: list[Literal["approval", "question"]] = Field(default_factory=list)
     id: str
     workspace: str
     title: str

@@ -11,7 +11,7 @@ export interface CommandTimeout {
   seconds: number;
 }
 
-export type ToolFailure = JailBlock | CommandTimeout | null;
+export type ToolFailure = JailBlock | CommandTimeout | { kind: "interrupted" } | null;
 
 /** Must match `tools/jail.py:jail_message` exactly; the engine owns this sentence. */
 const BLOCK_PREFIX = "Access blocked: ";
@@ -41,6 +41,7 @@ export function commandTimeout(text: string): CommandTimeout | null {
 }
 
 export function toolFailure(text: string): ToolFailure {
+  if (text.startsWith("Interrupted:")) return { kind: "interrupted" };
   return commandTimeout(text) ?? jailBlock(text);
 }
 

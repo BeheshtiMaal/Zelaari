@@ -321,6 +321,7 @@ class RunManager:
                 final = bus.history[-1]
                 if final.type == "run.finished":
                     task_record.status = final.status
+                    task_record.waiting_on = []
                 self.catalog.persist()
 
         self.runs[run_id] = Run(bus, asyncio.create_task(execute()), ledger=ledger)
@@ -386,6 +387,8 @@ class RunManager:
                 )
                 if task:
                     request.source_title = task.title
+                    if "approval" not in task.waiting_on:
+                        task.waiting_on.append("approval")
                 if run.ledger:
                     record = run.ledger.announce(request, run.interrupt_id)
                     if record.status != "pending":
@@ -408,6 +411,7 @@ class RunManager:
                     for event in run.bus.history
                 ):
                     await run.bus.emit("approval.requested", approval=request)
+            self.catalog.persist()
 
     async def _resume(self, run: Run) -> dict[str, Any]:
         if run.ledger is None:
@@ -496,6 +500,12 @@ class RunManager:
                 )
                 self.actions.propose_rules(Path(request.workspace), rules)
             run.ledger.answer(answer)
+            task = next(
+                (task for task in self.catalog.data.workspaces.tasks if task.id == run_id), None
+            )
+            if task and not any(item.status == "pending" for item in run.ledger.records.values()):
+                task.waiting_on = [kind for kind in task.waiting_on if kind != "approval"]
+                self.catalog.persist()
             await run.bus.emit(
                 "approval.resolved",
                 approval_id=approval_id,

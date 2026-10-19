@@ -42,7 +42,7 @@ export function useSession() {
   useEffect(() => {
     if (!ready) return;
     void useInbox.getState().refresh();
-    const timer = setInterval(() => { void useInbox.getState().refresh(); }, 1200);
+    const timer = setInterval(() => { void useInbox.getState().refresh(); void refresh().catch(() => undefined); }, 1200);
     return () => clearInterval(timer);
   }, [ready]);
   async function refresh() {
@@ -155,7 +155,7 @@ export function useSession() {
       if (pending) { waitingTask.current = task; setWorktreeApproval(pending); return; }
       setFailed(true);
     }
-    finally { setBusy(false); await refresh().catch(() => undefined); }
+    finally { if (active.current === controller) setBusy(false); await refresh().catch(() => undefined); }
   }
   async function approveWorktree() {
     const task = waitingTask.current;
@@ -177,7 +177,9 @@ export function useSession() {
     catch { setFailed(true); }
   }
   async function openTask(id: string) {
-    if (busy) return;
+    active.current?.abort();
+    const controller = new AbortController(); active.current = controller;
+    setBusy(false);
     try {
       const bridge = connection()!;
       const response = await fetch(`${bridge.baseUrl}/tasks/${id}/events`, { headers: { Authorization: `Bearer ${bridge.token}` } });
@@ -186,9 +188,16 @@ export function useSession() {
       for await (const event of decodeSSE(response.body)) useRun.getState().receive(event);
       const task = spaces.tasks?.find(item => item.id === id);
       if (task) { await selectWorkspace(task.workspace); setModel(task.model); setMode(task.mode ?? "ask"); }
-      if (task?.status === "interrupted") useRun.setState({ status: "stopped" });
-    } catch { setFailed(true); }
+      const status = useRun.getState().status;
+      if (status === "running") {
+        await useInbox.getState().refresh();
+        setBusy(true);
+        await subscribe(bridge.baseUrl, bridge.token, id, useRun.getState().receive, controller.signal);
+      }
+    } catch { if (!controller.signal.aborted) setFailed(true); }
+    finally { if (active.current === controller) setBusy(false); }
   }
+  function detach() { active.current?.abort(); active.current = null; setBusy(false); }
   async function stop() {
     const id = useRun.getState().runId;
     if (!id) return;
@@ -196,6 +205,6 @@ export function useSession() {
   }
   return { ready, failed, busy, testing, workspace, branch, spaces, models, presets, settings, model, mode, locale, vaultOk, usableModel, workspaceError,
     branches, branchApproval, branchError, approveBranch, rejectBranch, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace,
-    revealWorkspace, switchBranch, start, approveWorktree, rejectWorktree, resolveApproval, retryWithLongerTimeout, stop, openTask };
+    revealWorkspace, switchBranch, start, approveWorktree, rejectWorktree, resolveApproval, retryWithLongerTimeout, stop, openTask, detach };
 }
 export type Session = ReturnType<typeof useSession>;

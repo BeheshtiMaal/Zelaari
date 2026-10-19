@@ -137,6 +137,7 @@ export type Name4 = string;
 export type Branch = string | null;
 export type Recent = Workspace2[];
 export type Selected = string | null;
+export type WaitingOn = ("approval" | "question")[];
 export type Id2 = string;
 export type Workspace3 = string;
 export type Title = string;
@@ -210,7 +211,11 @@ export type Error = string | null;
 export type Git = boolean;
 export type Current = string | null;
 export type Branches = string[];
+export type Version = number;
 export type Mode3 = "read-only" | "ask" | "auto";
+export type Glob = string;
+export type Action = "allow" | "ask" | "deny";
+export type Mode4 = "read-only" | "ask" | "auto";
 export type AlwaysAsk = string[];
 
 /**
@@ -237,6 +242,7 @@ export interface Protocol {
   branch_switch_result: BranchSwitchResult;
   branch_list: BranchList;
   rules_response: RulesResponse;
+  rules_file: RulesFile;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -430,6 +436,7 @@ export interface Workspace2 {
   branch?: Branch;
 }
 export interface TaskRecord {
+  waiting_on?: WaitingOn;
   id: Id2;
   workspace: Workspace3;
   title: Title;
@@ -542,12 +549,31 @@ export interface BranchList {
   branches?: Branches;
 }
 export interface RulesResponse {
-  mode: Mode3;
-  tools?: Tools;
+  rules?: RulesFile;
+  mode: Mode4;
+  tools?: Tools1;
   defaults?: Defaults;
   always_ask?: AlwaysAsk;
 }
+/**
+ * `.harness/rules.json`. Unknown keys are rejected so a typo cannot silently disable a rule.
+ */
+export interface RulesFile {
+  version?: Version;
+  mode?: Mode3;
+  tools?: Tools;
+}
 export interface Tools {
+  [k: string]: Rule[];
+}
+/**
+ * One row of the rules grid: a path glob (or `*` for whole-tool) mapped to an action.
+ */
+export interface Rule {
+  glob?: Glob;
+  action: Action;
+}
+export interface Tools1 {
   [k: string]: {
     [k: string]: string;
   }[];

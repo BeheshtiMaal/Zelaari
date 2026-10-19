@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 from langchain_core.messages import AIMessage
+from pydantic import JsonValue
 from test_permissions import FINAL, ScriptedModel
 
 from agent.bridge import RunManager
@@ -109,7 +110,7 @@ def test_edit_preview_revalidates_and_stages_allow_rule(
                     },
                 ),
             )
-        edited = {"file_path": "src/a.txt", "content": "edited"}
+        edited: dict[str, JsonValue] = {"file_path": "src/a.txt", "content": "edited"}
         preview = manager.preview(
             run_id, "one", ApprovalDecision(decision="approve", edited_args=edited)
         )

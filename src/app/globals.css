@@ -1,6 +1,28 @@
 @import "tailwindcss";
 
 .inbox-screen { padding-block: 24px; padding-inline: 28px; display: flex; flex-direction: column; gap: 16px; overflow: auto; block-size: 100%; }
+.inbox-badge { margin-inline-start: auto; background: #F59E0B; color: #1B1203; border-radius: 20px; padding-inline: 9px; font-size: 12px; font-weight: 800; }
+.task-dot.waiting { background: #F59E0B; }
+.rules-screen { display: flex; flex-direction: column; gap: 16px; padding-block: 24px; padding-inline: 28px; overflow: auto; block-size: 100%; }
+.rules-screen h1 { font-size: 22px; font-weight: 800; margin: 0; }
+.rules-screen h2 { font-size: 18px; font-weight: 800; margin: 0; }
+.rules-screen p { margin: 0; }
+.customize-tabs { align-self: flex-start; }
+.customize-tabs button[aria-pressed="true"] { background: var(--bg-active); color: #fff; font-weight: 800; }
+.rules-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 22px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.rules-workspace, .rules-mode { display: flex; gap: 12px; align-items: center; }
+.rules-screen input, .rules-screen select { border: 1px solid #33363D; border-radius: 10px; padding-block: 8px; padding-inline: 12px; background: #15171A; color: var(--text); font: inherit; min-inline-size: 0; }
+.rules-screen input { inline-size: 100%; }
+.rules-table { overflow: auto; }
+.rules-table table { inline-size: 100%; border-collapse: collapse; text-align: start; }
+.rules-table th, .rules-table td { padding-block: 10px; padding-inline: 8px; border-block-end: 1px solid var(--border); }
+.rules-table th { text-align: start; color: var(--text-muted); }
+.rules-table button { border: 1px solid #5C2A2A; color: #F87171; border-radius: 10px; padding-block: 6px; padding-inline: 12px; }
+.rules-defaults { display: flex; gap: 24px; flex-wrap: wrap; margin: 0; }
+.rules-defaults > div { display: flex; gap: 10px; }
+.rules-defaults dt { font-family: Consolas, monospace; color: var(--text-muted); }
+.rules-defaults dd { margin: 0; }
+.rules-screen :focus-visible { outline: 2px solid #2DD4BF; outline-offset: 3px; }
 .inbox-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 .inbox-heading h1 { font-size: 22px; font-weight: 800; margin: 0; }
 .inbox-heading p { margin: 0; }

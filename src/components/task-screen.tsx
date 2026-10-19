@@ -9,6 +9,7 @@ import { Composer } from "./composer";
 import { InboxScreen } from "./approvals/inbox-screen";
 import { ApprovalCard } from "./approvals/approval-card";
 import { recordKey, useInbox } from "../lib/inbox";
+import { RulesScreen } from "./approvals/rules-screen";
 import { ToolErrorCard } from "./tool-error-card";
 import { toolFailure } from "../lib/errors";
 import { SettingsScreen } from "./settings/settings-screen";
@@ -17,22 +18,22 @@ import { CaretRightIcon } from "@phosphor-icons/react/dist/csr/CaretRight";
 import { FolderIcon } from "@phosphor-icons/react/dist/csr/Folder";
 import { GearIcon } from "@phosphor-icons/react/dist/csr/Gear";
 
-export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "inbox" }) {
+export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "inbox" | "rules" }) {
   const [task, setTask] = useState("");
-  const [view, setView] = useState<"home" | "settings" | "add-model" | "inbox">(initialView);
+  const [view, setView] = useState<"home" | "settings" | "add-model" | "inbox" | "rules">(initialView);
   const session = useSession(), run = useRun();
   const approvals = useInbox(state => state.records);
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [run.seq]);
   const t = dictionary(session.locale), running = run.runId !== null;
-  const reset = () => { run.reset(); setTask(""); setView("home"); };
+  const reset = () => { session.detach(); run.reset(); setTask(""); setView("home"); };
   const submit = () => { if (task.trim() && !session.busy) void session.start(task.trim()); };
   const selected = session.usableModel;
   const total = run.usage.input + run.usage.output;
   return <div className="app-shell" data-ready={session.ready}>
-    <Sidebar t={t} session={session} settings={view !== "home"} reset={reset} openSettings={() => setView("settings")} openTask={id => { setView("home"); void session.openTask(id); }} />
+    <Sidebar t={t} session={session} settings={view === "settings" || view === "add-model"} current={view} reset={reset} openSettings={() => setView("settings")} openTask={id => { setView("home"); void session.openTask(id); }} />
     <main className={`surface ${view !== "home" ? "settings-surface" : running ? "run-surface" : "home-surface"}`}>
-      {view === "inbox" ? <InboxScreen locale={session.locale} /> : view !== "home" ? <SettingsScreen key={view} session={session} t={t} addInitially={view === "add-model"} /> : <>
+      {view === "inbox" ? <InboxScreen locale={session.locale} /> : view === "rules" ? <RulesScreen session={session} /> : view !== "home" ? <SettingsScreen key={view} session={session} t={t} addInitially={view === "add-model"} /> : <>
         {running && <header className="run-header"><h1>{run.task}</h1><div className="run-actions">
           {total > 0 && <span data-testid="token-meter">{run.usage.estimated ? "~" : ""}{new Intl.NumberFormat(session.locale).format(total)} {t.tokens}</span>}
           <span role="status">{run.approval ? t.paused : run.status === "completed" ? t.completed : run.status === "stopped" ? t.stopped : run.status === "error" ? t.error : t.reading}</span>

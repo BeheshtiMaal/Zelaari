@@ -14,6 +14,7 @@ export function ToolErrorCard({ text, t, locale, onRetry }: {
   const [showRaw, setShowRaw] = useState(false);
   const timeout = commandTimeout(text);
   const block = jailBlock(text);
+  if (text.startsWith("Interrupted:")) return <section className="tool-error-card amber" data-testid="interrupted-card"><strong>{locale === "fa" ? "اجرای اقدام قطع شد" : "Action interrupted"}</strong><p>{locale === "fa" ? "ممکن است این اقدام پیش از توقف اجرا شده باشد. خودکار تکرار نشد. پیش از تلاش دوباره، نتیجه را بررسی کنید." : "This action may have run before the engine stopped. It was not replayed. Inspect its effects before retrying."}</p></section>;
   if (dismissed || (!timeout && !block)) return null;
 
   if (timeout) {

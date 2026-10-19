@@ -19,6 +19,7 @@ from tools.types import RulesResponse
 
 def _response(engine: RulesEngine) -> RulesResponse:
     return RulesResponse(
+        rules=engine.rules,
         mode=engine.mode,
         tools={
             tool: [rule.model_dump() for rule in rules]

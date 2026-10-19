@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
-from permissions.types import ApprovalDecision, ApprovalRecord, ApprovalRequest
+from permissions.types import ApprovalDecision, ApprovalRecord, ApprovalRequest, RulesFile
 from providers.base import ModelInput, Preset, ProviderRecord, Settings, WorkspaceState
 from tools.types import (
     BranchList,
@@ -171,3 +171,4 @@ class Protocol(WireModel):
     branch_switch_result: BranchSwitchResult
     branch_list: BranchList
     rules_response: RulesResponse
+    rules_file: RulesFile

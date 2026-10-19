@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from permissions.types import RiskLevel
+from permissions.types import RiskLevel, RulesFile
 
 
 class ToolModel(BaseModel):
@@ -101,6 +101,7 @@ class BranchList(ToolModel):
 
 
 class RulesResponse(ToolModel):
+    rules: RulesFile = Field(default_factory=RulesFile)
     mode: Literal["read-only", "ask", "auto"]
     tools: dict[str, list[dict[str, str]]] = Field(default_factory=dict)
     defaults: dict[str, str] = Field(default_factory=dict)
