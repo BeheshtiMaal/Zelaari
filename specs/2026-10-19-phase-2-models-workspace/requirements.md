@@ -1,6 +1,6 @@
 ﻿# Phase 2: Models and Workspace. Requirements
 
-Status: **Approved by the user on 2026-10-19; local implementation complete, live validation pending.**
+Status: **Approved by the user on 2026-10-19; implementation, validation and approved roadmap handoff complete.**
 
 ## Goal
 A user can add and test models with their own keys, pick a safe workspace, and start a task from Home, preserving the offline demo and Phase 1 guarantees.
@@ -15,7 +15,7 @@ New execution tools, permission enforcement/editor, approvals, planning, skills,
 - Constitution: `specs/mission.md`, `tech-stack.md`, `roadmap.md`, `challenge-traceability.md`; Phase 1 validation/handoff; phase prompt and `prompts/00-kickoff.md`.
 - Visual source: `Home.dc.html`, `Settings.dc.html`, `SettingsAddModel.dc.html`, `SettingsAppearance.dc.html`, `Empty.dc.html`, `Errors.dc.html` under `docs/mock-source/`, plus `docs/design-tokens.md`.
 - Explicit phase restrictions apply to future controls drawn in the mock: Jev/Metis presets and Worktree disabled; context ring a placeholder; Appearance language only. Mock providers, keys, counts, branch names and context sizes are illustrative, not seeded data or verified API facts.
-- No constitution amendment is proposed. Jev/Metis URLs remain unknown. Web search is outside this phase.
+- The status/handoff roadmap completion amendment was approved on 2026-10-19; scope and provider inference are unchanged. Jev/Metis URLs remain unknown. Web search is outside this phase.
 
 ## Functional requirements
 - **R1 — Settings.** Open Settings from the pinned gear. Render seven sections in mock order: Models and keys; Appearance and language; Permissions and safety; Context and compaction; Terminal and tests; Data and privacy; About. Only models and language function; remaining sections visibly indicate deferred functionality.

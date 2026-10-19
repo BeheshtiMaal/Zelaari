@@ -1,9 +1,10 @@
 # Phase 2 learnings
 
-Status: implementation delivered in ordered commits; all local checks pass and
-evidence is recorded in `validation.md`. Live acceptance remains open. On 2026-10-19 the user
-explicitly chose: “Complete local validation and leave unavailable live checks open.”
-The user subsequently authorized the external Phase 1 credential file for both model families. Live adapter results below supersede the earlier local-only restriction; full desktop acceptance remains open.
+Status: implementation and all automated/manual acceptance checks passed.
+The user initially requested local-only validation, then authorized the external Phase 1
+credential file for both model families and requested all remaining checks. Live Home
+acceptance and a separate native Anthropic Messages adapter run now pass. The roadmap
+completion amendment was explicitly approved and applied; Phase 3 has not started.
 
 ## Verified contracts and versions
 - Electron 44.9.0 local declarations: `safeStorage.isEncryptionAvailable`,
@@ -87,10 +88,10 @@ tool turns. This is coarse and is never shown as provider-measured usage or cost
   context accounting/compaction and other Appearance controls remain deferred as
   approved. No untracked implementation TODOs were introduced.
 - Phase 3 inherits stable provider IDs, vault handoff, native/engine workspace
-  validation, task replay, current branch metadata and recorded modes. Do not
-  advance the roadmap phase while Phase 2 live acceptance remains open.
-- Constitution files remain unchanged. `roadmap-proposal.md` contains the concrete
-  status-only amendment for separate approval under AGENTS.md rule 5.
+  validation, task replay, current branch metadata and recorded modes. The approved roadmap completion amendment records this handoff; Phase 3 has not started.
+- The roadmap status/handoff amendment in `roadmap-proposal.md` was explicitly
+  approved on 2026-10-19 and applied under AGENTS.md rule 5. Other constitution
+  files, phase scope/order and provider inference remain unchanged.
 
 ## Authorized live checks (2026-10-19)
 - External `phase1-provider.env` was read only after explicit user authorization.
@@ -105,7 +106,30 @@ tool turns. This is coarse and is never shown as provider-measured usage or cost
 - Compatible gpt-4o-mini: metadata context 128,000, measured usage 4,406 input /
   63 output; native claude-haiku-4-5: fallback context 32,768 estimated, measured
   usage 6,771 input / 161 output. Neither run emitted reasoning/thinking.
-- Live engine checks do not establish live Home acceptance. Exact-host Anthropic
-  inference remains the approved behavior; a gateway's native Messages endpoint
-  cannot currently be selected in Settings. No adapter inference change was made.
+- Exact-host Anthropic inference remains unchanged. The user requested both model
+  families through the supplied compatible URL; both now pass actual Home acceptance.
+  The native Messages transport is verified separately using an explicit diagnostic
+  override. No direct api.anthropic.com credential or native gateway UI support is claimed.
 - Claude through the product-compatible transport also passed: `scripts/check_live.py --model claude-haiku-4-5`; metadata context 200,000, measured usage 6,158 input / 184 output; no reasoning. Probe, real read, stream, replay, Stop and key scan all passed.
+
+## Completed live desktop acceptance (2026-10-19)
+- `npx tsx tests/phase2-live-desktop.ts` passes both gpt-4o-mini and
+  claude-haiku-4-5 through the supplied base URL: actual add/probe/save/default,
+  Home jailed README read, streamed output, measured token display, safeStorage
+  restore after restart, identical persisted event replay and Home Stop.
+- Latest desktop evidence: gpt-4o-mini metadata context 128,000, usage 14,405 input /
+  233 output, Stop 90 ms; Claude metadata context 200,000, usage 6,194 input /
+  132 output, Stop 332 ms. Neither emitted reasoning. Scanned 76 persisted
+  files without plaintext credential; zero renderer errors. Sanitized evidence and
+  screenshots are under ignored `artifacts/phase2-live/`.
+- Native Anthropic adapter recheck passes with usage 6,779 input / 191 output,
+  estimated fallback context 32,768, no thinking; probe/read/stream/replay/Stop
+  and persisted-key scan pass. Product URL inference was not changed.
+- Live providers can emit narration or fenced/multiline OpenUI; readable fallback
+  is expected for invalid programs. The desktop checker accepts rendered KeyValue
+  or readable output containing the real marker, and verifies recorded tool results
+  independently. It handles multiple message blocks and locale token separators.
+- Rechecked quality gates: 40 engine tests, 8 UI unit tests, ruff, strict mypy
+  (48 files), TypeScript all pass. Production code/assets did not change in this
+  validation follow-up; previous static/Electron/engine builds and desktop regression
+  evidence remain applicable. Only the opt-in live test and evidence documents changed.

@@ -2,9 +2,10 @@
 
 Status: **Approved by the user on 2026-10-19.** Implement top to bottom, one commit per completed step.
 
-Execution: Steps 1–7 are implemented. Step 8 local checks pass with evidence in
-`validation.md`; live acceptance remains open at the user's request. The status-only
-roadmap amendment is proposed separately and has not been applied without approval.
+Execution: Steps 1-7 are implemented. Step 8 automated/manual acceptance passes,
+including both live model families through Home and a separate live native Anthropic
+Messages adapter run. Evidence is in `validation.md`; the concrete roadmap completion
+amendment in `roadmap-proposal.md` was explicitly approved and applied under AGENTS.md rule 5. All eight steps are complete.
 
 ## Step 1: Verify contracts and define data
 - Inspect installed safeStorage, provider adapters, deepagents stream shapes, FastAPI, Radix and static-export APIs; use official docs when local source is insufficient. Record evidence without credentials.

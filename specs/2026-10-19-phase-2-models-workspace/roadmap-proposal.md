@@ -1,25 +1,19 @@
-# Proposed roadmap status amendment — approval required
+# Approved roadmap completion amendment
 
-This is a proposal only. `specs/roadmap.md` has not been edited.
+Approved by the user on 2026-10-19 after all functional/validation checks passed.
+Applied to `specs/roadmap.md` in the final Phase 2 validation commit.
+No provider routing, phase scope or phase order changes are proposed.
 
-Change the Phase 2 name to **Models + workspace — live validation pending**.
-Keep its scope and phase order unchanged. Add to its outcome:
+## Phase 2 row
+Replace the current Phase 2 row with:
 
-> Implementation adds model settings/probes, safeStorage credentials, provider
-> reasoning and usage, Home, workspace recents/task replay and remembered language.
-> Local evidence is recorded in `2026-10-19-phase-2-models-workspace/validation.md`.
-> Live compatible and native Anthropic engine checks passed using authorized
-> credentials. Full live desktop acceptance remains open; Phase 2 is not complete
-> and Phase 3 must wait.
+| 2 | **Models + workspace - complete** | Implemented model settings/probes, safeStorage credentials, auto context detection, provider reasoning/usage, Home, workspace recents/task replay and remembered language. Local Windows checks, live OpenAI and Claude Home runs through the supplied compatible endpoint, and a live native Anthropic Messages adapter run pass; see `2026-10-19-phase-2-models-workspace/validation.md`. | New task (home), Settings: models, Add model |
 
-Replace the final Phase 1 handoff sentence beginning “Phase 2 has not started” with:
+## Phase 1 handoff
+Replace the final sentence beginning "Phase 2 has not started" with:
 
-> Phase 2 implementation replaces the temporary desktop environment/file provider
-> configuration with safeStorage and stable provider IDs. It retains the generated
-> protocol, replay/lifecycle guarantees and documented jail limitations. Phase 2
-> live acceptance remains open; see its validation and learnings before advancing.
+Phase 2 is complete; safeStorage and stable provider IDs replace the temporary desktop environment/file provider configuration. Phase 3 inherits generated protocol types, tested replay/lifecycle, native and engine workspace validation, workspace/task history, current branch metadata and recorded modes. Preserve the documented jail limitations. Worktree and branch switching remain Phase 3; the context ring remains Phase 7. Provider inference is unchanged: custom gateways use the OpenAI-compatible adapter. Native Anthropic SDK live evidence uses an explicit diagnostic override against the supplied gateway, separately from the live Home checks.
 
-Reason: record the implemented state accurately without claiming unchecked live
-acceptance or changing the constitution's scope. Approval is required by AGENTS.md:
-“Never edit the constitution silently. Propose the change, get approval, commit it
-together with the code.”
+## Approval boundary
+AGENTS.md rule 5: "Never edit the constitution silently. Propose the change, get approval, commit it together with the code."
+Explicit approval was received for this status/handoff update. Phase 3 has not started.

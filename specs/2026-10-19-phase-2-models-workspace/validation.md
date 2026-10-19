@@ -1,6 +1,6 @@
 # Phase 2: Models and Workspace. Validation
 
-Status: **Local validation passed on 2026-10-19. Live engine checks passed; full live desktop acceptance remains open. Phase 2 is not complete.**
+Status: **Complete on 2026-10-19: all checks pass, including the user-approved roadmap completion update. Phase 3 has not started.**
 Done only when every box has passing evidence. Checked items have observed passing evidence; unchecked items remain acceptance targets. Never capture real keys in screenshots, traces or artifacts.
 
 ## Automated (CI/local Windows)
@@ -58,10 +58,10 @@ Done only when every box has passing evidence. Checked items have observed passi
   Evidence: Native controlled folder-dialog results exercise cancellation/root/home/valid selection; real Windows junction tests cover aliases. Stale paths and history are tested independently; no interactive filesystem dialog claim is made.
 - [x] Git branch/detached label/non-git hiding correct. Worktree disabled with Phase 3 explanation. Modes add no execution capability. Chips fill editable text; Home uses chosen workspace/model/mode. (R11–R12)
   Evidence: Native phase-two branch display/mode payload/disabled Worktree/chip fill; gitdir/detached/non-git cases verified with filesystem fixtures.
-- [ ] Live OpenAI-compatible provider: add/probe and real jailed read from Home; streamed output, tokens, Stop/replay. Record model, context source and reasoning availability without credentials. (R4, R6–R9, R12)
-  Partial evidence (2026-10-19): authorized external Phase 1 credentials; AvalAI gpt-4o-mini passed live probe, jailed read, streamed OpenUI, provider usage (4,406 input / 63 output), identical replay, Stop and persisted-file key scan. Metadata context 128,000; no reasoning emitted. Command: `backend/.venv/Scripts/python.exe scripts/check_live.py`. Full live Home add/save/run remains open.
-- [ ] Live native Anthropic provider: add/probe and real jailed read; record model, context source, tokens and whether thinking actually arrived. Synthetic fixtures do not count as live evidence. (R4, R6–R9)
-  Partial evidence (2026-10-19): `scripts/check_live.py --native-adapter --model claude-haiku-4-5` passed the real Anthropic Messages SDK against AvalAI, including probe, jailed read, streamed OpenUI, provider usage (6,771 input / 161 output), identical replay, Stop and persisted-file key scan. Context fallback 32,768 estimated; no thinking emitted. This explicit in-memory diagnostic override does not change product exact-host inference: a custom AvalAI URL selects the compatible adapter in Settings. Direct native-provider desktop acceptance remains open.
+- [x] Live OpenAI-compatible provider: add/probe and real jailed read from Home; streamed output, tokens, Stop/replay. Record model, context source and reasoning availability without credentials. (R4, R6–R9, R12)
+  Evidence (2026-10-19): `npx tsx tests/phase2-live-desktop.ts` passed actual Electron dialog add/probe/save/default, Home jailed read, streamed output, measured token display, safeStorage restart, identical persisted replay and Home Stop for gpt-4o-mini and claude-haiku-4-5 through the supplied AvalAI compatible URL. Context: metadata 128,000 / 200,000; input/output usage: 14,405/233 and 6,194/132; no reasoning emitted. Stop: 90 ms / 332 ms. Scan: 76 persisted files without plaintext key; zero renderer errors. Evidence/screenshots: `artifacts/phase2-live/`.
+- [x] Live native Anthropic provider: add/probe and real jailed read; record model, context source, tokens and whether thinking actually arrived. Synthetic fixtures do not count as live evidence. (R4, R6–R9)
+  Evidence (2026-10-19): `backend/.venv/Scripts/python.exe scripts/check_live.py --native-adapter --model claude-haiku-4-5` passed live catalog add, tiny tool probe and real jailed read through the actual Anthropic Messages SDK against AvalAI; streamed OpenUI, measured usage 6,779 input / 191 output, identical replay, Stop and persisted-key scan passed. Context fallback 32,768 estimated; no thinking emitted. This is an explicit memory-only diagnostic adapter override, not a native gateway UI routing claim. Separately, live Claude add/probe/Home via the supplied compatible URL passed as above; exact-host product inference remains unchanged.
 - [x] Controlled local provider fixture produces 401, repeated 429 and no-tools errors: exact Persian copy/actions, visible retry state/exhaustion, no probe file changes, previous task output intact. (R6)
   Evidence: Local provider fixture emits 401/429/no-tools; both error locales inspected. API denies failed providers for defaults/runs, retains prior output, and makes exactly three rate-limit attempts.
 - [x] Hover/focus ring and disabled controls; labels make placeholder/deferred status clear. Token estimates show ~ and no monetary value. (R9, R14)
@@ -70,5 +70,6 @@ Done only when every box has passing evidence. Checked items have observed passi
   Evidence: Actual safeStorage unavailability fails closed; native canary scan found no full key in persisted files; regression desktop verifies normal/forced process cleanup.
 
 ## Exit criteria
-- [ ] Every check has passing evidence; unavailable live/manual checks remain open. `learnings.md` records verified APIs, context table sources, per-provider reasoning matrix, limitations and all deferred TODOs.
-- [ ] Approved roadmap update marks phase complete and hands provider IDs, credential service, workspace validation/history, branch metadata, recorded mode and disabled Worktree to Phase 3. No constitution edit without approval.
+- [x] Every automated and manual check has passing evidence. `learnings.md` records verified APIs, context table sources, per-provider reasoning matrix, limitations and all deferred TODOs.
+- [x] Approved roadmap update marks phase complete and hands provider IDs, credential service, workspace validation/history, branch metadata, recorded mode and disabled Worktree to Phase 3. No constitution edit without approval.
+  Evidence: user explicitly approved the completion proposal on 2026-10-19; `specs/roadmap.md` now marks Phase 2 complete and records the approved handoff. Provider inference, phase scope and order are unchanged.
