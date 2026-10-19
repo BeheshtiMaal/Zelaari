@@ -13,6 +13,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
 from permissions.middleware import PermissionMiddleware
+from questions.tools import build_ask_question
 from store.secrets import Redactor
 from tools.fs import SnapshotSink, WorkspaceBackend
 
@@ -79,7 +80,7 @@ def build_agent(
             "Reply in the user's language. "
             "Your final response must use this UI library:\n" + prompt
         ),
-        tools=extra_tools or [],
+        tools=[build_ask_question(), *(extra_tools or [])],
         middleware=cast(
             list[AgentMiddleware[Any, Any, Any]],
             [

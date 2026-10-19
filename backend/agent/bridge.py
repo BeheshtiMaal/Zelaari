@@ -31,10 +31,12 @@ from providers.adapters import chat_model
 from providers.base import ProviderRecord, TaskRecord
 from providers.context import detect_context
 from providers.demo import DemoModel
+from questions.types import HumanBatch, QuestionAnswer, QuestionDecision, QuestionRecord
 from store.actions import ActionApprovals
 from store.approvals import ApprovalLedger
 from store.catalog import Catalog
 from store.eventlog import EventBus
+from store.questions import QuestionLedger
 from store.secrets import Redactor, StreamRedactor
 from store.workspaces import add_task, select_workspace
 from tools.command import CommandRunner, build_run_command
@@ -63,6 +65,9 @@ class Run:
     interrupt_id: str = ""
     preserving: bool = False
     available: asyncio.Event = field(default_factory=asyncio.Event)
+    questions: QuestionLedger | None = None
+    question_barrier: list[str] = field(default_factory=list)
+    human_barrier: bool = False
 
 
 class RunManager:
@@ -160,6 +165,7 @@ class RunManager:
         checkpoint = storage_path(workspace, "checkpoints.sqlite")
         bus = EventBus(path, run_id, self.redactor)
         ledger = ApprovalLedger(storage_path(workspace, f"runs/{run_id}/approvals.json"))
+        questions = QuestionLedger(storage_path(workspace, f"runs/{run_id}/questions.json"))
         safe_task = self.redactor.text(request.task)
         if not restore_id:
             from tools.atomic import atomic_write
@@ -324,6 +330,8 @@ class RunManager:
             except Exception as error:
                 if run.ledger:
                     run.ledger.cancel()
+                if run.questions:
+                    run.questions.cancel()
                 if record.kind != "demo" and record.context.source == "fallback":
                     context = detect_context(record.model, error=str(error))
                     current = self.catalog.data.models.get(record.id)
@@ -349,7 +357,9 @@ class RunManager:
                     task_record.waiting_on = []
                 self.catalog.persist()
 
-        self.runs[run_id] = Run(bus, asyncio.create_task(execute()), ledger=ledger)
+        self.runs[run_id] = Run(
+            bus, asyncio.create_task(execute()), ledger=ledger, questions=questions
+        )
         return run_id
 
     async def recover(self) -> None:
@@ -388,14 +398,80 @@ class RunManager:
         return result
 
     # -- approvals ---------------------------------------------------------
+    def questions(self, run_id: str) -> list[QuestionRecord]:
+        task = next(
+            (task for task in self.catalog.data.workspaces.tasks if task.id == run_id), None
+        )
+        if task is None:
+            raise ValueError("Unknown question run")
+        return list(
+            QuestionLedger(
+                storage_path(workspace_root(task.workspace), f"runs/{run_id}/questions.json")
+            ).records.values()
+        )
+
+    def _waiting(self, run: Run) -> None:
+        task = next(
+            (task for task in self.catalog.data.workspaces.tasks if task.id == run.bus.run_id), None
+        )
+        if task:
+            task.waiting_on = []
+            if run.ledger and any(
+                record.status == "pending" for record in run.ledger.records.values()
+            ):
+                task.waiting_on.append("approval")
+            if run.questions and any(
+                record.status == "pending" for record in run.questions.records.values()
+            ):
+                task.waiting_on.append("question")
+            self.catalog.persist()
+
+    async def answer_question(self, run_id: str, call_id: str, decision: QuestionDecision) -> None:
+        run = self.runs[run_id]
+        await asyncio.wait_for(run.available.wait(), timeout=30)
+        if run.bus.finished or call_id not in run.question_barrier or not run.questions:
+            raise ValueError("Question is not pending")
+        answer = QuestionAnswer.model_validate(
+            self.redactor.value(
+                {**decision.model_dump(mode="json"), "run_id": run_id, "call_id": call_id}
+            )
+        )
+        run.questions.answer(answer)
+        self._waiting(run)
+        await run.bus.emit("question.answered", answer=answer)
+        run.ready.set()
+
     async def _announce(self, run: Run, interrupts: Any) -> None:
         """Publish the pause. The middleware never emits, so a replayed node cannot duplicate it."""
         for item in interrupts:
             value = getattr(item, "value", None)
             if not isinstance(value, dict):
                 continue
+            run.human_barrier = value.get("kind") == "human"
+            run.question_barrier = []
+            if run.human_barrier:
+                batch = HumanBatch.model_validate(value)
+                if run.questions is None:
+                    raise ValueError("Missing question ledger")
+                for question_request in batch.questions:
+                    question_record = run.questions.announce(question_request, str(item.id))
+                    run.question_barrier.append(question_request.call_id)
+                    if not any(
+                        event.type == "question.asked"
+                        and event.question.request.call_id == question_request.call_id
+                        for event in run.bus.history
+                    ):
+                        await run.bus.emit("question.asked", question=question_record)
+                    if question_record.answer and not any(
+                        event.type == "question.answered"
+                        and event.answer.call_id == question_request.call_id
+                        for event in run.bus.history
+                    ):
+                        await run.bus.emit("question.answered", answer=question_record.answer)
             requests = (
-                ApprovalBatch.model_validate(value).approvals
+                HumanBatch.model_validate(value).approvals
+                if run.human_barrier
+                else ApprovalBatch.model_validate(value).approvals
                 if "approvals" in value
                 else [ApprovalRequest.model_validate(value)]
             )
@@ -436,6 +512,7 @@ class RunManager:
                     for event in run.bus.history
                 ):
                     await run.bus.emit("approval.requested", approval=request)
+            self._waiting(run)
             self.catalog.persist()
             run.available.set()
 
@@ -443,7 +520,10 @@ class RunManager:
         if run.ledger is None:
             answer = await self._answer(run)
             return answer.model_dump(mode="json") if answer else {}
-        while any(run.ledger.records[key].answer is None for key in run.barrier):
+        while any(run.ledger.records[key].answer is None for key in run.barrier) or (
+            run.questions is not None
+            and any(run.questions.records[key].answer is None for key in run.question_barrier)
+        ):
             await run.ready.wait()
             run.ready.clear()
         answers = {key: run.ledger.records[key].answer for key in run.barrier}
@@ -454,8 +534,22 @@ class RunManager:
                 }
             }
             if len(answers) > 1
-            else next(answer.model_dump(mode="json") for answer in answers.values() if answer)
+            else next((answer.model_dump(mode="json") for answer in answers.values() if answer), {})
         )
+        if run.human_barrier:
+            value = {
+                "kind": "human",
+                "approvals": {
+                    key: answer.model_dump(mode="json") for key, answer in answers.items() if answer
+                },
+                "questions": {
+                    key: cast(QuestionAnswer, run.questions.records[key].answer).model_dump(
+                        mode="json"
+                    )
+                    for key in run.question_barrier
+                    if run.questions and run.questions.records[key].answer
+                },
+            }
         run.pending = None
         return {run.interrupt_id: value}
 
@@ -661,6 +755,8 @@ class RunManager:
         if not run.bus.finished:
             if run.ledger:
                 run.ledger.cancel()
+            if run.questions:
+                run.questions.cancel()
             run.task.cancel()
             # Report cancellation before SQLite/HTTP cleanup. Terminal buses reject
             # late events, so cleanup cannot append results or another finish.

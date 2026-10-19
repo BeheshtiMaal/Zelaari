@@ -34,6 +34,13 @@ from permissions.types import (
     ApprovalRequest,
     PermissionOutcome,
 )
+from questions.types import (
+    HumanBatch,
+    HumanBatchAnswer,
+    QuestionAnswer,
+    QuestionInput,
+    QuestionRequest,
+)
 from store.effects import EffectJournal
 from store.secrets import Redactor
 from tools.jail import JailError, jail_message, resolve_virtual, storage_path
@@ -46,6 +53,7 @@ class PermissionState(AgentState[Any]):
     """Carries the per-turn resolution from the model node to the tools node."""
 
     permission_outcomes: NotRequired[Annotated[dict[str, dict[str, Any]], PrivateStateAttr]]
+    question_outcomes: NotRequired[Annotated[dict[str, dict[str, Any]], PrivateStateAttr]]
     """`tool_call_id -> {action, reason}`. Private: the renderer never sees it."""
 
 
@@ -92,6 +100,8 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
 
     # -- resolution --------------------------------------------------------
     def decide(self, call: ToolCall) -> PermissionOutcome:
+        if call["name"] == "ask_user_question":
+            return PermissionOutcome(action="allow", reason="human information request")
         path, command, timeout = tool_target(call["name"], call.get("args") or {})
         return self.rules.decide(call["name"], path=path, command=command, timeout=timeout)
 
@@ -117,9 +127,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             request = prepare_review(self.rules.root, request)
         except (ValueError, OSError):
             pass
-        return ApprovalRequest.model_validate(
-            self.redactor.value(request.model_dump(mode="json"))
-        )
+        return ApprovalRequest.model_validate(self.redactor.value(request.model_dump(mode="json")))
 
     def _ask(self, call: ToolCall, outcome: PermissionOutcome) -> PermissionOutcome:
         """Pause for one decision and fold the answer back into an outcome."""
@@ -155,13 +163,44 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             return None
 
         outcomes: dict[str, dict[str, Any]] = {}
+        questions: list[QuestionRequest] = []
+        invalid: set[str] = set()
+        for call in last.tool_calls:
+            if call["name"] == "ask_user_question":
+                try:
+                    args = QuestionInput.model_validate(call["args"])
+                    request = QuestionRequest(
+                        run_id=self.run_id, call_id=call_key(call), **args.model_dump()
+                    )
+                    questions.append(
+                        QuestionRequest.model_validate(
+                            self.redactor.value(request.model_dump(mode="json"))
+                        )
+                    )
+                except ValueError:
+                    invalid.add(call_key(call))
         pending = [
             self.approval(call, self.decide(call))
             for call in last.tool_calls
             if self.decide(call).action == "ask"
         ]
         answers: dict[str, ApprovalAnswer] = {}
-        if len(pending) > 1:
+        question_answers: dict[str, QuestionAnswer] = {}
+        if questions:
+            response_human = HumanBatchAnswer.model_validate(
+                interrupt(
+                    HumanBatch(approvals=pending, questions=questions).model_dump(mode="json")
+                )
+            )
+            if set(response_human.approvals) != {item.approval_id for item in pending} or set(
+                response_human.questions
+            ) != {item.call_id for item in questions}:
+                raise ValueError("Human answers do not match the barrier")
+            answers = response_human.approvals
+            question_answers = response_human.questions
+            for question in questions:
+                question_answers[question.call_id].validate_request(question)
+        elif len(pending) > 1:
             response = ApprovalBatchAnswer.model_validate(
                 interrupt(ApprovalBatch(approvals=pending).model_dump(mode="json"))
             )
@@ -170,6 +209,8 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             answers = response.answers
         for call in last.tool_calls:
             outcome = self.decide(call)
+            if call_key(call) in invalid:
+                outcome = PermissionOutcome(action="deny", reason="Invalid question schema")
             if outcome.action == "ask":
                 # One interrupt per call, so the modal never has to present a batch and
                 # an answer always names exactly one approval id.
@@ -201,7 +242,12 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 "edited_args": outcome.edited_args,
                 "revision": outcome.revision,
             }
-        return {"permission_outcomes": outcomes}
+        return {
+            "permission_outcomes": outcomes,
+            "question_outcomes": {
+                key: answer.model_dump(mode="json") for key, answer in question_answers.items()
+            },
+        }
 
     # -- enforcement -------------------------------------------------------
     def refusal(self, call: ToolCall, reason: str) -> ToolMessage:
@@ -221,6 +267,21 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
     ) -> ToolMessage | Command[Any]:
         call = request.tool_call
         state = request.state if isinstance(request.state, dict) else {}
+        if call["name"] == "ask_user_question":
+            value = (state.get("question_outcomes") or {}).get(call_key(call))
+            if value is None:
+                return self.refusal(call, "No validated human answer")
+            answer = QuestionAnswer.model_validate(value)
+            answer.validate_request(
+                QuestionRequest(
+                    run_id=self.run_id,
+                    call_id=call_key(call),
+                    **QuestionInput.model_validate(call["args"]).model_dump(),
+                )
+            )
+            return ToolMessage(
+                content=answer.model_dump_json(), tool_call_id=call_key(call), name=call["name"]
+            )
         recorded = (state.get("permission_outcomes") or {}).get(call_key(call))
         if recorded and recorded.get("edited_args") is not None:
             call = {**call, "args": recorded["edited_args"]}

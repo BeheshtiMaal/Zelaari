@@ -21,6 +21,7 @@ from permissions.types import (
     ApprovalResolution,
     UnknownApproval,
 )
+from questions.types import QuestionDecision, QuestionRecord
 from server.files import file_routes
 from server.git import git_routes
 from server.models import model_routes
@@ -33,6 +34,10 @@ from store.secrets import Redactor
 
 
 class RunService(Protocol):
+    def questions(self, run_id: str) -> list[QuestionRecord]: ...
+    async def answer_question(
+        self, run_id: str, call_id: str, decision: QuestionDecision
+    ) -> None: ...
     def retry_command(self, run_id: str, call_id: str, timeout: float) -> ApprovalRecord: ...
     def preview(
         self, run_id: str, approval_id: str, decision: ApprovalDecision
@@ -153,11 +158,15 @@ def create_app(
     async def resolve_approval(
         run_id: str,
         approval_id: str,
-        decision: ApprovalDecision,
+        decision: ApprovalDecision | QuestionDecision,
     ) -> ApprovalResolution:
         manager = await require_run(run_id)
         try:
-            resumed_run_id = await manager.resolve(run_id, approval_id, decision)
+            if isinstance(decision, QuestionDecision):
+                await manager.answer_question(run_id, approval_id, decision)
+                resumed_run_id = None
+            else:
+                resumed_run_id = await manager.resolve(run_id, approval_id, decision)
         except UnknownApproval:
             # Already answered, or never pending: the caller must re-read the stream
             # rather than have a decision silently applied twice.
@@ -167,6 +176,15 @@ def create_app(
                 409, "Review is stale or invalid; refresh before deciding"
             ) from None
         return ApprovalResolution(run_id=resumed_run_id)
+
+    @app.get("/runs/{run_id}/questions")
+    async def questions(run_id: str) -> list[QuestionRecord]:
+        manager = runs()
+        await manager.recover()
+        try:
+            return manager.questions(run_id)
+        except (ValueError, OSError):
+            raise HTTPException(404, "Question history is unavailable") from None
 
     @app.post("/runs/{run_id}/interrupts/{approval_id}/preview")
     async def preview_approval(
