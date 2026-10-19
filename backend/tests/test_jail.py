@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+
 from store.secrets import Redactor
 from tools.jail import ReadOnlyBackend, storage_path, workspace_root
 

@@ -2,9 +2,10 @@ import asyncio
 from pathlib import Path
 
 import pytest
-from agent.factory import build_agent
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+
+from agent.factory import build_agent
 from providers.demo import DemoModel
 from store.secrets import Redactor
 

@@ -6,9 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
+
 from agent.bridge import RunManager
 from agent.events import RunRequest
-from fastapi.testclient import TestClient
 from server.app import create_app
 from store.secrets import Redactor, StreamRedactor
 

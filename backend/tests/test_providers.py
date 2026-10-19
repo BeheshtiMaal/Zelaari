@@ -1,5 +1,6 @@
 import pytest
 from langchain_core.messages import HumanMessage, ToolMessage
+
 from providers.demo import DemoModel
 from providers.openai_compat import configured_model
 

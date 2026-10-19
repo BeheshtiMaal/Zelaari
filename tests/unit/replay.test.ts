@@ -40,3 +40,18 @@ test("client reconnects a truncated stream with the last applied event id", asyn
     assert.deepEqual(received, source);
   } finally { stub.mock.restore(); }
 });
+
+test("reasoning and usage replay without duplicate totals or answer mixing", () => {
+  const base = {run_id: "meter", ts: new Date().toISOString()};
+  const events: HarnessEvent[] = [
+    {...base, seq: 1, type: "run.started", task: "read", model: "demo"},
+    {...base, seq: 2, type: "reasoning.delta", message_id: "one", text: "thought"},
+    {...base, seq: 3, type: "usage.updated", input_tokens: 20, output_tokens: 10, estimated: true},
+    {...base, seq: 4, type: "usage.updated", input_tokens: 40, output_tokens: 15, estimated: true},
+  ];
+  const state = events.reduce(reduceEvent, initialRun);
+  assert.deepEqual(state.usage, {input: 40, output: 15, estimated: true});
+  assert.deepEqual(state.reasoning, {one: "thought"});
+  assert.deepEqual(state.items, []);
+  assert.deepEqual(events.reduce(reduceEvent, state), state);
+});

@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from agent.events import Event, event_adapter
-
 from store.secrets import Redactor
 
 

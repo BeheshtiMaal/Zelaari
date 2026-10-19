@@ -10,8 +10,10 @@ export interface RunState {
   status: "idle" | "running" | "completed" | "stopped" | "error";
   items: TimelineItem[];
   error: string | null;
+  reasoning: Record<string, string>;
+  usage: { input: number; output: number; estimated: boolean };
 }
-export const initialRun: RunState = { runId: null, seq: 0, task: "", status: "idle", items: [], error: null };
+export const initialRun: RunState = { runId: null, seq: 0, task: "", status: "idle", items: [], error: null, reasoning: {}, usage: { input: 0, output: 0, estimated: false } };
 
 export function reduceEvent(state: RunState, event: HarnessEvent): RunState {
   if (event.type === "run.started" && event.run_id !== state.runId) {
@@ -20,6 +22,8 @@ export function reduceEvent(state: RunState, event: HarnessEvent): RunState {
   if (event.run_id !== state.runId || event.seq <= state.seq) return state;
   const next = { ...state, seq: event.seq };
   switch (event.type) {
+    case "reasoning.delta": next.reasoning = { ...state.reasoning, [event.message_id]: (state.reasoning[event.message_id] ?? "") + event.text }; break;
+    case "usage.updated": next.usage = { input: event.input_tokens, output: event.output_tokens, estimated: event.estimated }; break;
     case "message.delta": {
       const existing = state.items.find(item => item.kind === "message" && item.id === event.message_id);
       next.items = existing ? state.items.map(item => item === existing && item.kind === "message" ?
