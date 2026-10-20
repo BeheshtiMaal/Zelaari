@@ -340,6 +340,59 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 @media (max-width: 1100px) { .run-layout { flex-direction: column; } .run-main { min-block-size: 0; } .run-info { order: -1; inline-size: auto; padding: 8px 18px; border-inline-start: 0; } }
 .run-main > .compose-region { flex-shrink: 1; min-block-size: 160px; overflow-y: auto; }
 .run-main .timeline { min-block-size: 48px; }
+.run-info { box-sizing: border-box; inline-size: 300px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; }
+.run-info h2 { font-size: 14px; font-weight: 800; margin-block: 0 10px; }
+.run-info p { margin-block: 6px; font-size: 12px; }
+.run-info .current-waiting { margin-block-start: auto; }
+.info-row, .info-file, .plan-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.info-file code { min-inline-size: 0; overflow-wrap: anywhere; }
+.info-file span { flex: none; }
+.plan-heading { flex-wrap: wrap; margin-block-end: 12px; }
+.adoption, .read-only-badge { border-radius: 20px; background: #12353A; color: #5EEAD4; padding-inline: 8px; font-size: 11px; }
+.adoption.automatic { background: var(--bg-raised); color: var(--text-muted); }
+.plan-checklist progress, .run-info progress { display: block; inline-size: 100%; block-size: 7px; accent-color: #2DD4BF; margin-block: 8px; }
+.plan-checklist progress::-webkit-progress-bar, .run-info progress::-webkit-progress-bar { background: #33363D; border-radius: 6px; }
+.plan-checklist progress::-webkit-progress-value, .run-info progress::-webkit-progress-value { background: #2DD4BF; border-radius: 6px; }
+.plan-checklist ol { list-style: none; padding: 0; margin-block: 14px 0; display: grid; gap: 12px; }
+.plan-checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--text-muted); }
+.plan-checklist li[data-status=in_progress] { color: var(--text); font-weight: 800; }
+.plan-checklist li small { display: block; font-size: 11px; font-weight: 400; color: var(--text-dim); }
+.step-mark { inline-size: 22px; block-size: 22px; border: 1px solid #474B54; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex: none; font-size: 11px; }
+[data-status=completed] .step-mark { background: #15803D; border-color: #15803D; color: white; }
+.activity-timeline { display: grid; gap: 12px; margin-block: 18px; }
+.step-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; }
+.step-card.active { border: 2px solid #0E7C86; background: #172023; }
+.disclosure-button { inline-size: 100%; display: flex; align-items: center; gap: 10px; text-align: start; background: transparent; color: var(--text); border: 0; padding-block: 13px; padding-inline: 16px; min-block-size: 44px; }
+.disclosure-button strong { font-size: 13px; overflow-wrap: anywhere; }
+.disclosure-caret { display: inline-block; color: var(--text-muted); font-size: 20px; }
+[dir=rtl] .disclosure-caret { transform: rotate(180deg); }
+.disclosure-button[aria-expanded=true] > .disclosure-caret { transform: rotate(90deg); }
+.step-summary { margin-inline-start: auto; font-size: 11px; color: var(--text-muted); }
+.reasoning-note { display: block; font-size: 10px; font-weight: 400; margin-block-start: 2px; }
+.plan-review ol { display: grid; gap: 10px; padding-inline-start: 24px; }
+.plan-review li > code { display: inline-block; margin-inline-start: 8px; font-size: 11px; color: var(--text-muted); }
+.step-body { display: grid; gap: 10px; padding-block: 0 12px; padding-inline: 18px; min-inline-size: 0; }
+.step-body > pre, .delegate-card pre { overflow-wrap: anywhere; white-space: pre-wrap; }
+.thinking-panel { border: 1px solid #304149; background: #19242B; border-radius: 12px; margin-block: 4px; }
+.thinking-panel .disclosure-button { padding-block: 7px; padding-inline: 10px; }
+.thinking-panel .muted { margin-inline-start: auto; font-size: 11px; }
+.thinking-body { color: #B7C9D5; font-size: 12px; line-height: 1.9; white-space: pre-wrap; padding-block: 0 12px; padding-inline: 14px; overflow-wrap: anywhere; }
+.streaming-caret { animation: activity-caret 1s steps(2, start) infinite; }
+@keyframes activity-caret { 50% { opacity: 0; } }
+.delegate-card { border: 1px solid var(--border); background: var(--bg-card); border-radius: 12px; margin-block: 8px; margin-inline: 18px; }
+.delegate-card > div > p, .delegate-card > div > pre { padding-inline: 14px; font-size: 12px; }
+.summary-notice { background: #202226; border-radius: 10px; color: var(--text-muted); margin-block: 10px; margin-inline: 18px; padding: 10px; font-size: 12px; }
+.steering-status { font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; margin-block: 5px; }
+.steering-status > span { color: #5EEAD4; }
+.run-elapsed { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.planning-settings form { display: grid; gap: 18px; }
+.planning-settings label { display: grid; gap: 8px; font-size: 13px; }
+.planning-settings input[type=number] { inline-size: 100px; background: var(--bg-raised); color: inherit; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+.planning-settings .planning-toggle { display: flex; align-items: center; }
+.planning-settings input[type=checkbox] { accent-color: var(--accent); }
+@media (max-width: 1100px) { .run-info { inline-size: auto; flex-direction: row; flex-wrap: wrap; gap: 16px; max-block-size: 180px; } .run-info > section { flex: 1 1 180px; } .run-info .current-waiting { flex: 1 1 100%; } }
+@media (max-width: 650px) { .step-summary { flex-basis: 100%; margin-inline-start: 32px; } .step-card > .disclosure-button { flex-wrap: wrap; } .step-body { padding-inline: 10px; } .delegate-card { margin-inline: 10px; } }
+@media (prefers-reduced-motion: reduce) { .streaming-caret { animation: none; } }
 .question-exhausted { background: #151618; border: 1px solid #2C2F36; border-radius: 16px; }
 .question-exhausted .question-heading > span { background: #3A1A1A; color: #FCA5A5; }
 .question-failure { background: #0B1118; color: #D6E0EA; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 180px; overflow: auto; }

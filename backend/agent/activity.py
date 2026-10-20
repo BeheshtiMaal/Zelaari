@@ -1,12 +1,11 @@
 """Engine-owned turn and delegate identities, shared by graph and event projection."""
 
-import asyncio
 import hashlib
 import json
 import math
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
-from typing import Annotated, Any, NotRequired
+from typing import Annotated, Any, Literal, NotRequired
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware
@@ -24,6 +23,7 @@ from langgraph.types import Command
 from planning.gate import record_from_state
 from planning.progress import active_step
 from planning.types import ActivityScope
+from store.delegates import DelegateResults
 from store.eventlog import EventBus
 
 delegate_scope: ContextVar[ActivityScope | None] = ContextVar("delegate_scope", default=None)
@@ -35,17 +35,26 @@ def identity(value: str) -> str:
 
 class ActivityState(AgentState[Any]):
     activity_scope: NotRequired[Annotated[dict[str, Any], PrivateStateAttr]]
-    context_input: NotRequired[Annotated[int, PrivateStateAttr]]
     child_activity_scope: NotRequired[dict[str, Any]]
 
 
 class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
     state_schema = ActivityState
 
-    def __init__(self, model: str, agent: str = "parent", bus: EventBus | None = None) -> None:
+    def __init__(
+        self,
+        model: str,
+        agent: Literal["parent", "reviewer", "researcher"] = "parent",
+        bus: EventBus | None = None,
+        provider: str | None = None,
+    ) -> None:
         self.model = model
         self.agent = agent
         self.bus = bus
+        self.provider = provider
+        self.results = (
+            DelegateResults(bus.path.with_name("delegates.json"), bus.redactor) if bus else None
+        )
 
     async def abefore_model(self, state: ActivityState, runtime: Runtime[Any]) -> dict[str, Any]:
         parent = delegate_scope.get() if self.agent != "parent" else None
@@ -57,16 +66,14 @@ class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
             turn_id=turn,
             step_id=parent.step_id if parent else step.id if step else None,
             parent_scope_id=parent.scope_id if parent else None,
-            agent=self.agent,  # type: ignore[arg-type]
+            agent=self.agent,
             model=self.model,
+            provider=self.provider,
         )
         return {
             "activity_scope"
             if self.agent == "parent"
             else "child_activity_scope": scope.model_dump(mode="json"),
-            "context_input": max(
-                1, math.ceil(sum(len(str(m.content)) for m in state["messages"]) / 4)
-            ),
         }
 
     async def awrap_tool_call(
@@ -75,8 +82,13 @@ class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
         handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
         call = request.tool_call
-        if call["name"] != "task" or self.bus is None:
+        if call["name"] != "task":
             return await handler(request)
+        if self.bus is None:
+            result = await handler(request)
+            if isinstance(result, Command) and isinstance(result.update, dict):
+                result.update.pop("child_activity_scope", None)
+            return result
         args = call["args"]
         name = args.get("subagent_type")
         if name not in {"reviewer", "researcher"}:
@@ -84,12 +96,30 @@ class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
                 content="Permission denied: unknown delegate", tool_call_id=call["id"]
             )
         parent = ActivityScope.model_validate(request.state["activity_scope"])
+        invocation = identity(self.bus.run_id + str(call["id"]))
+        arguments = identity(json.dumps(args, sort_keys=True))
+        if self.results and invocation in self.results.records:
+            if self.results.records[invocation].arguments_digest != arguments:
+                return ToolMessage(
+                    content="Permission denied: delegate call identity reused",
+                    tool_call_id=call["id"],
+                    status="error",
+                )
+            return ToolMessage(
+                content=self.results.records[invocation].text, tool_call_id=call["id"]
+            )
+        attempts = sum(
+            event.type == "subagent.started" and event.scope.invocation_id == invocation
+            for event in self.bus.history
+        )
         scope = ActivityScope(
-            scope_id=identity(self.bus.run_id + str(call["id"])),
+            scope_id=identity(invocation + str(attempts)),
+            invocation_id=invocation,
             step_id=parent.step_id,
             parent_scope_id=parent.scope_id,
             agent=name,
             model=self.model,
+            provider=self.provider,
         )
         completed = next(
             (
@@ -115,14 +145,9 @@ class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
                 else [result]
             )
             text = str(messages[-1].content) if messages else ""
-            await self.bus.emit("subagent.finished", scope=scope, status="completed", result=text)
+            if self.results:
+                self.results.complete(invocation, scope, text, arguments)
             return result
-        except asyncio.CancelledError:
-            await self.bus.emit("subagent.finished", scope=scope, status="cancelled")
-            raise
-        except Exception:
-            await self.bus.emit("subagent.finished", scope=scope, status="failed")
-            raise
         finally:
             delegate_scope.reset(token)
 
@@ -148,13 +173,25 @@ class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
         return response
 
 
-async def finish_open_activity(bus: EventBus, status: str) -> None:
-    """Reconcile an interrupted process or Stop without inventing successful work."""
+def open_activity(bus: EventBus) -> list[tuple[str, ActivityScope]]:
     opened: dict[str, tuple[str, ActivityScope]] = {}
     for event in bus.history:
         if event.type in {"activity.started", "subagent.started"}:
             opened[event.scope.scope_id] = (event.type, event.scope)
         elif event.type in {"activity.finished", "subagent.finished"}:
             opened.pop(event.scope.scope_id, None)
-    for kind, scope in reversed(list(opened.values())):
+    return list(reversed(list(opened.values())))
+
+
+async def finish_open_activity(bus: EventBus, status: str) -> None:
+    """Reconcile an interrupted process or Stop without inventing successful work."""
+    for kind, scope in open_activity(bus):
+        if kind == "subagent.started" and status == "interrupted":
+            results = DelegateResults(bus.path.with_name("delegates.json"), bus.redactor)
+            result = results.records.get(scope.invocation_id or "")
+            if result and result.scope.scope_id == scope.scope_id:
+                await bus.emit(
+                    "subagent.finished", scope=scope, status="completed", result=result.text
+                )
+                continue
         await bus.emit(kind.replace("started", "finished"), scope=scope, status=status)

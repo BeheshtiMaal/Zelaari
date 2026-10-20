@@ -106,11 +106,13 @@ class PlanRecord(PlanningModel):
 
 class ActivityScope(PlanningModel):
     scope_id: Identity
+    invocation_id: Identity | None = None
     step_id: Identity | None = None
     parent_scope_id: Identity | None = None
     turn_id: Identity | None = None
     agent: Literal["parent", "reviewer", "researcher"] = "parent"
     model: str | None = None
+    provider: str | None = None
 
 
 class SteeringSubmission(PlanningModel):

@@ -39,26 +39,38 @@ class EventBus:
         self.finished = bool(self.history and self.history[-1].type == "run.finished")
 
     async def emit(self, kind: str, **payload: Any) -> None:
+        await self.emit_many([(kind, payload)])
+
+    async def emit_many(self, values: list[tuple[str, dict[str, Any]]]) -> None:
+        """Commit a terminal transition atomically with one durable flush."""
         async with self.changed:
             if self.finished:
                 return
-            event = event_adapter.validate_python(
-                {
-                    **payload,
-                    "type": kind,
-                    "run_id": self.run_id,
-                    "seq": len(self.history) + 1,
-                }
-            )
-            event = event_adapter.validate_python(
-                self.redactor.value(event.model_dump(mode="json"))
-            )
+            events: list[Event] = []
+            for kind, payload in values:
+                if events and events[-1].type == "run.finished":
+                    raise ValueError("Terminal event must be last")
+                event = event_adapter.validate_python(
+                    {
+                        **payload,
+                        "type": kind,
+                        "run_id": self.run_id,
+                        "seq": len(self.history) + len(events) + 1,
+                    }
+                )
+                events.append(
+                    event_adapter.validate_python(
+                        self.redactor.value(event.model_dump(mode="json"))
+                    )
+                )
+            if not events:
+                return
             with self.path.open("a", encoding="utf-8", newline="\n") as log:
-                log.write(event.model_dump_json() + "\n")
+                log.write("".join(event.model_dump_json() + "\n" for event in events))
                 log.flush()
                 os.fsync(log.fileno())
-            self.history.append(event)
-            self.finished = kind == "run.finished"
+            self.history.extend(events)
+            self.finished = events[-1].type == "run.finished"
             self.changed.notify_all()
 
     async def events(self, after: int) -> AsyncIterator[Event]:

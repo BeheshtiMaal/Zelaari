@@ -55,10 +55,12 @@ class SteeringQueue:
         if changed:
             self.save()
 
-    def cancel(self) -> None:
-        for record in self.pending():
+    def cancel(self, *, persist: bool = True) -> None:
+        pending = self.pending()
+        for record in pending:
             record.status = "cancelled"
-        self.save()
+        if persist and pending:
+            self.save()
 
     async def publish(self, bus: EventBus) -> None:
         for record in self.records:

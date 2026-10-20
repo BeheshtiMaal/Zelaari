@@ -6,6 +6,7 @@ import type { Session } from "../../lib/use-session";
 import { ModelDialog } from "./model-dialog";
 import { ProbeStatus } from "./probe-status";
 import { Hint } from "../hint";
+import { PlanningSettingsForm } from "./planning-settings";
 
 export function SettingsScreen({ session, t, addInitially = false }: {session: Session; t: Dictionary; addInitially?: boolean}) {
   const [section, setSection] = useState(0);
@@ -26,7 +27,8 @@ export function SettingsScreen({ session, t, addInitially = false }: {session: S
         {session.settings.default_model !== provider.id && <button className="text-button" disabled={!provider.supports_tools || provider.probe?.status !== "ok"} onClick={() => void session.makeDefault(provider.id ?? "demo")}>{t.makeDefault}</button>}
       </article>)}
       {section === 1 && <section className="model-card"><h3>{t.display}</h3><div className="language-row"><div><strong>{t.language}</strong><p className="muted">{t.languageDefault}</p></div><div className="language-segment" role="group" aria-label={t.language}><button aria-pressed={session.locale === "fa"} onClick={() => void session.setLocale("fa")}>فارسی</button><button aria-pressed={session.locale === "en"} onClick={() => void session.setLocale("en")}>English</button></div></div></section>}
-      {section > 1 && <div className="deferred-panel">{t.soon}</div>}
+      {section === 2 && <PlanningSettingsForm session={session} />}
+      {section > 2 && <div className="deferred-panel">{t.soon}</div>}
     </section>
     {dialog && <ModelDialog session={session} existing={existing} t={t} close={() => setDialog(false)} />}
   </div>;

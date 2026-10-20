@@ -1,6 +1,7 @@
 """Jailed workspace backend: atomic mutations, protected engine storage, no recursion on delete."""
 
 from pathlib import Path
+from threading import Event
 from typing import Protocol
 
 from deepagents.backends import FilesystemBackend
@@ -66,12 +67,14 @@ class WorkspaceBackend(FilesystemBackend):
         snapshots: SnapshotSink | None = None,
         *,
         call_id: str | None = None,
+        cancelled: Event | None = None,
     ) -> None:
         super().__init__(root_dir=root, virtual_mode=True)
         self.root = root
         self.redactor = redactor
         self.snapshots = snapshots
         self.call_id = call_id
+        self.cancelled = cancelled
 
     # -- reads -------------------------------------------------------------
     def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> ReadResult:
@@ -214,6 +217,8 @@ class WorkspaceBackend(FilesystemBackend):
 
     # -- mutations ---------------------------------------------------------
     def _capture(self, target: Resolved, tool: str) -> None:
+        if self.cancelled is not None and self.cancelled.is_set():
+            raise RuntimeError("Run cancelled before filesystem mutation")
         if self.snapshots is not None:
             self.snapshots.capture(target, tool=tool, call_id=self.call_id)
 
@@ -223,7 +228,7 @@ class WorkspaceBackend(FilesystemBackend):
             if target.path.is_dir():
                 return WriteResult(error="Target is a directory")
             self._capture(target, "write_file")
-            atomic_write(target.path, content)
+            atomic_write(target.path, content, cancelled=self.cancelled)
             return WriteResult(path=_virtual(target))
         except SnapshotError as error:
             return WriteResult(error=f"Blocked: {error}")
@@ -260,7 +265,7 @@ class WorkspaceBackend(FilesystemBackend):
                 else original.replace(old_string, new_string, 1)
             )
             self._capture(target, "edit_file")
-            atomic_write(target.path, updated)
+            atomic_write(target.path, updated, cancelled=self.cancelled)
             return EditResult(path=_virtual(target), occurrences=occurrences if replace_all else 1)
         except SnapshotError as error:
             return EditResult(error=f"Blocked: {error}")
@@ -275,6 +280,8 @@ class WorkspaceBackend(FilesystemBackend):
             if not target.path.exists():
                 return DeleteResult(error="Nothing to delete at that path")
             self._capture(target, "delete")
+            if self.cancelled is not None and self.cancelled.is_set():
+                raise RuntimeError("Run cancelled before deletion")
             target.path.unlink()
             return DeleteResult(path=_virtual(target))
         except SnapshotError as error:

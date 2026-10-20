@@ -69,6 +69,11 @@ class CommandRunner:
         self.root = root
         self.redactor = redactor
         self.secrets = secrets or []
+        self.cancelled = threading.Event()
+
+    def cancel(self) -> None:
+        """Signal owned command threads without blocking the event loop."""
+        self.cancelled.set()
 
     def _cwd(self, value: str | None) -> Path:
         if value is None:
@@ -86,6 +91,8 @@ class CommandRunner:
         offset: int = 0,
         cwd: str | None = None,
     ) -> CommandResult:
+        if self.cancelled.is_set():
+            raise RuntimeError("Run was cancelled before command dispatch")
         shell = pick_shell()
         working = self._cwd(cwd)
         limit = min(max(float(timeout), 1.0), MAX_TIMEOUT)
@@ -122,16 +129,25 @@ class CommandRunner:
             )
             if job is not None:
                 job.assign(process.pid)
-                resume_process(process.pid)
+                if not self.cancelled.is_set():
+                    resume_process(process.pid)
 
             assert process.stdout is not None
             reader = _BoundedReader(process.stdout)
             reader.start()
-            try:
-                process.wait(timeout=limit)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                killed = self._kill(job, process)
+            while process.poll() is None:
+                if self.cancelled.is_set():
+                    killed = self._kill(job, process)
+                    break
+                remaining = limit - (time.monotonic() - started)
+                if remaining <= 0:
+                    timed_out = True
+                    killed = self._kill(job, process)
+                    break
+                try:
+                    process.wait(timeout=min(remaining, 0.05))
+                except subprocess.TimeoutExpired:
+                    pass
             reader.join(timeout=5)
             raw = bytes(reader.buffer)
         finally:

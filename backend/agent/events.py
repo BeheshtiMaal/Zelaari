@@ -168,6 +168,7 @@ class ContextUpdated(EventBase):
     input_tokens: int = Field(ge=0)
     context_window: int | None = Field(default=None, ge=1)
     estimated: bool
+    context_window_estimated: bool = False
 
 
 class SteeringUpdated(EventBase):

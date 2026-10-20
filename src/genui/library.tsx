@@ -3,6 +3,13 @@ import { z } from "zod/v4";
 import { DiffView as DiffComponent } from "../components/approvals/diff-view";
 import { RegisteredApprovalCard } from "../components/approvals/approval-card";
 import { RegisteredQuestionCard } from "../components/questions/question-card";
+import { RegisteredPlanChecklist } from "../components/planning/plan-checklist";
+
+const PlanChecklist = defineComponent({
+  name: "PlanChecklist", description: "Display the active engine plan using its exact run, plan and revision IDs; cannot set progress or approve",
+  props: z.object({ runId: z.string(), planId: z.string(), revision: z.string() }),
+  component: ({ props }) => <RegisteredPlanChecklist {...props} />,
+});
 
 const QuestionCard = defineComponent({
   name: "QuestionCard", description: "Answer an existing engine question using exact run and call IDs",
@@ -33,7 +40,7 @@ const KeyValue = defineComponent({
 });
 const Stack = defineComponent({
   name: "Stack", description: "Vertical content",
-  props: z.object({ children: z.array(z.union([Callout.ref, KeyValue.ref, ApprovalCard.ref, DiffView.ref, QuestionCard.ref])) }),
+  props: z.object({ children: z.array(z.union([Callout.ref, KeyValue.ref, ApprovalCard.ref, DiffView.ref, QuestionCard.ref, PlanChecklist.ref])) }),
   component: ({ props, renderNode }) => <section className="genui-stack" data-testid="stack">{renderNode(props.children)}</section>,
 });
-export const library = createLibrary({ components: [Callout, KeyValue, ApprovalCard, DiffView, QuestionCard, Stack], root: "Stack" });
+export const library = createLibrary({ components: [Callout, KeyValue, ApprovalCard, DiffView, QuestionCard, PlanChecklist, Stack], root: "Stack" });

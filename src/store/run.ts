@@ -1,9 +1,12 @@
 import { create } from "zustand";
-import type { ApprovalRequest, HarnessEvent, QuestionRecord } from "../lib/protocol";
+import type { ApprovalRequest, HarnessEvent, QuestionRecord, PlanRecord, SteeringRecord } from "../lib/protocol";
 
 export type TimelineItem = { kind: "message"; id: string; text: string } |
   { kind: "tool"; id: string; name: string; args: Record<string, unknown>; result?: string };
 export interface RunState {
+  events: HarnessEvent[];
+  plan: PlanRecord | null;
+  steering: Record<string, SteeringRecord>;
   runId: string | null;
   seq: number;
   task: string;
@@ -16,15 +19,18 @@ export interface RunState {
   questions: Record<string, QuestionRecord>;
   usage: { input: number; output: number; estimated: boolean };
 }
-export const initialRun: RunState = { runId: null, seq: 0, task: "", status: "idle", items: [], error: null, reasoning: {}, approval: null, approvals: {}, questions: {}, usage: { input: 0, output: 0, estimated: false } };
+export const initialRun: RunState = { events: [], plan: null, steering: {}, runId: null, seq: 0, task: "", status: "idle", items: [], error: null, reasoning: {}, approval: null, approvals: {}, questions: {}, usage: { input: 0, output: 0, estimated: false } };
 
 export function reduceEvent(state: RunState, event: HarnessEvent): RunState {
   if (event.type === "run.started" && event.run_id !== state.runId) {
-    return { ...initialRun, runId: event.run_id, seq: event.seq, task: event.task, status: "running" };
+    return { ...initialRun, runId: event.run_id, seq: event.seq, task: event.task, status: "running", events: [event] };
   }
   if (event.run_id !== state.runId || event.seq <= state.seq) return state;
-  const next = { ...state, seq: event.seq };
+  const next = { ...state, seq: event.seq, events: [...state.events, event] };
   switch (event.type) {
+    case "plan.created": next.plan = event.plan; break;
+    case "plan.step.updated": if (state.plan?.plan_id === event.plan_id && state.plan.revision === event.revision) next.plan = { ...state.plan, progress: state.plan.progress.map(item => item.step_id === event.progress.step_id ? event.progress : item) as PlanRecord["progress"] }; break;
+    case "steering.updated": next.steering = { ...state.steering, [event.message.submission_id]: event.message }; break;
     case "question.asked": next.questions = { ...state.questions, [event.question.request.call_id]: event.question }; break;
     case "question.answered": {
       const record = state.questions[event.answer.call_id];

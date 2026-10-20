@@ -103,6 +103,8 @@ def test_edited_plan_preview_binds_exact_arguments(
         )
         await until(lambda: manager.approvals("pending"))
         before = manager.approvals("pending")[0].request
+        assert before.plan_proposed and "Step 3" in str(before.plan_proposed)
+        assert before.plan_file_scope is not None
         edited: dict[str, JsonValue] = {
             "steps": [{"id": "revised", "title": "Human edited", "verify_command": "pytest"}]
         }
@@ -110,6 +112,7 @@ def test_edited_plan_preview_binds_exact_arguments(
             run_id, "plan", ApprovalDecision(decision="approve", edited_args=edited)
         )
         assert review.revision != before.revision
+        assert review.plan_proposed and "Human edited" in str(review.plan_proposed)
         assert "Human edited" in review.diff
         with pytest.raises(UnknownApproval):
             await manager.resolve(

@@ -36,11 +36,13 @@ export type Type1 = "message.delta";
 export type MessageId = string;
 export type Text = string;
 export type ScopeId = string;
+export type InvocationId = string | null;
 export type StepId = string | null;
 export type ParentScopeId = string | null;
 export type TurnId = string | null;
 export type Agent = "parent" | "reviewer" | "researcher";
 export type Model1 = string | null;
+export type Provider = string | null;
 export type RunId2 = string;
 export type Seq2 = number;
 export type Ts2 = string;
@@ -90,6 +92,12 @@ export type Revision = string | null;
 export type PlanId = string | null;
 export type StepId1 = string | null;
 export type PlanBefore = {
+  [k: string]: JsonValue;
+} | null;
+export type PlanProposed = {
+  [k: string]: JsonValue;
+} | null;
+export type PlanFileScope = {
   [k: string]: JsonValue;
 } | null;
 export type CreatedAt = string;
@@ -311,6 +319,7 @@ export type Type20 = "context.updated";
 export type InputTokens1 = number;
 export type ContextWindow = number | null;
 export type Estimated1 = boolean;
+export type ContextWindowEstimated = boolean;
 export type RunId24 = string;
 export type Seq20 = number;
 export type Ts20 = string;
@@ -509,11 +518,13 @@ export interface MessageDelta {
 }
 export interface ActivityScope {
   scope_id: ScopeId;
+  invocation_id?: InvocationId;
   step_id?: StepId;
   parent_scope_id?: ParentScopeId;
   turn_id?: TurnId;
   agent?: Agent;
   model?: Model1;
+  provider?: Provider;
 }
 export interface ReasoningDelta {
   run_id: RunId2;
@@ -590,6 +601,8 @@ export interface ApprovalRequest {
   plan_id?: PlanId;
   step_id?: StepId1;
   plan_before?: PlanBefore;
+  plan_proposed?: PlanProposed;
+  plan_file_scope?: PlanFileScope;
   created_at?: CreatedAt;
 }
 export interface RiskAssessment {
@@ -792,6 +805,7 @@ export interface ContextUpdated {
   input_tokens: InputTokens1;
   context_window?: ContextWindow;
   estimated: Estimated1;
+  context_window_estimated?: ContextWindowEstimated;
 }
 export interface SteeringUpdated {
   run_id: RunId24;
@@ -1044,4 +1058,6 @@ export interface SteeringSubmission {
   text: Text6;
 }
 
-export type HarnessEvent = Protocol["event"];
+// Serialized events always include the Pydantic discriminator and timestamp defaults.
+type WireEvent<E> = E extends { type?: infer K } ? E & { type: K } : never;
+export type HarnessEvent = WireEvent<Protocol["event"]>;

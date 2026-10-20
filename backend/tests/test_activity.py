@@ -4,14 +4,20 @@ import asyncio
 from pathlib import Path
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from test_readonly_delegates import DelegateProbe
 
 from agent.bridge import RunManager
 from agent.events import RunRequest
+from agent.factory import build_agent
 from agent.meter import TokenMeter
 from agent.projection import ActivityProjection
+from permissions.middleware import PermissionMiddleware
+from permissions.rules import RulesEngine
 from planning.types import ActivityScope
+from providers.demo import DemoModel
 from store.catalog import Catalog
 from store.eventlog import EventBus
 from store.secrets import Redactor
@@ -92,5 +98,77 @@ def test_context_is_latest_request_and_prose_is_not_summary(tmp_path: Path) -> N
         assert context[-1].input_tokens == 20
         assert usage[-1].input_tokens == 40
         assert not any(e.type in {"context.summarized", "reasoning.delta"} for e in bus.history)
+
+    asyncio.run(scenario())
+
+
+class CompleteWithChild(DemoModel):
+    def answer(self, messages: list[BaseMessage]) -> AIMessage:
+        if any(isinstance(m, SystemMessage) and "read-only" in str(m.content) for m in messages):
+            return AIMessage(content="Read-only review done")
+        results = [m for m in messages if isinstance(m, ToolMessage)]
+        if not results:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "submit_plan",
+                        "id": "plan",
+                        "args": {"steps": [{"id": "s", "title": "Review"}]},
+                    }
+                ],
+            )
+        if len(results) == 1:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "write_todos",
+                        "id": "start",
+                        "args": {"todos": [{"content": "[s] Review", "status": "in_progress"}]},
+                    }
+                ],
+            )
+        if len(results) == 2:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "task",
+                        "id": "child",
+                        "args": {"subagent_type": "reviewer", "description": "Review"},
+                    },
+                    {
+                        "name": "write_todos",
+                        "id": "finish",
+                        "args": {"todos": [{"content": "[s] Review", "status": "completed"}]},
+                    },
+                ],
+            )
+        return AIMessage(content="Outcome observed")
+
+
+def test_parent_cannot_complete_in_the_turn_that_starts_a_delegate(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        async with AsyncSqliteSaver.from_conn_string(str(tmp_path / "graph.sqlite")) as saver:
+            graph = build_agent(
+                tmp_path,
+                CompleteWithChild(delay=0),
+                saver,
+                Redactor(),
+                permissions=PermissionMiddleware(RulesEngine.load(tmp_path, "auto"), run_id="run"),
+            )
+            config: RunnableConfig = {"configurable": {"thread_id": "run"}}
+            result = await graph.ainvoke(
+                {"messages": [{"role": "user", "content": "Review"}]}, config
+            )
+            state = await graph.aget_state(config)
+            assert state.values["plan_record"]["progress"][0]["status"] == "in_progress"
+            assert any(
+                isinstance(m, ToolMessage)
+                and m.tool_call_id == "finish"
+                and "Wait for delegated work" in str(m.content)
+                for m in result["messages"]
+            )
 
     asyncio.run(scenario())

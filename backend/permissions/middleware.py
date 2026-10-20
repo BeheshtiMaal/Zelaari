@@ -192,14 +192,14 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             risk=outcome.risk,
         )
 
-    @hook_config(can_jump_to=["model"])
+    @hook_config(can_jump_to=["model", "end"])
     async def aafter_model(
         self, state: AgentState[Any], runtime: Runtime[Any]
     ) -> dict[str, Any] | None:
         messages = state.get("messages") or []
         last = next((item for item in reversed(messages) if isinstance(item, AIMessage)), None)
         if last is None:
-            return None
+            return {"jump_to": None}
         self.plan_context = dict(state)
         previous_plan = record_from_state(self.plan_context)
         blocked_progress: set[str] = set()
@@ -234,7 +234,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                         )
                     ],
                 }
-            return None
+            return {"jump_to": "end"}
 
         def decide(call: ToolCall) -> PermissionOutcome:
             if (
@@ -357,6 +357,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 "revision": outcome.revision,
             }
         updates: dict[str, Any] = {
+            "jump_to": None,
             "permission_outcomes": outcomes,
             "question_outcomes": {
                 key: answer.model_dump(mode="json") for key, answer in question_answers.items()

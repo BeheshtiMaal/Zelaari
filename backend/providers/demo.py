@@ -13,6 +13,7 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 
+from providers.planning_demo import demo_planning
 from providers.question_demo import demo_question
 
 
@@ -36,6 +37,9 @@ class DemoModel(BaseChatModel):
     def answer(self, messages: list[BaseMessage]) -> AIMessage:
         results = [message for message in messages if isinstance(message, ToolMessage)]
         task = next((str(message.content) for message in messages if message.type == "human"), "")
+        planning = demo_planning(task, results)
+        if planning is not None:
+            return planning
         edit = re.fullmatch(r"demo edit ([\w./\\-]+): (.+?) => (.+)", task, re.DOTALL)
         # Offline effects follow the same real planning tools as provider runs.
         planned_target = (

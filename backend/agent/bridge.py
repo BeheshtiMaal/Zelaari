@@ -13,7 +13,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.types import Command
 
-from agent.activity import finish_open_activity
+from agent.activity import finish_open_activity, open_activity
 from agent.events import Event, RunRequest
 from agent.factory import build_agent
 from agent.meter import TokenMeter
@@ -77,6 +77,8 @@ class Run:
     question_barrier: list[str] = field(default_factory=list)
     human_barrier: bool = False
     steering: SteeringQueue | None = None
+    cleanup: asyncio.Task[None] | None = None
+    runner: CommandRunner | None = None
 
 
 class RunManager:
@@ -212,11 +214,14 @@ class RunManager:
             run = self.runs[run_id]
             prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
             meter = TokenMeter(len(safe_task) + len(prompt))
-            projection = ActivityProjection(bus, meter, record.context.tokens)
+            projection = ActivityProjection(
+                bus, meter, record.context.tokens, record.context.estimated
+            )
             try:
                 async with AsyncSqliteSaver.from_conn_string(str(checkpoint)) as saver:
                     rules = RulesEngine.load(root, request.mode)
                     runner = CommandRunner(root, self.redactor, secrets=self.redactor.values)
+                    run.runner = runner
                     graph = build_agent(
                         root,
                         model,
@@ -233,11 +238,13 @@ class RunManager:
                         grill=grill,
                         bus=bus,
                         model_name=record.model,
+                        provider_name=record.name,
+                        cancelled=runner.cancelled,
                         extra_middleware=[SteeringMiddleware(steering)],
                     )
                     config: RunnableConfig = {
                         "configurable": {"thread_id": run_id},
-                        "recursion_limit": 80 if grill else 24,
+                        "recursion_limit": 256,
                     }
                     payload: Any = {"messages": [{"role": "user", "content": safe_task}]}
                     if restore_id:
@@ -300,6 +307,7 @@ class RunManager:
                     await finish_open_activity(bus, "cancelled")
                     await bus.emit("run.finished", status="stopped")
             except Exception as error:
+                await finish_open_activity(bus, "failed")
                 steering.cancel()
                 await steering.publish(bus)
                 if run.ledger:
@@ -351,6 +359,13 @@ class RunManager:
                 request = RunRequest.model_validate_json(path.read_bytes())
                 bus = EventBus(path.with_name("events.jsonl"), item.id, self.redactor)
                 if bus.finished:
+                    if (
+                        bus.history[-1].type == "run.finished"
+                        and bus.history[-1].status == "stopped"
+                    ):
+                        ApprovalLedger(path.with_name("approvals.json")).cancel()
+                        QuestionLedger(path.with_name("questions.json")).cancel()
+                        SteeringQueue(path.with_name("steering.json"), item.id).cancel()
                     continue
                 await self.start(request, restore_id=item.id)
             except (OSError, ValueError):
@@ -363,6 +378,14 @@ class RunManager:
         ]
         for task in self.catalog.data.workspaces.tasks:
             try:
+                active_run = self.runs.get(task.id)
+                if active_run and active_run.ledger:
+                    result.extend(
+                        record
+                        for record in active_run.ledger.records.values()
+                        if status is None or record.status == status
+                    )
+                    continue
                 ledger = ApprovalLedger(
                     storage_path(workspace_root(task.workspace), f"runs/{task.id}/approvals.json")
                 )
@@ -377,6 +400,9 @@ class RunManager:
 
     # -- approvals ---------------------------------------------------------
     def questions(self, run_id: str) -> list[QuestionRecord]:
+        active = self.runs.get(run_id)
+        if active and active.questions:
+            return list(active.questions.records.values())
         task = next(
             (task for task in self.catalog.data.workspaces.tasks if task.id == run_id), None
         )
@@ -735,18 +761,36 @@ class RunManager:
     async def stop(self, run_id: str) -> None:
         run = self.runs[run_id]
         if not run.bus.finished:
+            if run.runner:
+                run.runner.cancel()
             if run.ledger:
-                run.ledger.cancel()
+                run.ledger.cancel(persist=False)
             if run.questions:
-                run.questions.cancel()
+                run.questions.cancel(persist=False)
             if run.steering:
-                run.steering.cancel()
-                await run.steering.publish(run.bus)
+                run.steering.cancel(persist=False)
             run.task.cancel()
             # Report cancellation before SQLite/HTTP cleanup. Terminal buses reject
             # late events, so cleanup cannot append results or another finish.
-            await finish_open_activity(run.bus, "cancelled")
-            await run.bus.emit("run.finished", status="stopped")
+            events: list[tuple[str, dict[str, Any]]] = [
+                (kind.replace("started", "finished"), {"scope": scope, "status": "cancelled"})
+                for kind, scope in open_activity(run.bus)
+            ]
+            if run.steering:
+                events.extend(
+                    ("steering.updated", {"message": record})
+                    for record in run.steering.records
+                    if record.status == "cancelled"
+                )
+            events.append(("run.finished", {"status": "stopped"}))
+            await run.bus.emit_many(events)
+
+            async def cleanup() -> None:
+                for ledger in (run.ledger, run.questions, run.steering):
+                    if ledger:
+                        await asyncio.to_thread(ledger.save)
+
+            run.cleanup = asyncio.create_task(cleanup())
 
     async def steer(self, run_id: str, value: SteeringSubmission) -> SteeringRecord:
         run = self.runs[run_id]
@@ -763,5 +807,8 @@ class RunManager:
     async def close(self) -> None:
         for run in self.runs.values():
             run.preserving = True
+            if run.runner:
+                run.runner.cancel()
             run.task.cancel()
         await asyncio.gather(*(run.task for run in self.runs.values()), return_exceptions=True)
+        await asyncio.gather(*(run.cleanup for run in self.runs.values() if run.cleanup))

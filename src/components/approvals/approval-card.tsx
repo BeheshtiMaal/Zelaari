@@ -7,6 +7,8 @@ import { useApprovalEditor } from "../../lib/use-approval-editor";
 import type { ApprovalRecord } from "../../lib/protocol";
 import { DiffView } from "./diff-view";
 import { reviewShortcut } from "../../lib/approvals";
+import { PlanReview } from "../planning/plan-review";
+import { planningCopy } from "../../i18n/planning";
 
 export function ApprovalCard({ record, locale, inline = false }: { record: ApprovalRecord; locale: Locale; inline?: boolean }) {
   const t = approvalCopy(locale), request = record.request, editor = useApprovalEditor(record);
@@ -20,7 +22,7 @@ export function ApprovalCard({ record, locale, inline = false }: { record: Appro
       const action = reviewShortcut(event.key, target.tagName, target.isContentEditable);
       if (action) { event.preventDefault(); void editor.decide(action); }
     }}>
-    <div className="approval-chips"><span className="type-chip">{request.tool === "rules_update" ? t.rules : request.kind === "command" ? t.command : t.file}</span>
+    <div className="approval-chips"><span className="type-chip">{request.plan_proposed ? planningCopy(locale).plan : request.tool === "rules_update" ? t.rules : request.kind === "command" ? t.command : t.file}</span>
       <span className={`risk-badge ${request.risk?.level ?? "low"}`}>{request.risk?.level === "high" ? t.high : t.low}</span>
       {!pending && <span className="type-chip">{t[record.status ?? "pending"]}</span>}
       <span className="approval-source" dir="auto">{request.source_title}</span>
@@ -29,9 +31,9 @@ export function ApprovalCard({ record, locale, inline = false }: { record: Appro
     <h2>{inline ? t.needsYou : request.kind === "command" ? t.command : request.tool === "rules_update" ? t.rules : t.changeStart} {request.path && <code dir="ltr">{request.path}</code>} {!inline && request.kind !== "command" && request.tool !== "rules_update" ? t.changeEnd : ""}</h2>
     {inline && <code dir="ltr">{request.tool}{request.path ? ` · ${request.path}` : ""}</code>}
     {request.command && <pre className="command-preview" dir="ltr">{request.command}{request.args?.timeout ? `\n${request.args.timeout}s` : ""}</pre>}
-    <div className="approval-explanation"><strong>{request.agent_reason ? t.reason : t.policy}</strong> {request.agent_reason ?? (request.policy_code === "rules_change" ? t.rulePolicy : t.policyRequired)}</div>
+    {request.plan_proposed ? <PlanReview request={request} locale={locale} /> : <div className="approval-explanation"><strong>{request.agent_reason ? t.reason : t.policy}</strong> {request.agent_reason ?? (request.policy_code === "rules_change" ? t.rulePolicy : t.policyRequired)}</div>}
     {request.diff && <DiffView diff={request.diff} />}
-    {request.diff && <p className="muted">{t.snapshot.split(".harness/snapshots")[0]}<bdi dir="ltr">.harness/snapshots</bdi>{t.snapshot.split(".harness/snapshots")[1]}</p>}
+    {request.diff && request.path && <p className="muted">{t.snapshot.split(".harness/snapshots")[0]}<bdi dir="ltr">.harness/snapshots</bdi>{t.snapshot.split(".harness/snapshots")[1]}</p>}
     {record.result && <div><strong>{t.result}</strong><pre dir="ltr" className="command-preview">{record.result}</pre></div>}
     {pending && <>
       {glob && <label className="allow-rule"><input type="checkbox" checked={editor.allow} disabled={editor.busy} onChange={event => editor.setAllow(event.target.checked)} /><span>{t.allow} <code dir="ltr">{glob}</code> {t.allowSuffix}</span></label>}

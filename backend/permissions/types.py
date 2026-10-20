@@ -76,6 +76,8 @@ class ApprovalRequest(PermissionModel):
     plan_id: str | None = None
     step_id: str | None = None
     plan_before: dict[str, JsonValue] | None = None
+    plan_proposed: dict[str, JsonValue] | None = None
+    plan_file_scope: dict[str, JsonValue] | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

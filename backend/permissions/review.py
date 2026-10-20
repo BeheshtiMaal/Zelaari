@@ -23,6 +23,12 @@ def prepare_review(root: Path, request: ApprovalRequest) -> ApprovalRequest:
     )
     request = request.model_copy(update={"diff": plan_diff})
     if material is not None:
+        request = request.model_copy(
+            update={
+                "plan_proposed": material["submission"],
+                "plan_file_scope": material["file_scope"],
+            }
+        )
         proposed_plan = PlanSubmission.model_validate(material["submission"])
         risky = any(
             step.high_risk

@@ -2,7 +2,9 @@
 
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Any, cast
+from threading import Event
+from typing import Any, Literal, cast
+from uuid import uuid4
 
 from deepagents import create_deep_agent
 from deepagents.middleware.filesystem import FilesystemMiddleware
@@ -11,6 +13,7 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware, TodoListMiddleware
 from langchain.agents.middleware.types import ModelRequest, ModelResponse
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
@@ -55,6 +58,12 @@ class RedactingMiddleware(AgentMiddleware[Any, Any, Any]):
             type(message).model_validate(self.redactor.value(message.model_dump(mode="json")))
             for message in response.result
         ]
+        previous_ids = {message.id for message in request.messages if message.id}
+        for index, message in enumerate(response.result):
+            if isinstance(message, AIMessage) and message.id in previous_ids:
+                # Some compatible models reuse response IDs. add_messages would
+                # replace an earlier turn and leave a stale tool-call turn last.
+                response.result[index] = message.model_copy(update={"id": uuid4().hex})
         return response
 
 
@@ -71,13 +80,16 @@ def build_agent(
     grill: bool = False,
     bus: EventBus | None = None,
     model_name: str | None = None,
+    provider_name: str | None = None,
+    cancelled: Event | None = None,
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
-    backend = WorkspaceBackend(root, redactor, snapshots)
+    backend = WorkspaceBackend(root, redactor, snapshots, cancelled=cancelled)
     child_backend = ReadOnlyWorkspaceBackend(root, redactor)
     prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
     children: list[CompiledSubAgent] = []
     read_tools: list[Any] = sorted(SAFE_READ_TOOLS)
-    for name in ("reviewer", "researcher"):
+    delegate_names: tuple[Literal["reviewer", "researcher"], ...] = ("reviewer", "researcher")
+    for name in delegate_names:
         children.append(
             {
                 "name": name,
@@ -103,7 +115,9 @@ def build_agent(
                             RedactingMiddleware(redactor),
                             RedactingSummarization(model, child_backend, redactor),
                             ActivityMiddleware(
-                                model_name or model.name or type(model).__name__, name
+                                model_name or model.name or type(model).__name__,
+                                name,
+                                provider=provider_name,
                             ),
                         ],
                     ),
@@ -163,7 +177,11 @@ def build_agent(
                 RedactingMiddleware(redactor),
                 RedactingSummarization(model, backend, redactor),
                 SubAgentMiddleware(backend=backend, subagents=children),
-                ActivityMiddleware(model_name or model.name or type(model).__name__, bus=bus),
+                ActivityMiddleware(
+                    model_name or model.name or type(model).__name__,
+                    bus=bus,
+                    provider=provider_name,
+                ),
                 *(extra_middleware or []),
             ],
         ),

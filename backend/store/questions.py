@@ -40,9 +40,12 @@ class QuestionLedger:
         record.resolved_at = datetime.now(UTC)
         self.save()
 
-    def cancel(self) -> None:
+    def cancel(self, *, persist: bool = True) -> None:
+        changed = False
         for record in self.records.values():
             if record.status == "pending":
                 record.status = "cancelled"
                 record.resolved_at = datetime.now(UTC)
-        self.save()
+                changed = True
+        if persist and changed:
+            self.save()

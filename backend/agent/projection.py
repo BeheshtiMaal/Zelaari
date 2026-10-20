@@ -5,19 +5,28 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
 
+from agent.activity import identity
 from agent.meter import TokenMeter, content_parts
 from planning.gate import record_from_state
 from planning.publication import publish_plan
 from planning.types import ActivityScope
+from store.delegates import DelegateResults
 from store.eventlog import EventBus
 from store.secrets import StreamRedactor
 
 
 class ActivityProjection:
-    def __init__(self, bus: EventBus, meter: TokenMeter, context_window: int | None) -> None:
+    def __init__(
+        self,
+        bus: EventBus,
+        meter: TokenMeter,
+        context_window: int | None,
+        context_window_estimated: bool = False,
+    ) -> None:
         self.bus = bus
         self.meter = meter
         self.window = context_window
+        self.window_estimated = context_window_estimated
         self.scopes: dict[tuple[str, ...], ActivityScope] = {}
         self.buffers: dict[str, StreamRedactor] = {}
         self.streamed: set[str] = set()
@@ -29,7 +38,7 @@ class ActivityProjection:
         scope = self.scopes.get(namespace)
         if scope is None:
             return
-        identifier = message.id or scope.scope_id
+        identifier = scope.scope_id
         for kind, value in zip(
             ("message.delta", "reasoning.delta"), content_parts(message), strict=True
         ):
@@ -93,6 +102,7 @@ class ActivityProjection:
                             scope=scope,
                             input_tokens=message.usage_metadata["input_tokens"],
                             context_window=self.window,
+                            context_window_estimated=self.window_estimated,
                             estimated=False,
                         )
                     elif isinstance(message.additional_kwargs.get("_harness_input_tokens"), int):
@@ -101,6 +111,7 @@ class ActivityProjection:
                             scope=scope,
                             input_tokens=message.additional_kwargs["_harness_input_tokens"],
                             context_window=self.window,
+                            context_window_estimated=self.window_estimated,
                             estimated=True,
                         )
                     if self.meter.turn(message, scope.scope_id + (message.id or "assistant")):
@@ -121,3 +132,21 @@ class ActivityProjection:
                         call_id=message.tool_call_id,
                         text=str(message.content),
                     )
+                    if not namespace:
+                        records = DelegateResults(
+                            self.bus.path.with_name("delegates.json"), self.bus.redactor
+                        )
+                        invocation = identity(self.bus.run_id + message.tool_call_id)
+                        result = records.records.get(invocation)
+                        if result and not any(
+                            event.type == "subagent.finished"
+                            and event.scope.scope_id == result.scope.scope_id
+                            and event.status == "completed"
+                            for event in self.bus.history
+                        ):
+                            await self.bus.emit(
+                                "subagent.finished",
+                                scope=result.scope,
+                                status="completed",
+                                result=result.text,
+                            )
