@@ -65,6 +65,13 @@ def test_killed_question_engine_resumes_original_mixed_barrier(tmp_path: Path) -
         assert sum(event["type"] == "question.answered" for event in events) == 1
         assert (
             sum(
+                event["type"] == "steering.updated" and event["message"]["status"] == "delivered"
+                for event in events
+            )
+            == 1
+        )
+        assert (
+            sum(
                 event["type"] == "tool.result" and event["call_id"] == "demo-mixed-write"
                 for event in events
             )

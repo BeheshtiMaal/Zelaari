@@ -21,6 +21,7 @@ from permissions.types import (
     ApprovalResolution,
     UnknownApproval,
 )
+from planning.types import SteeringRecord, SteeringSubmission
 from questions.types import QuestionDecision, QuestionRecord
 from server.files import file_routes
 from server.git import git_routes
@@ -34,6 +35,7 @@ from store.secrets import Redactor
 
 
 class RunService(Protocol):
+    async def steer(self, run_id: str, value: SteeringSubmission) -> SteeringRecord: ...
     def questions(self, run_id: str) -> list[QuestionRecord]: ...
     async def answer_question(
         self, run_id: str, call_id: str, decision: QuestionDecision
@@ -153,6 +155,19 @@ def create_app(
     async def stop_run(run_id: str) -> dict[str, str]:
         await (await require_run(run_id)).stop(run_id)
         return {"status": "ok"}
+
+    @app.post("/runs/{run_id}/messages", status_code=202)
+    async def steer_run(run_id: str, value: SteeringSubmission) -> SteeringRecord:
+        manager = runs()
+        await manager.recover()
+        if not manager.contains(run_id):
+            if any(task.id == run_id for task in catalog.data.workspaces.tasks):
+                raise HTTPException(409, "Run is not available for steering")
+            raise HTTPException(404, "Unknown run")
+        try:
+            return await manager.steer(run_id, value)
+        except ValueError:
+            raise HTTPException(409, "Run finished or submission identity conflicts") from None
 
     @app.post("/runs/{run_id}/interrupts/{approval_id}")
     async def resolve_approval(

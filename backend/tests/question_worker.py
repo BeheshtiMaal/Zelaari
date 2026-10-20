@@ -8,6 +8,7 @@ from pathlib import Path
 from agent.bridge import RunManager
 from agent.events import RunRequest
 from permissions.types import ApprovalDecision
+from planning.types import SteeringSubmission
 from questions.types import QuestionDecision
 from store.catalog import Catalog
 
@@ -25,6 +26,13 @@ async def main() -> None:
             record.request.call_id,
             QuestionDecision(interrupt_id=record.interrupt_id, status="declined"),
         )
+        await manager.steer(
+            run_id,
+            SteeringSubmission(
+                submission_id="survive-kill",
+                text="Preserve the approved scope after restart",
+            ),
+        )
         print(json.dumps({"ready": True, "run_id": run_id}), flush=True)
         await asyncio.Event().wait()
     else:
@@ -36,6 +44,8 @@ async def main() -> None:
         while not manager.runs[run_id].bus.finished:
             await asyncio.sleep(0.01)
         assert manager.questions(run_id)[0].status == "declined"
+        queue = manager.runs[run_id].steering
+        assert queue and queue.records[0].status == "delivered"
         await manager.close()
 
 

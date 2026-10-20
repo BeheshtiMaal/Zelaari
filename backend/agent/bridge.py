@@ -18,6 +18,7 @@ from agent.events import Event, RunRequest
 from agent.factory import build_agent
 from agent.meter import TokenMeter
 from agent.projection import ActivityProjection
+from agent.steering import SteeringMiddleware
 from permissions.middleware import PermissionMiddleware
 from permissions.review import prepare_review
 from permissions.rules import RulesEngine
@@ -32,7 +33,7 @@ from permissions.types import (
 )
 from planning.gate import record_from_state
 from planning.publication import publish_plan
-from planning.types import ActivityScope
+from planning.types import ActivityScope, SteeringRecord, SteeringSubmission
 from providers.adapters import chat_model
 from providers.base import ProviderRecord, TaskRecord
 from providers.context import detect_context
@@ -44,6 +45,7 @@ from store.catalog import Catalog
 from store.eventlog import EventBus
 from store.questions import QuestionLedger
 from store.secrets import Redactor
+from store.steering import SteeringQueue
 from store.workspaces import add_task, select_workspace
 from tools.command import CommandRunner, build_run_command
 from tools.git import add_worktree, build_git_switch, repository
@@ -74,6 +76,7 @@ class Run:
     questions: QuestionLedger | None = None
     question_barrier: list[str] = field(default_factory=list)
     human_barrier: bool = False
+    steering: SteeringQueue | None = None
 
 
 class RunManager:
@@ -172,6 +175,7 @@ class RunManager:
         bus = EventBus(path, run_id, self.redactor)
         ledger = ApprovalLedger(storage_path(workspace, f"runs/{run_id}/approvals.json"))
         questions = QuestionLedger(storage_path(workspace, f"runs/{run_id}/questions.json"))
+        steering = SteeringQueue(storage_path(workspace, f"runs/{run_id}/steering.json"), run_id)
         safe_task = self.redactor.text(request.task)
         grill = bool(re.match(r"^/grill(?:\s|$)", safe_task))
         if not restore_id:
@@ -229,6 +233,7 @@ class RunManager:
                         grill=grill,
                         bus=bus,
                         model_name=record.model,
+                        extra_middleware=[SteeringMiddleware(steering)],
                     )
                     config: RunnableConfig = {
                         "configurable": {"thread_id": run_id},
@@ -241,6 +246,8 @@ class RunManager:
                         if not snapshot.values:
                             raise ValueError("Checkpoint is unavailable; refusing a new invocation")
                         await publish_plan(bus, record_from_state(snapshot.values))
+                        steering.reconcile(snapshot.values)
+                        await steering.publish(bus)
                         if snapshot.values.get("activity_scope") and snapshot.next:
                             scope = ActivityScope.model_validate(snapshot.values["activity_scope"])
                             scope = scope.model_copy(update={"scope_id": uuid4().hex})
@@ -267,13 +274,22 @@ class RunManager:
                                 if isinstance(chunk, AIMessageChunk):
                                     await projection.content(namespace, chunk, False)
                             elif mode == "updates" and "__interrupt__" not in update:
+                                for change in update.values():
+                                    if isinstance(change, dict):
+                                        steering.reconcile(change)
+                                await steering.publish(bus)
                                 await projection.update(namespace, update)
 
                         # An interrupt ends the stream but not the run: the graph still
                         # has a node to re-execute once the decision arrives.
                         snapshot = await graph.aget_state(config)
                         await publish_plan(bus, record_from_state(snapshot.values))
+                        steering.reconcile(snapshot.values)
+                        await steering.publish(bus)
                         if not snapshot.next:
+                            if steering.pending():
+                                payload = {"messages": []}
+                                continue
                             break
                         await self._announce(run, snapshot.interrupts)
                         payload = Command(resume=await self._resume(run))
@@ -284,6 +300,8 @@ class RunManager:
                     await finish_open_activity(bus, "cancelled")
                     await bus.emit("run.finished", status="stopped")
             except Exception as error:
+                steering.cancel()
+                await steering.publish(bus)
                 if run.ledger:
                     run.ledger.cancel()
                 if run.questions:
@@ -314,7 +332,11 @@ class RunManager:
                 self.catalog.persist()
 
         self.runs[run_id] = Run(
-            bus, asyncio.create_task(execute()), ledger=ledger, questions=questions
+            bus,
+            asyncio.create_task(execute()),
+            ledger=ledger,
+            questions=questions,
+            steering=steering,
         )
         return run_id
 
@@ -717,11 +739,23 @@ class RunManager:
                 run.ledger.cancel()
             if run.questions:
                 run.questions.cancel()
+            if run.steering:
+                run.steering.cancel()
+                await run.steering.publish(run.bus)
             run.task.cancel()
             # Report cancellation before SQLite/HTTP cleanup. Terminal buses reject
             # late events, so cleanup cannot append results or another finish.
             await finish_open_activity(run.bus, "cancelled")
             await run.bus.emit("run.finished", status="stopped")
+
+    async def steer(self, run_id: str, value: SteeringSubmission) -> SteeringRecord:
+        run = self.runs[run_id]
+        if run.steering is None:
+            raise ValueError("Run has no steering queue")
+        safe = value.model_copy(update={"text": self.redactor.text(value.text)})
+        record = run.steering.enqueue(safe, terminal=run.bus.finished)
+        await run.steering.publish(run.bus)
+        return record
 
     def events(self, run_id: str, after: int) -> AsyncIterator[Event]:
         return self.runs[run_id].bus.events(after)
