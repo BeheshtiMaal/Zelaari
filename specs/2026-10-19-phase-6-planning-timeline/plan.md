@@ -18,7 +18,7 @@ Implement in order after approval, one commit per completed step. First verify i
 ## Step 3: Implement real delegated activity, reasoning and context instrumentation
 - Configure only authorized reviewer/researcher delegation with strict read-only tools/permissions and parent workspace/worktree containment. Close stock/default-agent, command, nested-delegation and protected-state bypasses.
 - Translate actual parent/subgraph lifecycle into typed scoped start/action/reasoning/result/finish events. Keep a single durable run sequence and stable invocation/step identities across parallel execution and reconstruction.
-- Instrument actual summarization/offload state changes, redact all summary/delegate paths and collect latest-request context metadata separately from cumulative token usage. Derive timestamps/counts from observed activity.
+- Route parent-only summary artifacts into an independent `.harness/context/` storage jail; preserve the ordinary filesystem jail and deny child offload writes. Instrument actual summarization/offload state changes, redact all summary/delegate paths and collect latest-request context metadata separately from cumulative token usage. Derive timestamps/counts from observed activity.
 - Test parallel ordering, several simultaneous delegates, child denials/errors, per-step/per-child reasoning absence, actual summary operations, replay and cancellation. Use local fixture documentation, without adding web research.
 
 ## Step 4: Add durable steering and complete runtime lifecycle

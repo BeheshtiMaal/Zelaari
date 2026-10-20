@@ -131,3 +131,38 @@ def test_internal_backend_operations_cannot_write_behind_child_tools(tmp_path: P
     asyncio.run(scenario())
     assert target.read_text(encoding="utf-8") == "Original"
     assert not (tmp_path / "created.txt").exists()
+
+
+class GrepProbe(DelegateProbe):
+    def answer(self, messages: list[BaseMessage]) -> AIMessage:
+        child = any(
+            isinstance(item, SystemMessage) and "You are the read-only" in str(item.content)
+            for item in messages
+        )
+        if child and not any(isinstance(item, ToolMessage) for item in messages):
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {"name": "grep", "id": "grep", "args": {"pattern": "prefix", "path": "."}}
+                ],
+            )
+        return super().answer(messages)
+
+
+def test_child_grep_results_redacted_before_checkpoint(tmp_path: Path) -> None:
+    model = GrepProbe(delay=0)
+    (tmp_path / "context.txt").write_text("prefix " + model.canary, encoding="utf-8")
+    checkpoint = tmp_path / "grep.sqlite"
+
+    async def scenario() -> None:
+        async with AsyncSqliteSaver.from_conn_string(str(checkpoint)) as saver:
+            graph = build_agent(tmp_path, model, saver, Redactor([model.canary]))
+            result = await graph.ainvoke(
+                {"messages": [{"role": "user", "content": "Delegate"}]},
+                {"configurable": {"thread_id": "grep"}},
+            )
+            assert model.canary not in str(result["messages"])
+            assert "[REDACTED]" in str(result["messages"])
+        assert model.canary.encode() not in checkpoint.read_bytes()
+
+    asyncio.run(scenario())

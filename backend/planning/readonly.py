@@ -9,6 +9,7 @@ from langchain.agents.middleware.types import ToolCallRequest
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
+from store.secrets import Redactor
 from tools.fs import WorkspaceBackend
 
 SAFE_READ_TOOLS = frozenset({"ls", "read_file", "glob", "grep"})
@@ -33,6 +34,8 @@ class ReadOnlyWorkspaceBackend(WorkspaceBackend):
 
 
 class ReadOnlyDelegateMiddleware(AgentMiddleware[Any, Any, Any]):
+    def __init__(self, redactor: Redactor | None = None) -> None:
+        self.redactor = redactor or Redactor()
     async def awrap_tool_call(
         self,
         request: ToolCallRequest,
@@ -45,4 +48,7 @@ class ReadOnlyDelegateMiddleware(AgentMiddleware[Any, Any, Any]):
                 name=request.tool_call["name"],
                 status="error",
             )
-        return await handler(request)
+        result = await handler(request)
+        if isinstance(result, ToolMessage):
+            return ToolMessage.model_validate(self.redactor.value(result.model_dump(mode="json")))
+        return result

@@ -1,7 +1,10 @@
 """Keep the installed compaction policy while scrubbing its separate model path."""
 
+from pathlib import Path
+from threading import Event
 from typing import Any
 
+from deepagents.backends import CompositeBackend
 from deepagents.backends.protocol import BackendProtocol
 from deepagents.middleware.summarization import (
     SummarizationMiddleware,
@@ -10,7 +13,27 @@ from deepagents.middleware.summarization import (
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AnyMessage
 
+from planning.readonly import ReadOnlyWorkspaceBackend
 from store.secrets import Redactor
+from tools.fs import WorkspaceBackend
+from tools.jail import storage_path
+
+
+def summary_backend(
+    root: Path, redactor: Redactor, cancelled: Event | None = None
+) -> CompositeBackend:
+    """Only the summarizer receives this private artifact-storage route."""
+    return CompositeBackend(
+        default=ReadOnlyWorkspaceBackend(root, redactor),
+        routes={
+            "/.harness/context/": WorkspaceBackend(
+                storage_path(root, "context"),
+                redactor,
+                cancelled=cancelled,
+            )
+        },
+        artifacts_root="/.harness/context",
+    )
 
 
 class RedactingSummarization(SummarizationMiddleware):

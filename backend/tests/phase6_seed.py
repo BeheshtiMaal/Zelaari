@@ -11,11 +11,10 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 import agent.bridge as bridge
 from agent.events import RunRequest
 from agent.factory import build_agent
-from agent.summarization import RedactingSummarization
+from agent.summarization import RedactingSummarization, summary_backend
 from providers.demo import DemoModel
 from store.catalog import Catalog
 from store.secrets import Redactor
-from tools.fs import WorkspaceBackend
 
 
 class SummaryFixture(DemoModel):
@@ -49,7 +48,7 @@ async def main() -> None:
             History(),
             RedactingSummarization(
                 model,
-                WorkspaceBackend(workspace, redactor),
+                summary_backend(workspace, redactor),
                 redactor,
                 trigger=("messages", 4),
                 keep=("messages", 2),

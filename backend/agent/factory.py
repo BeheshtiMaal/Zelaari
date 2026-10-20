@@ -18,7 +18,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
 from agent.activity import ActivityMiddleware
-from agent.summarization import RedactingSummarization
+from agent.summarization import RedactingSummarization, summary_backend
 from permissions.middleware import PermissionMiddleware
 from planning.readonly import SAFE_READ_TOOLS, ReadOnlyDelegateMiddleware, ReadOnlyWorkspaceBackend
 from planning.tools import build_submit_plan
@@ -105,7 +105,7 @@ def build_agent(
                     middleware=cast(
                         list[AgentMiddleware[Any, Any, Any]],
                         [
-                            ReadOnlyDelegateMiddleware(),
+                            ReadOnlyDelegateMiddleware(redactor),
                             FilesystemMiddleware(
                                 backend=child_backend,
                                 tools=read_tools,
@@ -175,7 +175,7 @@ def build_agent(
                     human_message_token_limit_before_evict=None,
                 ),
                 RedactingMiddleware(redactor),
-                RedactingSummarization(model, backend, redactor),
+                RedactingSummarization(model, summary_backend(root, redactor, cancelled), redactor),
                 SubAgentMiddleware(backend=backend, subagents=children),
                 ActivityMiddleware(
                     model_name or model.name or type(model).__name__,
