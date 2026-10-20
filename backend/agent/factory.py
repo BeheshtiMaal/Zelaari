@@ -6,15 +6,21 @@ from typing import Any, cast
 
 from deepagents import create_deep_agent
 from deepagents.middleware.filesystem import FilesystemMiddleware
+from deepagents.middleware.subagents import CompiledSubAgent, SubAgentMiddleware
+from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware, TodoListMiddleware
 from langchain.agents.middleware.types import ModelRequest, ModelResponse
 from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph.state import CompiledStateGraph
 
+from agent.activity import ActivityMiddleware
+from agent.summarization import RedactingSummarization
 from permissions.middleware import PermissionMiddleware
+from planning.readonly import SAFE_READ_TOOLS, ReadOnlyDelegateMiddleware, ReadOnlyWorkspaceBackend
 from planning.tools import build_submit_plan
 from questions.tools import build_ask_question, build_finish_interview
+from store.eventlog import EventBus
 from store.secrets import Redactor
 from tools.fs import SnapshotSink, WorkspaceBackend
 
@@ -63,9 +69,48 @@ def build_agent(
     extra_tools: list[Any] | None = None,
     extra_middleware: list[AgentMiddleware[Any, Any, Any]] | None = None,
     grill: bool = False,
+    bus: EventBus | None = None,
+    model_name: str | None = None,
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
     backend = WorkspaceBackend(root, redactor, snapshots)
+    child_backend = ReadOnlyWorkspaceBackend(root, redactor)
     prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
+    children: list[CompiledSubAgent] = []
+    read_tools: list[Any] = sorted(SAFE_READ_TOOLS)
+    for name in ("reviewer", "researcher"):
+        children.append(
+            {
+                "name": name,
+                "description": "Review source and report findings"
+                if name == "reviewer"
+                else "Research workspace and local documentation",
+                "runnable": create_agent(
+                    model=model,
+                    system_prompt=(
+                        f"You are the read-only {name}. Read workspace files and report findings "
+                        "in the user's language. Return clarification needs to the parent."
+                    ),
+                    middleware=cast(
+                        list[AgentMiddleware[Any, Any, Any]],
+                        [
+                            ReadOnlyDelegateMiddleware(),
+                            FilesystemMiddleware(
+                                backend=child_backend,
+                                tools=read_tools,
+                                tool_token_limit_before_evict=None,
+                                human_message_token_limit_before_evict=None,
+                            ),
+                            RedactingMiddleware(redactor),
+                            RedactingSummarization(model, child_backend, redactor),
+                            ActivityMiddleware(
+                                model_name or model.name or type(model).__name__, name
+                            ),
+                        ],
+                    ),
+                    name=name,
+                ),
+            }
+        )
     return create_deep_agent(
         model=model,
         backend=backend,
@@ -116,6 +161,9 @@ def build_agent(
                     human_message_token_limit_before_evict=None,
                 ),
                 RedactingMiddleware(redactor),
+                RedactingSummarization(model, backend, redactor),
+                SubAgentMiddleware(backend=backend, subagents=children),
+                ActivityMiddleware(model_name or model.name or type(model).__name__, bus=bus),
                 *(extra_middleware or []),
             ],
         ),

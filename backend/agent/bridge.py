@@ -8,14 +8,16 @@ from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
-from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
+from langchain_core.messages import AIMessageChunk
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.types import Command
 
+from agent.activity import finish_open_activity
 from agent.events import Event, RunRequest
 from agent.factory import build_agent
-from agent.meter import TokenMeter, content_parts
+from agent.meter import TokenMeter
+from agent.projection import ActivityProjection
 from permissions.middleware import PermissionMiddleware
 from permissions.review import prepare_review
 from permissions.rules import RulesEngine
@@ -28,6 +30,9 @@ from permissions.types import (
     Rule,
     UnknownApproval,
 )
+from planning.gate import record_from_state
+from planning.publication import publish_plan
+from planning.types import ActivityScope
 from providers.adapters import chat_model
 from providers.base import ProviderRecord, TaskRecord
 from providers.context import detect_context
@@ -38,7 +43,7 @@ from store.approvals import ApprovalLedger
 from store.catalog import Catalog
 from store.eventlog import EventBus
 from store.questions import QuestionLedger
-from store.secrets import Redactor, StreamRedactor
+from store.secrets import Redactor
 from store.workspaces import add_task, select_workspace
 from tools.command import CommandRunner, build_run_command
 from tools.git import add_worktree, build_git_switch, repository
@@ -201,10 +206,9 @@ class RunManager:
 
         async def execute() -> None:
             run = self.runs[run_id]
-            buffers: dict[str, StreamRedactor] = {}
             prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
             meter = TokenMeter(len(safe_task) + len(prompt))
-            streamed: set[str] = set()
+            projection = ActivityProjection(bus, meter, record.context.tokens)
             try:
                 async with AsyncSqliteSaver.from_conn_string(str(checkpoint)) as saver:
                     rules = RulesEngine.load(root, request.mode)
@@ -223,6 +227,8 @@ class RunManager:
                             build_git_switch(root),
                         ],
                         grill=grill,
+                        bus=bus,
+                        model_name=record.model,
                     )
                     config: RunnableConfig = {
                         "configurable": {"thread_id": run_id},
@@ -230,9 +236,16 @@ class RunManager:
                     }
                     payload: Any = {"messages": [{"role": "user", "content": safe_task}]}
                     if restore_id:
+                        await finish_open_activity(bus, "interrupted")
                         snapshot = await graph.aget_state(config)
                         if not snapshot.values:
                             raise ValueError("Checkpoint is unavailable; refusing a new invocation")
+                        await publish_plan(bus, record_from_state(snapshot.values))
+                        if snapshot.values.get("activity_scope") and snapshot.next:
+                            scope = ActivityScope.model_validate(snapshot.values["activity_scope"])
+                            scope = scope.model_copy(update={"scope_id": uuid4().hex})
+                            projection.scopes[()] = scope
+                            await bus.emit("activity.started", scope=scope)
                         if snapshot.interrupts:
                             await self._announce(run, snapshot.interrupts)
                             payload = Command(resume=await self._resume(run))
@@ -249,86 +262,26 @@ class RunManager:
                                 durability="sync",
                             ),
                         ):
-                            if namespace:
-                                continue
                             if mode == "messages":
                                 chunk, _metadata = update
                                 if isinstance(chunk, AIMessageChunk):
-                                    identifier = chunk.id or "assistant"
-                                    for kind, value in zip(
-                                        ("message.delta", "reasoning.delta"),
-                                        content_parts(chunk),
-                                        strict=True,
-                                    ):
-                                        buffer_id = identifier + kind
-                                        if value:
-                                            streamed.add(buffer_id)
-                                        buffer = buffers.setdefault(
-                                            buffer_id, StreamRedactor(self.redactor)
-                                        )
-                                        text = buffer.push(value)
-                                        if text:
-                                            await bus.emit(kind, message_id=identifier, text=text)
-                            elif mode == "updates":
-                                if "__interrupt__" in update:
-                                    continue
-                                for change in update.values():
-                                    if not isinstance(change, dict):
-                                        continue
-                                    for message in change.get("messages", []):
-                                        if isinstance(message, AIMessage):
-                                            identifier = message.id or "assistant"
-                                            for kind, value in zip(
-                                                ("message.delta", "reasoning.delta"),
-                                                content_parts(message),
-                                                strict=True,
-                                            ):
-                                                buffer_id = identifier + kind
-                                                buffer = buffers.setdefault(
-                                                    buffer_id, StreamRedactor(self.redactor)
-                                                )
-                                                tail = buffer.push(
-                                                    "" if buffer_id in streamed else value,
-                                                    final=True,
-                                                )
-                                                if tail:
-                                                    await bus.emit(
-                                                        kind,
-                                                        message_id=identifier,
-                                                        text=tail,
-                                                    )
-                                            for call in message.tool_calls:
-                                                await bus.emit(
-                                                    "tool.call",
-                                                    call_id=call["id"],
-                                                    name=call["name"],
-                                                    args=call["args"],
-                                                )
-                                            if meter.turn(message, identifier):
-                                                await bus.emit(
-                                                    "usage.updated",
-                                                    input_tokens=meter.input_tokens,
-                                                    output_tokens=meter.output_tokens,
-                                                    estimated=meter.estimated,
-                                                )
-                                        elif isinstance(message, ToolMessage):
-                                            meter.input_characters += len(str(message.content))
-                                            await bus.emit(
-                                                "tool.result",
-                                                call_id=message.tool_call_id,
-                                                text=str(message.content),
-                                            )
+                                    await projection.content(namespace, chunk, False)
+                            elif mode == "updates" and "__interrupt__" not in update:
+                                await projection.update(namespace, update)
 
                         # An interrupt ends the stream but not the run: the graph still
                         # has a node to re-execute once the decision arrives.
                         snapshot = await graph.aget_state(config)
+                        await publish_plan(bus, record_from_state(snapshot.values))
                         if not snapshot.next:
                             break
                         await self._announce(run, snapshot.interrupts)
                         payload = Command(resume=await self._resume(run))
+                await finish_open_activity(bus, "completed")
                 await bus.emit("run.finished", status="completed")
             except asyncio.CancelledError:
                 if not run.preserving:
+                    await finish_open_activity(bus, "cancelled")
                     await bus.emit("run.finished", status="stopped")
             except Exception as error:
                 if run.ledger:
@@ -767,6 +720,7 @@ class RunManager:
             run.task.cancel()
             # Report cancellation before SQLite/HTTP cleanup. Terminal buses reject
             # late events, so cleanup cannot append results or another finish.
+            await finish_open_activity(run.bus, "cancelled")
             await run.bus.emit("run.finished", status="stopped")
 
     def events(self, run_id: str, after: int) -> AsyncIterator[Event]:

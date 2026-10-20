@@ -79,6 +79,10 @@ def test_plan_question_partial_decisions_restart(
         assert sum(event.type == "approval.requested" for event in events) == 1
         assert sum(event.type == "question.asked" for event in events) == 1
         assert sum(event.type == "tool.result" for event in events) == 2
+        plans = [event for event in events if event.type == "plan.created"]
+        assert len(plans) == 1
+        assert plans[0].plan.adoption == "approved"
+        assert plans[0].seq < next(event.seq for event in events if event.type == "tool.result")
         assert restored.questions(run_id)[0].status == "declined"
         await restored.close()
 

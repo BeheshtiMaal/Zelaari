@@ -202,6 +202,18 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             return None
         self.plan_context = dict(state)
         previous_plan = record_from_state(self.plan_context)
+        blocked_progress: set[str] = set()
+        if previous_plan and any(call["name"] == "task" for call in last.tool_calls):
+            current_step = active_step(previous_plan)
+            if current_step:
+                for call in last.tool_calls:
+                    if call["name"] == "write_todos" and any(
+                        todo.get("status") == "completed"
+                        and str(todo.get("content", "")).startswith(f"[{current_step.id}] ")
+                        for todo in call["args"].get("todos", [])
+                        if isinstance(todo, dict)
+                    ):
+                        blocked_progress.add(call_key(call))
 
         phase = state.get("interview_phase", "interviewing")
         if not last.tool_calls:
@@ -243,6 +255,8 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                 )
             if self.grill and phase == "declined":
                 return PermissionOutcome(action="deny", reason="Interview was declined")
+            if call_key(call) in blocked_progress:
+                return PermissionOutcome(action="deny", reason="Wait for delegated work to finish")
             return self.plans.classify(call, previous_plan, self.decide(call))
 
         outcomes: dict[str, dict[str, Any]] = {}
