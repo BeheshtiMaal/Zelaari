@@ -31,12 +31,13 @@ class Shell:
     prefix: tuple[str, ...]
 
 
-def pick_shell() -> Shell:
+def pick_shell(preference: str = "auto") -> Shell:
     """PowerShell when present, cmd otherwise. Never a bare string shell."""
-    for name in ("powershell.exe", "pwsh.exe"):
-        found = shutil.which(name)
-        if found:
-            return Shell("powershell", found, ("-NoProfile", "-NonInteractive", "-Command"))
+    if preference != "cmd":
+        for name in ("powershell.exe", "pwsh.exe"):
+            found = shutil.which(name)
+            if found:
+                return Shell("powershell", found, ("-NoProfile", "-NonInteractive", "-Command"))
     comspec = shutil.which("cmd.exe") or "cmd.exe"
     return Shell("cmd", comspec, ("/d", "/s", "/c"))
 
@@ -65,10 +66,24 @@ class _BoundedReader(threading.Thread):
 
 
 class CommandRunner:
-    def __init__(self, root: Path, redactor: Redactor, *, secrets: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        redactor: Redactor,
+        *,
+        secrets: list[str] | None = None,
+        shell: str = "auto",
+        timeout: float = DEFAULT_TIMEOUT,
+        max_lines: int = MAX_LINES,
+    ) -> None:
         self.root = root
         self.redactor = redactor
         self.secrets = secrets or []
+        # The workspace's terminal settings decide the shell, the deadline and the window;
+        # a call may still ask for a longer timeout, up to the hard maximum.
+        self.shell = shell
+        self.timeout = float(timeout)
+        self.max_lines = max(1, int(max_lines))
         self.cancelled = threading.Event()
 
     def cancel(self) -> None:
@@ -87,15 +102,15 @@ class CommandRunner:
         self,
         command: str,
         *,
-        timeout: float = DEFAULT_TIMEOUT,
+        timeout: float | None = None,
         offset: int = 0,
         cwd: str | None = None,
     ) -> CommandResult:
         if self.cancelled.is_set():
             raise RuntimeError("Run was cancelled before command dispatch")
-        shell = pick_shell()
+        shell = pick_shell(self.shell)
         working = self._cwd(cwd)
-        limit = min(max(float(timeout), 1.0), MAX_TIMEOUT)
+        limit = min(max(float(self.timeout if timeout is None else timeout), 1.0), MAX_TIMEOUT)
         environment = redact_environment(child_environment(self.secrets), self.secrets)
 
         argv = [shell.executable, *shell.prefix, command]
@@ -173,6 +188,7 @@ class CommandRunner:
             timeout_seconds=limit,
             killed_tree=killed,
             overflow=reader.overflow,
+            max_lines=self.max_lines,
         )
 
     @staticmethod
@@ -210,10 +226,11 @@ def _window(
     timeout_seconds: float,
     killed_tree: bool,
     overflow: bool,
+    max_lines: int = MAX_LINES,
 ) -> CommandResult:
     lines = text.splitlines()
     start = max(0, offset)
-    window = lines[start : start + MAX_LINES]
+    window = lines[start : start + max_lines]
     remaining = max(0, len(lines) - start - len(window))
     body = "\n".join(window)
     if remaining:
@@ -240,15 +257,18 @@ def _window(
 
 class RunCommandInput(BaseModel):
     command: str = Field(description="The command line to run in the workspace root")
-    timeout: float = Field(
-        default=DEFAULT_TIMEOUT,
-        description="Seconds before the process tree is killed (default 120, max 600)",
+    timeout: float | None = Field(
+        default=None,
+        description=(
+            "Seconds before the process tree is killed (the workspace default applies "
+            "when omitted, max 600)"
+        ),
     )
     offset: int = Field(default=0, description="Line offset for paging long output")
 
 
 def build_run_command(runner: CommandRunner) -> StructuredTool:
-    def run(command: str, timeout: float = DEFAULT_TIMEOUT, offset: int = 0) -> str:
+    def run(command: str, timeout: float | None = None, offset: int = 0) -> str:
         result = runner.run(command, timeout=timeout, offset=offset)
         return json.dumps(result.model_dump(), ensure_ascii=False)
 
@@ -257,7 +277,7 @@ def build_run_command(runner: CommandRunner) -> StructuredTool:
         name="run_command",
         description=(
             "Run a shell command in the workspace. PowerShell by default, cmd as fallback. "
-            "Returns exit code and at most 200 lines; page with offset. "
+            "Returns exit code and a bounded number of lines; page with offset. "
             "The whole process tree is killed when the timeout expires."
         ),
         args_schema=RunCommandInput,

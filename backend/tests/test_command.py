@@ -134,3 +134,61 @@ def test_tool_wrapper_returns_json(runner: CommandRunner) -> None:
     assert payload["exit_code"] == 0
     assert "tool-path" in payload["output"]
     assert payload["shell"] == "powershell"
+
+
+def test_the_workspace_settings_set_the_shell_deadline_and_window(tmp_path: Path) -> None:
+    settings = CommandRunner(
+        tmp_path, Redactor(), shell="cmd", timeout=5, max_lines=20
+    )
+    assert pick_shell(settings.shell).name == "cmd"
+    result = settings.run("echo ok")
+    assert result.shell == "cmd"
+    # The deadline the run reports is the workspace's, not the installed default.
+    assert result.timeout_seconds == 5
+
+    window = CommandRunner(tmp_path, Redactor(), max_lines=20)
+    capped = window.run("1..500 | ForEach-Object { $_ }")
+    assert len([line for line in capped.output.splitlines() if line.strip().isdigit()]) == 20
+    assert capped.total_lines == 500 and capped.truncated is True
+
+
+def test_a_call_may_still_ask_for_its_own_deadline(runner: CommandRunner) -> None:
+    result = runner.run("Write-Output 'ok'", timeout=2)
+    assert result.timeout_seconds == 2
+
+
+def test_the_workspace_deadline_kills_the_tree(tmp_path: Path) -> None:
+    short = CommandRunner(tmp_path, Redactor(), timeout=1)
+    result = short.run("Start-Sleep -Seconds 20; Write-Output 'never'")
+    assert result.timed_out is True
+    assert result.exit_code is None
+    assert result.timeout_seconds == 1
+
+
+def test_the_workspace_settings_set_the_shell_deadline_and_window(tmp_path: Path) -> None:
+    settings = CommandRunner(
+        tmp_path, Redactor(), shell="cmd", timeout=5, max_lines=20
+    )
+    assert pick_shell(settings.shell).name == "cmd"
+    result = settings.run("echo ok")
+    assert result.shell == "cmd"
+    # The deadline the run reports is the workspace's, not the installed default.
+    assert result.timeout_seconds == 5
+
+    window = CommandRunner(tmp_path, Redactor(), max_lines=20)
+    capped = window.run("1..500 | ForEach-Object { $_ }")
+    assert len([line for line in capped.output.splitlines() if line.strip().isdigit()]) == 20
+    assert capped.total_lines == 500 and capped.truncated is True
+
+
+def test_a_call_may_still_ask_for_its_own_deadline(runner: CommandRunner) -> None:
+    result = runner.run("Write-Output 'ok'", timeout=2)
+    assert result.timeout_seconds == 2
+
+
+def test_the_workspace_deadline_kills_the_tree(tmp_path: Path) -> None:
+    short = CommandRunner(tmp_path, Redactor(), timeout=1)
+    result = short.run("Start-Sleep -Seconds 20; Write-Output 'never'")
+    assert result.timed_out is True
+    assert result.exit_code is None
+    assert result.timeout_seconds == 1

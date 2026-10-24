@@ -316,7 +316,14 @@ class RunManager:
             try:
                 async with AsyncSqliteSaver.from_conn_string(str(checkpoint)) as saver:
                     rules = RulesEngine.load(root, request.mode)
-                    runner = CommandRunner(root, self.redactor, secrets=self.redactor.values)
+                    runner = CommandRunner(
+                        root,
+                        self.redactor,
+                        secrets=self.redactor.values,
+                        shell=settings.terminal.shell,
+                        timeout=settings.terminal.timeout_seconds,
+                        max_lines=settings.terminal.max_output_lines,
+                    )
                     run.runner = runner
                     graph = build_agent(
                         root,
