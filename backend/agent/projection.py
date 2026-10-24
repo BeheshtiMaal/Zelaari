@@ -1,6 +1,7 @@
 """Project real graph updates into the single durable scoped event stream."""
 
 import hashlib
+import json
 from typing import Any
 
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
@@ -13,6 +14,7 @@ from planning.types import ActivityScope
 from store.delegates import DelegateResults
 from store.eventlog import EventBus
 from store.secrets import StreamRedactor
+from verify.results import matches_verification, parse_test_output
 
 
 class ActivityProjection:
@@ -22,15 +24,19 @@ class ActivityProjection:
         meter: TokenMeter,
         context_window: int | None,
         context_window_estimated: bool = False,
+        verification: str | None = None,
     ) -> None:
         self.bus = bus
         self.meter = meter
         self.window = context_window
         self.window_estimated = context_window_estimated
+        self.verification = verification
         self.scopes: dict[tuple[str, ...], ActivityScope] = {}
         self.buffers: dict[str, StreamRedactor] = {}
         self.streamed: set[str] = set()
         self.finished: set[str] = set()
+        self.commands: dict[str, str] = {}
+        self.tested: set[str] = set()
 
     async def content(
         self, namespace: tuple[str, ...], message: AIMessage | AIMessageChunk, final: bool
@@ -52,6 +58,34 @@ class ActivityProjection:
                 text = buffer.push(value)
             if text:
                 await self.bus.emit(kind, scope=scope, message_id=identifier, text=text)
+
+    async def test_result(self, message: ToolMessage) -> None:
+        """Emit `test.result` only for the run's verification command, from real output."""
+        if not self.verification or message.tool_call_id in self.tested:
+            return
+        command = self.commands.get(str(message.tool_call_id))
+        if command is None or not matches_verification(command, self.verification):
+            return
+        try:
+            payload = json.loads(str(message.content))
+        except ValueError:
+            return
+        if not isinstance(payload, dict):
+            return
+        self.tested.add(message.tool_call_id)
+        exit_code = payload.get("exit_code")
+        duration = payload.get("duration_ms")
+        outcome = parse_test_output(
+            command=command,
+            exit_code=exit_code if isinstance(exit_code, int) else None,
+            timed_out=payload.get("timed_out") is True,
+            duration_ms=duration if isinstance(duration, int) else 0,
+            output=str(payload.get("output", "")),
+            redact=self.bus.redactor.text,
+        )
+        await self.bus.emit(
+            "test.result", call_id=message.tool_call_id, command=command, **outcome.model_dump()
+        )
 
     async def update(self, namespace: tuple[str, ...], update: dict[str, Any]) -> None:
         for change in update.values():
@@ -116,6 +150,13 @@ class ActivityProjection:
                 if isinstance(message, AIMessage):
                     await self.content(namespace, message, True)
                     for call in message.tool_calls:
+                        command = call["args"].get("command")
+                        if (
+                            call["name"] == "run_command"
+                            and call["id"]
+                            and isinstance(command, str)
+                        ):
+                            self.commands[call["id"]] = command
                         await self.bus.emit(
                             "tool.call",
                             scope=scope,
@@ -159,6 +200,7 @@ class ActivityProjection:
                         call_id=message.tool_call_id,
                         text=str(message.content),
                     )
+                    await self.test_result(message)
                     if not namespace:
                         records = DelegateResults(
                             self.bus.path.with_name("delegates.json"), self.bus.redactor

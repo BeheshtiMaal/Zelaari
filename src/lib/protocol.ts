@@ -22,6 +22,7 @@ export type Event =
   | ContextSummarized
   | ContextUpdated
   | SteeringUpdated
+  | TestResult
   | FutureEvent;
 export type RunId = string;
 export type Seq = number;
@@ -334,15 +335,42 @@ export type DeliveredAt = string | null;
 export type RunId26 = string;
 export type Seq21 = number;
 export type Ts21 = string;
-export type Type22 = "ui.render" | "test.result";
+export type Type22 = "test.result";
+export type CallId4 = string;
+export type Command1 = string;
+export type Status7 = "passed" | "failed" | "error" | "timeout";
+export type ExitCode = number | null;
+export type Passed = number | null;
+export type Failed = number | null;
+export type DurationMs = number;
+/**
+ * @maxItems 10
+ */
+export type Failures =
+  | []
+  | [string]
+  | [string, string]
+  | [string, string, string]
+  | [string, string, string, string]
+  | [string, string, string, string, string]
+  | [string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string];
+export type Summary = string;
+export type RunId27 = string;
+export type Seq22 = number;
+export type Ts22 = string;
+export type Type23 = "ui.render";
 export type Task3 = string;
 export type Workspace1 = string;
 export type Model2 = string;
 export type Mode = "read-only" | "ask" | "auto";
 export type Worktree = boolean;
 export type WorktreeApproved = boolean;
-export type RunId27 = string;
-export type Status7 = "ok";
+export type RunId28 = string;
+export type Status8 = "ok";
 export type Id3 = string;
 export type Name1 = string;
 export type BaseUrl = string;
@@ -357,7 +385,7 @@ export type KeySuffix = string;
 export type Tokens = number;
 export type Source1 = "metadata" | "table" | "error" | "fallback";
 export type Estimated2 = boolean;
-export type Status8 = "untested" | "testing" | "retrying" | "ok" | "error";
+export type Status9 = "untested" | "testing" | "retrying" | "ok" | "error";
 export type Code = ("unauthorized" | "rate_limit" | "no_tools" | "network" | "vault") | null;
 export type Attempt = number;
 export type RetrySeconds = number;
@@ -377,7 +405,7 @@ export type Workspace3 = string;
 export type Title1 = string;
 export type Model5 = string;
 export type Mode1 = "read-only" | "ask" | "auto";
-export type Status9 = "running" | "completed" | "stopped" | "error" | "interrupted";
+export type Status10 = "running" | "completed" | "stopped" | "error" | "interrupted";
 export type Worktree1 = string | null;
 export type Tasks = TaskRecord[];
 export type Decision1 = "approve" | "reject";
@@ -388,7 +416,7 @@ export type EditedArgs = {
 export type AllowGlob = string | null;
 export type Revision4 = string | null;
 export type InterruptId2 = string;
-export type Status10 = "pending" | "approved" | "rejected" | "cancelled";
+export type Status11 = "pending" | "approved" | "rejected" | "cancelled";
 export type Decision2 = "approve" | "reject";
 export type Reason3 = string | null;
 export type EditedArgs1 = {
@@ -400,12 +428,12 @@ export type ApprovalId2 = string;
 export type ResolvedAt1 = string | null;
 export type ExecutionStatus = "not_started" | "running" | "completed" | "interrupted";
 export type Result1 = string | null;
-export type Status11 = "ok";
-export type RunId28 = string | null;
-export type Command1 = string;
+export type Status12 = "ok";
+export type RunId29 = string | null;
+export type Command2 = string;
 export type Shell = "powershell" | "cmd";
-export type ExitCode = number | null;
-export type DurationMs = number;
+export type ExitCode1 = number | null;
+export type DurationMs1 = number;
 export type Output1 = string;
 export type Truncated = boolean;
 export type TotalLines = number;
@@ -433,9 +461,9 @@ export type CreatedSnapshotId = string;
 export type Id6 = string;
 export type Path6 = string;
 export type Existed = boolean;
-export type Ts22 = string;
-export type RunId29 = string | null;
-export type CallId4 = string | null;
+export type Ts23 = string;
+export type RunId30 = string | null;
+export type CallId5 = string | null;
 export type Bytes = number;
 export type Tool1 = string;
 export type Workspace4 = string;
@@ -455,7 +483,7 @@ export type Mode4 = "read-only" | "ask" | "auto";
 export type AlwaysAsk = string[];
 export type Kind6 = "question";
 export type InterruptId3 = string;
-export type Status12 = "answered" | "declined";
+export type Status13 = "answered" | "declined";
 /**
  * @maxItems 3
  */
@@ -471,15 +499,36 @@ export type KeepMessages = number;
 export type Offload = boolean;
 export type ShowRing = boolean;
 export type Gate = boolean;
-export type Command2 = string | null;
+export type Command3 = string | null;
 export type MaxSteps = number;
 export type MaxMinutes = number;
 export type FixAttempts = number;
 export type Shell1 = string;
 export type TimeoutSeconds1 = number;
 export type MaxOutputLines = number;
-export type Command3 = string | null;
+export type Command4 = string | null;
 export type Source2 = "custom" | "pytest.ini" | "pyproject.toml" | "tests" | "package.json" | "none";
+export type Status14 = "passed" | "failed" | "error" | "timeout";
+export type ExitCode2 = number | null;
+export type Passed1 = number | null;
+export type Failed1 = number | null;
+export type DurationMs2 = number;
+/**
+ * @maxItems 10
+ */
+export type Failures1 =
+  | []
+  | [string]
+  | [string, string]
+  | [string, string, string]
+  | [string, string, string, string]
+  | [string, string, string, string, string]
+  | [string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string]
+  | [string, string, string, string, string, string, string, string, string, string];
+export type Summary1 = string;
 
 /**
  * Schema-generation envelope only; never sent over the wire.
@@ -514,6 +563,7 @@ export interface Protocol {
   planning_settings: PlanningSettings;
   verify_settings: VerifySettingsResponse;
   verify_config: VerifyConfig;
+  test_outcome: TestOutcome;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -840,13 +890,31 @@ export interface SteeringRecord {
   delivered_at?: DeliveredAt;
 }
 /**
- * Reserved events: not emitted by the Phase 3 bridge.
+ * One verification command's outcome, parsed from its real output.
  */
-export interface FutureEvent {
+export interface TestResult {
   run_id: RunId26;
   seq: Seq21;
   ts?: Ts21;
-  type: Type22;
+  type?: Type22;
+  call_id: CallId4;
+  command: Command1;
+  status: Status7;
+  exit_code: ExitCode;
+  passed?: Passed;
+  failed?: Failed;
+  duration_ms?: DurationMs;
+  failures?: Failures;
+  summary?: Summary;
+}
+/**
+ * Reserved events: not emitted by the bridge yet.
+ */
+export interface FutureEvent {
+  run_id: RunId27;
+  seq: Seq22;
+  ts?: Ts22;
+  type: Type23;
   data: Data;
 }
 export interface Data {
@@ -861,10 +929,10 @@ export interface RunRequest {
   worktree_approved?: WorktreeApproved;
 }
 export interface RunResponse {
-  run_id: RunId27;
+  run_id: RunId28;
 }
 export interface HealthResponse {
-  status?: Status7;
+  status?: Status8;
 }
 export interface ModelInput {
   id: Id3;
@@ -890,7 +958,7 @@ export interface Context1 {
   estimated?: Estimated2;
 }
 export interface Probe {
-  status?: Status8;
+  status?: Status9;
   code?: Code;
   attempt?: Attempt;
   retry_seconds?: RetrySeconds;
@@ -920,7 +988,7 @@ export interface TaskRecord {
   title: Title1;
   model: Model5;
   mode?: Mode1;
-  status?: Status9;
+  status?: Status10;
   worktree?: Worktree1;
 }
 export interface ApprovalDecision {
@@ -933,7 +1001,7 @@ export interface ApprovalDecision {
 export interface ApprovalRecord {
   request: ApprovalRequest;
   interrupt_id: InterruptId2;
-  status?: Status10;
+  status?: Status11;
   answer?: ApprovalAnswer | null;
   resolved_at?: ResolvedAt1;
   execution_status?: ExecutionStatus;
@@ -954,17 +1022,17 @@ export interface ApprovalAnswer {
   approval_id: ApprovalId2;
 }
 export interface ApprovalResolution {
-  status?: Status11;
-  run_id?: RunId28;
+  status?: Status12;
+  run_id?: RunId29;
 }
 /**
  * What `run_command` returns to the model and what the timeout card reads.
  */
 export interface CommandResult {
-  command: Command1;
+  command: Command2;
   shell: Shell;
-  exit_code?: ExitCode;
-  duration_ms?: DurationMs;
+  exit_code?: ExitCode1;
+  duration_ms?: DurationMs1;
   output?: Output1;
   truncated?: Truncated;
   total_lines?: TotalLines;
@@ -1006,9 +1074,9 @@ export interface SnapshotEntry {
   id: Id6;
   path: Path6;
   existed: Existed;
-  ts: Ts22;
-  run_id?: RunId29;
-  call_id?: CallId4;
+  ts: Ts23;
+  run_id?: RunId30;
+  call_id?: CallId5;
   bytes?: Bytes;
   tool?: Tool1;
 }
@@ -1066,7 +1134,7 @@ export interface Defaults {
 export interface QuestionDecision {
   kind?: Kind6;
   interrupt_id: InterruptId3;
-  status: Status12;
+  status: Status13;
   answers?: Answers1;
 }
 export interface SteeringSubmission {
@@ -1087,7 +1155,7 @@ export interface ContextSettings {
 }
 export interface VerifySettings {
   gate?: Gate;
-  command?: Command2;
+  command?: Command3;
   max_steps?: MaxSteps;
   max_minutes?: MaxMinutes;
   fix_attempts?: FixAttempts;
@@ -1098,13 +1166,22 @@ export interface TerminalSettings {
   max_output_lines?: MaxOutputLines;
 }
 export interface Detection {
-  command?: Command3;
+  command?: Command4;
   source?: Source2;
 }
 export interface VerifyConfig {
   context?: ContextSettings;
   verify?: VerifySettings;
   terminal?: TerminalSettings;
+}
+export interface TestOutcome {
+  status: Status14;
+  exit_code: ExitCode2;
+  passed?: Passed1;
+  failed?: Failed1;
+  duration_ms?: DurationMs2;
+  failures?: Failures1;
+  summary?: Summary1;
 }
 
 // Serialized events always include the Pydantic discriminator and timestamp defaults.

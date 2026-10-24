@@ -32,6 +32,7 @@ from tools.types import (
     RulesResponse,
     SnapshotEntry,
 )
+from verify.results import TestOutcome
 from verify.settings import VerifyConfig, VerifySettingsResponse
 
 
@@ -108,13 +109,25 @@ class QuestionAnswered(EventBase):
 
 
 class FutureEvent(EventBase):
-    """Reserved events: not emitted by the Phase 3 bridge."""
+    """Reserved events: not emitted by the bridge yet."""
 
-    type: Literal[
-        "ui.render",
-        "test.result",
-    ]
+    type: Literal["ui.render"]
     data: dict[str, JsonValue]
+
+
+class TestResult(EventBase):
+    """One verification command's outcome, parsed from its real output."""
+
+    type: Literal["test.result"] = "test.result"
+    call_id: str
+    command: str
+    status: Literal["passed", "failed", "error", "timeout"]
+    exit_code: int | None
+    passed: int | None = Field(default=None, ge=0)
+    failed: int | None = Field(default=None, ge=0)
+    duration_ms: int = Field(default=0, ge=0)
+    failures: list[str] = Field(default_factory=list, max_length=10)
+    summary: str = ""
 
 
 class PlanCreated(EventBase):
@@ -213,6 +226,7 @@ Event = Annotated[
     | ContextSummarized
     | ContextUpdated
     | SteeringUpdated
+    | TestResult
     | FutureEvent,
     Field(discriminator="type"),
 ]
@@ -274,3 +288,4 @@ class Protocol(WireModel):
     planning_settings: PlanningSettings
     verify_settings: VerifySettingsResponse
     verify_config: VerifyConfig
+    test_outcome: TestOutcome

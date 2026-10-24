@@ -51,6 +51,8 @@ from tools.command import CommandRunner, build_run_command
 from tools.git import add_worktree, build_git_switch, repository
 from tools.jail import storage_path, workspace_root
 from tools.snapshot import SnapshotStore
+from verify.detection import detect
+from verify.settings import load_config
 
 
 class WorktreeApprovalRequired(Exception):
@@ -79,6 +81,8 @@ class Run:
     steering: SteeringQueue | None = None
     cleanup: asyncio.Task[None] | None = None
     runner: CommandRunner | None = None
+    verification: str | None = None
+    """The command that proves the work, resolved once at run start."""
 
 
 class RunManager:
@@ -236,6 +240,9 @@ class RunManager:
             run = self.runs[run_id]
             prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
             meter = TokenMeter(len(safe_task) + len(prompt))
+            settings = load_config(root)
+            verification = detect(root, settings.verify.command).command
+            run.verification = verification
             previous_usage = next(
                 (event for event in reversed(bus.history) if event.type == "usage.updated"), None
             )
@@ -244,7 +251,7 @@ class RunManager:
                 meter.output_tokens = previous_usage.output_tokens
                 meter.estimated = previous_usage.estimated
             projection = ActivityProjection(
-                bus, meter, record.context.tokens, record.context.estimated
+                bus, meter, record.context.tokens, record.context.estimated, verification
             )
             try:
                 async with AsyncSqliteSaver.from_conn_string(str(checkpoint)) as saver:
