@@ -88,6 +88,7 @@ class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
             result = await handler(request)
             if isinstance(result, Command) and isinstance(result.update, dict):
                 result.update.pop("child_activity_scope", None)
+                result.update.pop("summary_notice", None)
             return result
         args = call["args"]
         name = args.get("subagent_type")
@@ -139,6 +140,7 @@ class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
             result = await handler(request)
             if isinstance(result, Command) and isinstance(result.update, dict):
                 result.update.pop("child_activity_scope", None)
+                result.update.pop("summary_notice", None)
             messages = (
                 (result.update or {}).get("messages", [])
                 if isinstance(result, Command)

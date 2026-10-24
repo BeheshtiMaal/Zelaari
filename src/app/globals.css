@@ -335,12 +335,11 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .current-waiting { background: #2A2415; border: 1px solid #5A4510; border-radius: 14px; padding: 10px 14px; color: #FCD34D; font-size: 13px; }
 .run-layout { display: flex; flex: 1; min-block-size: 0; }
 .run-main { display: flex; flex-direction: column; flex: 1; min-inline-size: 0; }
-.run-info { inline-size: 288px; flex: none; background: #1E2024; border-inline-start: 1px solid #2C2F36; padding: 20px 18px; }
+.run-info { box-sizing: border-box; inline-size: 300px; flex: none; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; background: #1E2024; border-inline-start: 1px solid #2C2F36; padding: 20px 18px; }
 .home-main { display: flex; flex-direction: column; gap: 28px; }
 @media (max-width: 1100px) { .run-layout { flex-direction: column; } .run-main { min-block-size: 0; } .run-info { order: -1; inline-size: auto; padding: 8px 18px; border-inline-start: 0; } }
 .run-main > .compose-region { flex-shrink: 1; min-block-size: 160px; overflow-y: auto; }
 .run-main .timeline { min-block-size: 48px; }
-.run-info { box-sizing: border-box; inline-size: 300px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; }
 .run-info h2 { font-size: 14px; font-weight: 800; margin-block: 0 10px; }
 .run-info p { margin-block: 6px; font-size: 12px; }
 .run-info .current-waiting { margin-block-start: auto; }

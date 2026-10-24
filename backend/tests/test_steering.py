@@ -136,6 +136,18 @@ def test_steering_auth_bounds_and_unknown_run(tmp_path: Path) -> None:
         assert client.post(path, json=value).status_code == 401
         headers = {"Authorization": "Bearer test-auth"}
         assert client.post(path, json=value, headers=headers).status_code == 404
+        configuration = client.put(
+            "/planning/settings",
+            params={"workspace": str(tmp_path)},
+            json={"step_threshold": 5},
+            headers=headers,
+        ).json()["request"]
+        assert (
+            client.post(
+                f"/runs/{configuration['run_id']}/messages", json=value, headers=headers
+            ).status_code
+            == 409
+        )
         for text in (" ", "x" * 32001):
             assert (
                 client.post(path, json={**value, "text": text}, headers=headers).status_code == 422

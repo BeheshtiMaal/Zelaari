@@ -93,3 +93,40 @@ def test_stream_secret_split_between_chunks() -> None:
     output = "".join(stream.push(part) for part in ["hello ca", "nary-", "secret world"])
     output += stream.push("", final=True)
     assert output == "hello [REDACTED] world"
+
+
+def test_overlapping_recovery_never_starts_a_second_invocation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Every polled endpoint calls recover(), so two overlapping requests can both find a run
+    # missing from memory. Only one graph invocation may be created: a duplicate stays
+    # suspended and keeps the workspace checkpoint connection open after the run ends.
+    (tmp_path / "README.md").write_text("local context", encoding="utf-8")
+    started: list[str | None] = []
+
+    async def scenario() -> None:
+        from store.catalog import Catalog
+
+        manager = RunManager(catalog=Catalog(tmp_path / "catalog.json"))
+        request = RunRequest(task="read README.md", workspace=str(tmp_path), mode="auto")
+        original = manager._start
+
+        async def counted(*args: Any, **kwargs: Any) -> str:
+            started.append(kwargs.get("restore_id"))
+            return await original(*args, **kwargs)
+
+        monkeypatch.setattr(manager, "_start", counted)
+        run_id = await manager.start(request)
+        await manager.runs[run_id].task
+        manager.runs.clear()
+        results = await asyncio.gather(
+            manager.start(request, restore_id=run_id),
+            manager.start(request, restore_id=run_id),
+        )
+        assert list(results) == [run_id, run_id]
+        assert started.count(run_id) == 1
+        await manager.runs[run_id].task
+        assert manager.runs[run_id].bus.history[-1].type == "run.finished"
+        await manager.close()
+
+    asyncio.run(scenario())

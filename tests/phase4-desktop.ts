@@ -25,18 +25,33 @@ const fixtureKey = "synthetic-phase4-vault-canary";
 const server = createServer(async (request, response) => {
   if (request.url === "/v1/models") { response.writeHead(200, { "Content-Type": "application/json" }); response.end(JSON.stringify({ data: [{ id: "fixture", context_window: 65536 }] })); return; }
   let body = ""; for await (const chunk of request) body += String(chunk);
-  const input = JSON.parse(body) as { stream?: boolean; tools?: { function: { name: string } }[]; messages: { role: string; content: string }[] };
+  const input = JSON.parse(body) as { stream?: boolean; tools?: { function: { name: string } }[]; messages: { role: string; content: string; tool_call_id?: string }[] };
   const probe = input.tools?.some(tool => tool.function.name === "harness_probe");
   const task = input.messages.find(message => message.role === "user")?.content ?? "";
   const answered = input.messages.some(message => message.role === "tool");
   if (answered) results.push(input.messages.filter(message => message.role === "tool").map(message => message.content).join("\n"));
+  // Phase 6 requires an accepted plan with an active step before mutations or commands, so
+  // this fixture plans, starts its step, then dispatches the effects it was written for.
+  const answeredIds = new Set(input.messages.filter(message => message.role === "tool").map(message => message.tool_call_id));
+  const planned = answeredIds.has("plan"), started = answeredIds.has("todos");
+  const effected = [...answeredIds].some(id => id !== undefined && id !== "plan" && id !== "todos");
   let calls = task.includes("pair") ? [
     { name: "edit_file", args: { file_path: "src/parser.py", old_string: "return s", new_string: "return s.strip()" }, id: "edit-one" },
     { name: "write_file", args: { file_path: "src/rejected.py", content: "should not exist" }, id: "write-two" },
   ] : [{ name: "write_file", args: { file_path: `src/${task.includes("second") ? "second" : "restart"}.txt`, content: "restart survived" }, id: "restart-write" }];
   if (task.includes("command")) calls = [{ name: "run_command", args: { command: "Add-Content launches.txt launch; Start-Sleep -Seconds 45", timeout: 60 }, id: "crash-command" }] as unknown as typeof calls;
-  if (probe) calls = [{ name: "harness_probe", args: { marker: "connection-ok" }, id: "probe" }] as unknown as typeof calls;
+  const effects = calls;
   if (answered) calls = [];
+  if (!probe) {
+    // Declare the concrete targets so the plan is auto-adopted; an empty glob expansion is
+    // correctly reviewed as uncertain scope and would add an approval the fixture does not test.
+    const files = task.includes("pair") ? ["src/parser.py", "src/rejected.py"]
+      : task.includes("command") ? ["launches.txt"]
+        : [`src/${task.includes("second") ? "second" : "restart"}.txt`];
+    if (!planned) calls = [{ name: "submit_plan", args: { steps: [{ id: "s1", title: "Apply the requested change", expected_files: files }] }, id: "plan" }] as unknown as typeof calls;
+    else if (!started) calls = [{ name: "write_todos", args: { todos: [{ content: "[s1] Apply the requested change", status: "in_progress" }] }, id: "todos" }] as unknown as typeof calls;
+    else if (!effected) calls = effects;
+  } else calls = [{ name: "harness_probe", args: { marker: "connection-ok" }, id: "probe" }] as unknown as typeof calls;
   const content = calls.length ? "" : 'root = Callout("done");';
   const tool_calls = calls.map(call => ({ id: call.id, type: "function", function: { name: call.name, arguments: JSON.stringify(call.args) } }));
   response.writeHead(200, { "Content-Type": input.stream ? "text/event-stream" : "application/json" });
@@ -68,6 +83,17 @@ async function api<T>(page: Page, path: string, method = "GET", value?: unknown)
   }, { path, method, value }) as Promise<T>;
 }
 async function exists(path: string) { try { await stat(path); return true; } catch { return false; } }
+// Windows can keep a directory handle for a moment after the engine closes its SQLite
+// checkpoint, so the "workspace disappeared" step waits for the handle instead of racing it.
+async function releaseAndRename(from: string, to: string) {
+  for (let attempt = 0; ; attempt++) {
+    try { await rename(from, to); return; }
+    catch (error) {
+      if (attempt >= 20) throw error;
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
+}
 async function task(page: Page, text: string) {
   await page.locator(".sidebar nav button").first().click();
   await page.locator("#task").fill(text); await page.locator("button[type=submit]").click();
@@ -184,7 +210,7 @@ try {
   await expect.poll(() => exists(join(secondWorkspace, "src/second.txt"))).toBe(true);
   step("temporarily unavailable workspace stays in history and can be restored");
   await expect.poll(async () => (await api<{ tasks: { workspace: string; status: string }[] }>(page, "/workspaces")).tasks.filter(task => task.workspace === secondWorkspace).every(task => task.status === "completed")).toBe(true);
-  await rename(secondWorkspace, secondWorkspace + "-offline");
+  await releaseAndRename(secondWorkspace, secondWorkspace + "-offline");
   await page.goto("app://codeharness/");
   await page.locator(".workspace-picker select").selectOption(secondWorkspace);
   await expect(page.locator(".compose-region [role=alert]")).toBeVisible();

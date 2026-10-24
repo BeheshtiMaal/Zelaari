@@ -47,7 +47,12 @@ class TokenMeter:
             self.input_tokens += message.usage_metadata["input_tokens"]
             self.output_tokens += message.usage_metadata["output_tokens"]
         else:
-            self.input_tokens += max(1, math.ceil(self.input_characters / 4))
+            request_estimate = message.additional_kwargs.get("_harness_input_tokens")
+            self.input_tokens += (
+                request_estimate
+                if isinstance(request_estimate, int) and request_estimate >= 0
+                else max(1, math.ceil(self.input_characters / 4))
+            )
             self.output_tokens += max(1, math.ceil(output_size / 4))
             self.estimated = True
         self.input_characters += output_size

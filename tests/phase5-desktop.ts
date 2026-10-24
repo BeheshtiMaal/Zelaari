@@ -66,7 +66,8 @@ try {
   await expect(page.getByTestId("inbox-badge")).toHaveCount(0);
   await expect(page.getByTestId("current-waiting")).toContainText("۱");
   await expect(page.locator(".run-actions")).toContainText("منتظر پاسخ شما");
-  assert.equal((await page.locator(".run-info").boundingBox())!.width, 288);
+  // Phase 6 R13 fixes the Run information panel at 300px; the Phase 5 waiting count moved into it.
+  assert.equal((await page.locator(".run-info").boundingBox())!.width, 300);
   let card = activeCard(page);
   await expect(card.locator(".question-footer")).toContainText("۱ تا ۳");
   assert.match(await card.ariaSnapshot(), /radio/);

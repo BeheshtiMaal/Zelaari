@@ -37,7 +37,7 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | 3 | **Tools + permission layer - complete** | Jailed filesystem tools, atomic writes, snapshots and UI undo, process-tree command timeout, rules and modes, risk classifier, temporary approvals, approved branch switching, isolated worktrees, Workspace viewer and timeout/jail cards. Windows Electron evidence and quality gates recorded in 2026-10-19-phase-3-tools-permissions/validation.md. | Workspace (files + tasks) |
 | 4 | **Approvals inbox - complete** | Durable SQLite approval barriers, approve/edit/reject, unified diffs, linked allow-rule review, Rules grid, global counts and waiting dots, restart recovery and no replay of uncertain effects. Offline demo and Windows Electron evidence recorded in `2026-10-19-phase-4-approvals-inbox/validation.md`. | Approvals inbox |
 | 5 | **AskUserQuestion GenUI - complete** | Durable structured questions with single/multi/rank/Other, declined results, shared docked QuestionCard, mixed question/approval barriers and restart recovery, current-task waiting summary, built-in `/grill` interview and composer picker, exhausted-attempts integration contract. Windows Electron and offline evidence recorded in `2026-10-19-phase-5-ask-user-question/validation.md`. | Tasks (question moment), Errors (exhausted card), Home (command picker) |
-| 6 | Planning + activity timeline | `submit_plan`, PlanChecklist, plan gate (D1), deviation gate, Thinking panel, sub-agent rows, context-summarized notice | Run |
+| 6 | **Planning + activity timeline - complete** | Structured plans, reviewed initial/deviation gates and workspace settings, stable todo progress, trusted PlanChecklist, scoped reasoning and concurrent read-only delegates, actual summarization notices, truthful telemetry, durable steering and cancellation/recovery. Offline engine and Windows Electron evidence is recorded in `2026-10-19-phase-6-planning-timeline/validation.md` and `learnings.md`. | Run |
 | 7 | Verify + self-correction + context ring | test detection (D2), TestResults + TerminalPanel, verify gate, reflect loop, budgets, context ring + breakdown + auto-compaction | Settings: context, terminal and tests |
 | 8 | Skills + Customize hub | loader, `load_skill`, Skills tab (installed / marketplace / mine, toggles, detail, scan), install from folder/zip/git (approval), slash commands, 5 bundled skills + example project skill, Agents and Memory tabs, Connectors (MCP) tab | Customize: Skills (Connectors tab visible, inner screen not drawn) |
 | 9 | `render_ui` + polish | model-composed GenUI, themes, fa/en, empty/error states, shortcuts, accessibility, remaining settings | Settings: appearance, permissions, data, about; Empty; Errors |
@@ -92,6 +92,34 @@ the typed exhausted-attempts constructor/results for retry with hint, change app
 automatic fix budgets and verification gates remain Phase 7. Phase 8 repackages interview instructions
 as the grill-me skill and extends the command picker. Context attachments, scheduler and packaging
 delivery retain their assigned scope. Existing workspace-jail limitations remain; this is not an OS sandbox.
+
+## Phase 6 handoff to Phase 7
+
+Phase 6 is complete; validation and installed-runtime contracts are recorded in
+`2026-10-19-phase-6-planning-timeline/validation.md` and `learnings.md`. Phase 7 inherits
+engine-owned plan/revision/step identities, conservative concrete-file counting,
+workspace planning settings behind protected configuration review, and the existing
+mixed human barrier. Plan adoption never authorizes an unclassified sibling effect or
+bypasses ordinary tool permissions, workspace containment or the effect journal.
+
+Parent turns and read-only reviewer/researcher invocations have durable scoped activity,
+provider/model attribution, real reasoning, replayable progress and honest interrupted
+states. Completed delegate results survive recovery; uncertain effects are never replayed.
+Steering is ordered and idempotent, enters the original parent thread only at a checkpointed
+model boundary, and cannot answer a question, grant permission or release a human barrier.
+Stop batches terminal activity before deferred ledger cleanup, cancels owned command trees,
+and prevents cancelled file replacements. Preserve original provider/vault/worktree identity,
+registered-secret redaction, disabled inherited tracing and the documented workspace-jail
+race/alias limitations; this remains an application boundary rather than an OS sandbox.
+
+The shared PlanChecklist, step/Thinking/delegate disclosures, right-panel telemetry,
+planning settings and editable running composer consume engine events. Latest-request
+context occupancy is distinct from cumulative run tokens; estimates and fallback windows
+are marked. Summary notices derive from actual installed summarizer transitions. Unavailable
+budgets and fix counters are explicit. Phase 7 supplies verification/test detection, bounded
+self-correction, enforced budgets and the context-ring/compaction policy; none of those
+later-phase features is claimed by Phase 6. Phase 5 question/exhaustion contracts remain
+available for its unknown-test-command and retry/change/stop flows.
 
 ## Audit log (D20): the mock wins
 The mock was left exactly as sketched. These spec statements were changed to match it:

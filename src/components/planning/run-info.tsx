@@ -10,7 +10,7 @@ export function RunInfo({ run, locale, waiting }: { run: RunState; locale: Local
   const context = currentContext(run.events), files = taskFiles(run.events);
   const children = run.events.filter(e => e.type === "subagent.started");
   return <aside className="run-info">
-    {run.plan ? <PlanChecklist plan={run.plan} locale={locale} /> : <section><h2>{t.plan}</h2><p className="muted">{run.status === "running" ? t.noPlan : t.noPlanHistory}</p></section>}
+    {run.plan ? <PlanChecklist plan={run.plan} locale={locale} runStatus={run.status} /> : <section><h2>{t.plan}</h2><p className="muted">{run.status === "running" ? t.noPlan : t.noPlanHistory}</p></section>}
     <section><h2>{t.delegates} ({number.format(children.length)})</h2>{children.map(child => {
       const end = run.events.slice().reverse().find(e => e.type === "subagent.finished" && e.scope.scope_id === child.scope.scope_id);
       return <p className="info-row" key={child.scope.scope_id}><span>{child.scope.agent === "reviewer" ? t.reviewer : t.researcher}</span><span className="muted">{end?.type === "subagent.finished" ? t[end.status] : t.running}</span></p>;

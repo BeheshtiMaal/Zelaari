@@ -72,13 +72,40 @@ class ActivityProjection:
             if scope is None:
                 continue
             summary = change.get("_summarization_event")
-            if isinstance(summary, dict):
-                operation = hashlib.sha256((str(namespace) + str(summary)).encode()).hexdigest()
+            summary_data = summary if isinstance(summary, dict) else {}
+            notice = change.get("summary_notice")
+            if isinstance(summary, dict) or isinstance(notice, dict):
+                operation = (
+                    str(notice["operation_id"])
+                    if isinstance(notice, dict)
+                    else hashlib.sha256((str(namespace) + str(summary)).encode()).hexdigest()
+                )
                 if not any(
                     e.type == "context.summarized" and e.operation_id == operation
                     for e in self.bus.history
                 ):
-                    count = summary.get("cutoff_index")
+                    usage = (
+                        notice.get("usage")
+                        if isinstance(notice, dict)
+                        else getattr(
+                            summary_data.get("summary_message"), "additional_kwargs", {}
+                        ).get("_harness_usage")
+                    )
+                    if isinstance(usage, dict):
+                        self.meter.input_tokens += int(usage["input_tokens"])
+                        self.meter.output_tokens += int(usage["output_tokens"])
+                        self.meter.estimated |= bool(usage["estimated"])
+                        await self.bus.emit(
+                            "usage.updated",
+                            input_tokens=self.meter.input_tokens,
+                            output_tokens=self.meter.output_tokens,
+                            estimated=self.meter.estimated,
+                        )
+                    count = (
+                        notice.get("affected_messages")
+                        if isinstance(notice, dict)
+                        else summary_data.get("cutoff_index")
+                    )
                     await self.bus.emit(
                         "context.summarized",
                         scope=scope,

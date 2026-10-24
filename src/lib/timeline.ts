@@ -1,4 +1,4 @@
-import type { ActivityScope, HarnessEvent, PlanRecord } from "./protocol";
+import type { ActivityScope, HarnessEvent, PlanRecord, StepProgress } from "./protocol";
 import type { RunState } from "../store/run";
 
 export type ScopedEvent = Extract<HarnessEvent, { scope: ActivityScope }>;
@@ -47,20 +47,32 @@ export function taskFiles(events: HarnessEvent[]) {
 
 export function thinkingState(scope: ActivityScope, events: HarnessEvent[]) {
   const scoped = events.filter(event => eventScope(event)?.scope_id === scope.scope_id);
-  return { finished: scoped.some(e => e.type === "activity.finished"),
+  return { finished: scoped.some(e => e.type === "activity.finished" || e.type === "tool.call"),
     reasoning: scoped.filter(e => e.type === "reasoning.delta").map(e => e.text).join("") };
+}
+export function stepDisplayStatus(status: StepProgress["status"], runStatus: RunState["status"]) {
+  if (status === "in_progress" && runStatus === "stopped") return "stopped";
+  if (status === "in_progress" && runStatus === "error") return "failed";
+  return status ?? "pending";
 }
 export function eventBodyModel(events: HarnessEvent[], child: boolean) {
   const turns = events.filter(event => event.type === "activity.started").filter(event => child || event.scope.agent === "parent");
   const visible = events.filter(event => child || !eventScope(event) || eventScope(event)?.agent === "parent");
+  const results = visible.filter(event => event.type === "tool.result");
   return {
     turns,
     tools: visible.filter(e => e.type === "tool.call").map(event => ({ event,
-      result: visible.slice().reverse().find(e => e.type === "tool.result" && e.call_id === event.call_id && eventScope(e)?.scope_id === event.scope?.scope_id),
+      // A recovered invocation reports the interrupted call under a fresh activity, so a
+      // result is matched by call id: same activity first, then the latest outcome overall.
+      result: results.find(e => e.call_id === event.call_id && eventScope(e)?.scope_id === event.scope?.scope_id)
+        ?? results.filter(e => e.call_id === event.call_id).at(-1),
     })),
-    messages: [...new Set(visible.filter(e => e.type === "message.delta").map(e => e.message_id))].map(id => ({ id,
-      text: visible.filter(e => e.type === "message.delta" && e.message_id === id).map(e => e.type === "message.delta" ? e.text : "").join(""),
-    })),
+    messages: [...new Set(visible.filter(e => e.type === "message.delta").map(e => e.message_id))].map(id => {
+      const deltas = visible.filter(e => e.type === "message.delta" && e.message_id === id);
+      const scope = deltas[0] ? eventScope(deltas[0]) : null;
+      return { id, text: deltas.map(e => e.type === "message.delta" ? e.text : "").join(""),
+        streaming: scope ? !thinkingState(scope, events).finished : !events.some(e => e.type === "run.finished") };
+    }),
   };
 }
 export function timelineGroups(run: RunState) {
@@ -76,11 +88,14 @@ export function timelineGroups(run: RunState) {
         events: events.filter(e => eventScope(e)?.parent_scope_id === child.scope.scope_id) };
     });
     return { ...group, events, progress, active, terminal, children, counts: countTools(events),
-      elapsed: duration(progress?.started_at, progress?.ended_at),
+      elapsed: duration(progress?.started_at, progress?.ended_at ?? (run.status !== "running" ? run.events.slice().reverse().find(e => e.type === "run.finished")?.ts : null)),
       summaries: events.filter(e => e.type === "context.summarized"),
       visible: group.id !== null || !events.every(e => ["run.started", "usage.updated", "steering.updated"].includes(e.type)),
       reasoningAvailable: events.some(e => e.type === "reasoning.delta"),
       reasoningFinished: events.some(e => e.type === "activity.finished"),
+      // A finished step whose action may have run before a stop or crash stays open so the
+      // notice and its retry control are never hidden inside a collapsed row.
+      attention: events.some(e => e.type === "tool.result" && e.text.startsWith("Interrupted:")),
     };
   }).filter(group => group.visible);
 }

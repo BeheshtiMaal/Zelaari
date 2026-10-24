@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 import agent.bridge as bridge
 from agent.events import RunRequest
@@ -19,6 +19,13 @@ from store.secrets import Redactor
 
 class SummaryFixture(DemoModel):
     def answer(self, messages: list[BaseMessage]) -> AIMessage:
+        if not any(isinstance(message, SystemMessage) for message in messages):
+            return AIMessage(
+                content="INTERNAL SUMMARY TEXT",
+                additional_kwargs={
+                    "reasoning_content": "INTERNAL SUMMARY REASONING",
+                },
+            )
         return AIMessage(content='root = Callout("Actual summarized history replayed.");')
 
 
@@ -61,6 +68,11 @@ async def main() -> None:
     run_id = await manager.start(RunRequest(task="Actual summary replay", workspace=str(workspace)))
     await manager.runs[run_id].task
     assert any(event.type == "context.summarized" for event in manager.runs[run_id].bus.history)
+    assert not any(
+        "INTERNAL SUMMARY" in event.text
+        for event in manager.runs[run_id].bus.history
+        if event.type in {"message.delta", "reasoning.delta"}
+    )
     await manager.close()
 
 

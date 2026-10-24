@@ -11,9 +11,9 @@ import { ToolErrorCard } from "../tool-error-card";
 import { toolFailure } from "../../lib/errors";
 import { dictionary } from "../../i18n";
 
-export function Disclosure({ id, active, terminal, title, children, className = "" }: { id: string; active: boolean; terminal: boolean; title: ReactNode; children: ReactNode; className?: string }) {
+export function Disclosure({ id, active, terminal, attention = false, title, children, className = "" }: { id: string; active: boolean; terminal: boolean; attention?: boolean; title: ReactNode; children: ReactNode; className?: string }) {
   const values = useDisclosure(state => state.values), toggle = useDisclosure(state => state.toggle);
-  const previous = values[id], value = disclosureValue(previous, active, terminal);
+  const previous = values[id], value = disclosureValue(previous, active, terminal, attention);
   useEffect(() => { if (value !== previous) toggle(id, value); }, [id, value.open, value.ended, previous, toggle]);
   return <section className={`activity-disclosure ${className}`}>
     <button type="button" className="disclosure-button" aria-expanded={value.open} aria-controls={`body-${id}`} onClick={() => toggle(id, { ...value, open: !value.open })}><span className="disclosure-caret" aria-hidden="true">›</span>{title}</button>
@@ -37,7 +37,7 @@ function EventBody({ events, locale, runId, child = false, retry }: { events: Ha
       if (result?.type === "tool.result" && toolFailure(result.text)) return <ToolErrorCard key={`${event.scope?.scope_id}-${event.call_id}`} text={result.text} t={dictionary(locale)} locale={locale} command={typeof event.args.command === "string" ? event.args.command : undefined} onRetry={retry ?? (() => undefined)} />;
       return <details className="tool-line" key={`${event.scope?.scope_id}-${event.call_id}`} data-testid="tool-line"><summary><span className="status-dot" /><code dir="ltr">{event.name} · {String(event.args.file_path ?? event.args.command ?? "")}</code></summary><pre className="readable" dir="auto">{result?.type === "tool.result" ? result.text : "…"}</pre></details>;
     })}
-    {messages.map(message => <Message key={message.id} text={message.text} streaming={false} />)}
+    {messages.map(message => <Message key={message.id} text={message.text} streaming={message.streaming} />)}
   </div>;
 }
 
@@ -45,7 +45,7 @@ export function ActivityTimeline({ run, locale, retry }: { run: RunState; locale
   const t = planningCopy(locale), number = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
   return <div className="activity-timeline">{timelineGroups(run).map(group => {
     const { events, progress, active, terminal, elapsed, counts, children } = group;
-    return <Disclosure key={group.id ?? "analysis"} id={`${run.runId}-step-${group.id ?? "analysis"}`} active={active} terminal={terminal} className={`step-card ${active && run.status === "running" ? "active" : ""}`} title={<><span className="step-mark" aria-hidden="true">{progress?.status === "completed" ? "✓" : "○"}</span><strong>{group.title ?? t.analysis}</strong><span className="step-summary">{elapsed !== null && `${number.format(elapsed)} ${t.seconds} · `}{number.format(counts.read)} {t.read} · {number.format(counts.writes)} {t.writes} · {number.format(counts.commands)} {t.commands}{terminal && group.reasoningFinished && <small className="reasoning-note">{group.reasoningAvailable ? t.thinking : t.noReason}</small>}</span></>}>
+    return <Disclosure key={group.id ?? "analysis"} id={`${run.runId}-step-${group.id ?? "analysis"}`} active={active} terminal={terminal} attention={group.attention} className={`step-card ${active && run.status === "running" ? "active" : ""}`} title={<><span className="step-mark" aria-hidden="true">{progress?.status === "completed" ? "✓" : "○"}</span><strong>{group.title ?? t.analysis}</strong><span className="step-summary">{elapsed !== null && `${number.format(elapsed)} ${t.seconds} · `}{number.format(counts.read)} {t.read} · {number.format(counts.writes)} {t.writes} · {number.format(counts.commands)} {t.commands}{terminal && group.reasoningFinished && <small className="reasoning-note">{group.reasoningAvailable ? t.thinking : t.noReason}</small>}</span></>}>
       <EventBody events={events} locale={locale} runId={run.runId ?? "history"} retry={retry} />
       {children.map(({ child, end, events: childEvents, seconds }) => {
         return <Disclosure key={child.scope.scope_id} id={`${run.runId}-child-${child.scope.scope_id}`} active={!end} terminal={!!end} className="delegate-card" title={<><strong>{t[child.scope.agent === "reviewer" ? "reviewer" : "researcher"]}</strong><span className="read-only-badge">{t.readOnly}</span><span className="muted">{end?.type === "subagent.finished" ? t[end.status] : t.running}{seconds !== null && ` · ${number.format(seconds)} ${t.seconds}`}</span></>}><p dir="auto">{child.task}</p><EventBody events={childEvents} locale={locale} runId={run.runId ?? "history"} child />{end?.type === "subagent.finished" && end.result && <pre className="readable" dir="auto">{end.result}</pre>}</Disclosure>;

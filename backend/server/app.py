@@ -1,5 +1,7 @@
 """Authenticated REST and SSE transport. No engine work runs at import time."""
 
+import asyncio
+import importlib
 import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -69,19 +71,51 @@ def create_app(
         raise ValueError("A per-launch token is required")
     catalog = catalog or Catalog(app_data / "catalog.json" if app_data else None, Redactor([token]))
 
-    def runs() -> RunService:
-        nonlocal service
-        if service is None:
-            from agent.bridge import RunManager
+    warm: asyncio.Task[None] | None = None
+    building: asyncio.Task[RunService] | None = None
 
-            service = RunManager(secrets_to_redact=[token], catalog=catalog)
+    async def build() -> RunService:
+        # The agent stack takes seconds to import on Windows. Startup loads it in a worker
+        # thread so health, settings, stop and steering never wait on a blocked event loop;
+        # the first request that needs the manager joins that thread.
+        if warm is not None:
+            await warm
+        from agent.bridge import RunManager
+
+        return RunManager(secrets_to_redact=[token], catalog=catalog)
+
+    async def runs() -> RunService:
+        # Every caller must share one manager: a second instance would restore the same runs
+        # again, duplicating checkpoints, double-writing events and keeping the workspace's
+        # SQLite file open after shutdown.
+        nonlocal service, building
+        if service is not None:
+            return service
+        if building is None:
+            building = asyncio.create_task(build())
+        try:
+            service = await building
+        except BaseException:
+            building = None
+            raise
         return service
+
+    async def warm_agent() -> None:
+        await asyncio.to_thread(importlib.import_module, "agent.bridge")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        yield
-        if service is not None:
-            await service.close()
+        nonlocal warm
+        warm = asyncio.create_task(warm_agent())
+        try:
+            yield
+        finally:
+            if warm is not None and not warm.done():
+                warm.cancel()
+            if building is not None and not building.done():
+                building.cancel()
+            if service is not None:
+                await service.close()
 
     def authorize(authorization: Annotated[str | None, Header()] = None) -> None:
         if not dev and not secrets.compare_digest(authorization or "", f"Bearer {token}"):
@@ -118,16 +152,17 @@ def create_app(
 
     @app.get("/approvals")
     async def approvals(status: str | None = None) -> list[ApprovalRecord]:
-        manager = runs()
+        manager = await runs()
         await manager.recover()
         return manager.approvals(status)
 
     @app.post("/runs", status_code=201)
     async def create_run(request: RunRequest) -> JSONResponse:
+        manager = await runs()
         from agent.bridge import WorktreeApprovalRequired
 
         try:
-            run_id = await runs().start(request)
+            run_id = await manager.start(request)
         except WorktreeApprovalRequired as pending:
             # Nothing was created and no run exists yet: the client shows the modal and
             # repeats the request with `worktree_approved`.
@@ -145,7 +180,7 @@ def create_app(
         return JSONResponse(status_code=201, content=RunResponse(run_id=run_id).model_dump())
 
     async def require_run(run_id: str) -> RunService:
-        manager = runs()
+        manager = await runs()
         await manager.recover()
         if not manager.contains(run_id):
             raise HTTPException(404, "Unknown run")
@@ -158,7 +193,7 @@ def create_app(
 
     @app.post("/runs/{run_id}/messages", status_code=202)
     async def steer_run(run_id: str, value: SteeringSubmission) -> SteeringRecord:
-        manager = runs()
+        manager = await runs()
         await manager.recover()
         if not manager.contains(run_id):
             if any(task.id == run_id for task in catalog.data.workspaces.tasks):
@@ -194,7 +229,7 @@ def create_app(
 
     @app.get("/runs/{run_id}/questions")
     async def questions(run_id: str) -> list[QuestionRecord]:
-        manager = runs()
+        manager = await runs()
         await manager.recover()
         try:
             return manager.questions(run_id)
@@ -215,7 +250,7 @@ def create_app(
     @app.post("/runs/{run_id}/commands/{call_id}/retry", status_code=202)
     async def retry_command(run_id: str, call_id: str, value: RetryCommand) -> ApprovalRecord:
         try:
-            return runs().retry_command(run_id, call_id, value.timeout)
+            return (await runs()).retry_command(run_id, call_id, value.timeout)
         except (ValueError, OSError):
             raise HTTPException(
                 409, "Command cannot be retried under current permissions"

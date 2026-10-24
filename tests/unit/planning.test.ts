@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { disclosureValue } from "../../src/lib/use-disclosure";
-import { countTools, duration, groupEvents, trustedPlan } from "../../src/lib/timeline";
+import { countTools, duration, eventBodyModel, groupEvents, timelineGroups, trustedPlan } from "../../src/lib/timeline";
 import { initialRun, reduceEvent } from "../../src/store/run";
 import type { HarnessEvent, PlanRecord } from "../../src/lib/protocol";
 import { planReviewReason, planReviewSteps } from "../../src/lib/plan-review";
@@ -50,4 +50,39 @@ test("step counts keep concurrent child scopes and legacy analysis separate", ()
   assert.deepEqual(countTools(groupEvents(events, "s")), { read: 1, writes: 1, commands: 0 });
   assert.equal(duration("2026-10-20T00:00:00Z", "2026-10-20T00:01:00Z"), 60);
   assert.equal(duration(null, null), null);
+});
+test("an action interrupted before a stop or crash keeps its step open and notices the user", () => {
+  const active = disclosureValue(undefined, true, false);
+  const ended = disclosureValue(active, false, true, true);
+  assert.equal(ended.open, true);
+  const collapsed = { ...ended, open: false };
+  assert.equal(disclosureValue(collapsed, false, true, true).open, false);
+  const events: HarnessEvent[] = [
+    { type: "run.started", run_id: "run", seq: 1, task: "Command", model: "demo" },
+    { type: "plan.created", run_id: "run", seq: 2, plan },
+    { type: "tool.call", run_id: "run", seq: 3, call_id: "c", name: "run_command", args: { command: "x" }, scope: { scope_id: "a", agent: "parent", step_id: "s" } },
+    { type: "tool.result", run_id: "run", seq: 4, call_id: "c", text: "Interrupted: this action may have run before the engine stopped.", scope: { scope_id: "a", agent: "parent", step_id: "s" } },
+    { type: "run.finished", run_id: "run", seq: 5, status: "completed" },
+  ];
+  const state = events.reduce(reduceEvent, initialRun);
+  assert.equal(timelineGroups(state).find(group => group.id === "s")?.attention, true);
+  assert.equal(timelineGroups(state).find(group => group.id === null)?.attention, false);
+});
+
+test("a recovered call shows the interrupted result reported by the next activity", () => {
+  const events: HarnessEvent[] = [
+    { type: "run.started", run_id: "run", seq: 1, task: "Command", model: "demo" },
+    { type: "plan.created", run_id: "run", seq: 2, plan },
+    { type: "activity.started", run_id: "run", seq: 3, scope: { scope_id: "before", agent: "parent", step_id: "s" } },
+    { type: "tool.call", run_id: "run", seq: 4, call_id: "c", name: "run_command", args: { command: "x" }, scope: { scope_id: "before", agent: "parent", step_id: "s" } },
+    { type: "activity.finished", run_id: "run", seq: 5, status: "interrupted", scope: { scope_id: "before", agent: "parent", step_id: "s" } },
+    { type: "activity.started", run_id: "run", seq: 6, scope: { scope_id: "after", agent: "parent", step_id: "s" } },
+    { type: "tool.result", run_id: "run", seq: 7, call_id: "c", text: "Interrupted: this action may have run before the engine stopped.", scope: { scope_id: "after", agent: "parent", step_id: "s" } },
+    { type: "run.finished", run_id: "run", seq: 8, status: "completed" },
+  ];
+  const state = events.reduce(reduceEvent, initialRun);
+  const group = timelineGroups(state).find(candidate => candidate.id === "s")!;
+  const [tool] = eventBodyModel(group.events, false).tools;
+  assert.equal(tool.result?.type === "tool.result" ? tool.result.text.slice(0, 12) : null, "Interrupted:");
+  assert.equal(group.attention, true);
 });

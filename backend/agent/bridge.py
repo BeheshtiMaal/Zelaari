@@ -96,6 +96,10 @@ class RunManager:
         self.redactor = self.catalog.redactor
         self.actions = ActionApprovals(self.catalog)
         self.actions.recover()
+        # Recovery runs on every polled request, so two overlapping calls must never start a
+        # second graph invocation for one run: that duplicates checkpoints and can leave a
+        # suspended invocation holding the workspace's SQLite connection open.
+        self.starting = asyncio.Lock()
 
     def contains(self, run_id: str) -> bool:
         return run_id in self.runs or any(
@@ -119,6 +123,24 @@ class RunManager:
         return paths
 
     async def start(
+        self,
+        request: RunRequest,
+        *,
+        restore_id: str | None = None,
+        worktree_consent: bool = False,
+        allocated_id: str | None = None,
+    ) -> str:
+        async with self.starting:
+            if restore_id and restore_id in self.runs:
+                return restore_id
+            return await self._start(
+                request,
+                restore_id=restore_id,
+                worktree_consent=worktree_consent,
+                allocated_id=allocated_id,
+            )
+
+    async def _start(
         self,
         request: RunRequest,
         *,
@@ -214,6 +236,13 @@ class RunManager:
             run = self.runs[run_id]
             prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
             meter = TokenMeter(len(safe_task) + len(prompt))
+            previous_usage = next(
+                (event for event in reversed(bus.history) if event.type == "usage.updated"), None
+            )
+            if previous_usage:
+                meter.input_tokens = previous_usage.input_tokens
+                meter.output_tokens = previous_usage.output_tokens
+                meter.estimated = previous_usage.estimated
             projection = ActivityProjection(
                 bus, meter, record.context.tokens, record.context.estimated
             )
@@ -278,7 +307,10 @@ class RunManager:
                         ):
                             if mode == "messages":
                                 chunk, _metadata = update
-                                if isinstance(chunk, AIMessageChunk):
+                                if (
+                                    isinstance(chunk, AIMessageChunk)
+                                    and _metadata.get("lc_source") != "summarization"
+                                ):
                                     await projection.content(namespace, chunk, False)
                             elif mode == "updates" and "__interrupt__" not in update:
                                 for change in update.values():
@@ -793,9 +825,11 @@ class RunManager:
             run.cleanup = asyncio.create_task(cleanup())
 
     async def steer(self, run_id: str, value: SteeringSubmission) -> SteeringRecord:
-        run = self.runs[run_id]
-        if run.steering is None:
+        run = self.runs.get(run_id)
+        if run is None or run.steering is None:
             raise ValueError("Run has no steering queue")
+        if self.redactor.text(value.submission_id) != value.submission_id:
+            raise ValueError("Secret in submission identity")
         safe = value.model_copy(update={"text": self.redactor.text(value.text)})
         record = run.steering.enqueue(safe, terminal=run.bus.finished)
         await run.steering.publish(run.bus)
