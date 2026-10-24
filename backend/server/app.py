@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, Field
 
-from agent.events import Event, HealthResponse, RunRequest, RunResponse
+from agent.events import Event, HealthResponse, RunRequest, RunResponse, RunSummary
 from permissions.types import (
     ApprovalDecision,
     ApprovalRecord,
@@ -56,6 +56,7 @@ class RunService(Protocol):
     ) -> str | None: ...
     def events(self, run_id: str, after: int) -> AsyncIterator[Event]: ...
     def contains(self, run_id: str) -> bool: ...
+    def summary(self, run_id: str) -> RunSummary | None: ...
     def pending_paths(self) -> set[str]: ...
     async def close(self) -> None: ...
 
@@ -192,6 +193,14 @@ def create_app(
     async def stop_run(run_id: str) -> dict[str, str]:
         await (await require_run(run_id)).stop(run_id)
         return {"status": "ok"}
+
+    @app.get("/runs/{run_id}/summary")
+    async def run_summary(run_id: str) -> RunSummary:
+        manager = await runs()
+        found = manager.summary(run_id)
+        if found is None:
+            raise HTTPException(404, "This run has no summary")
+        return found
 
     @app.post("/runs/{run_id}/messages", status_code=202)
     async def steer_run(run_id: str, value: SteeringSubmission) -> SteeringRecord:

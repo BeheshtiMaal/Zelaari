@@ -26,6 +26,7 @@ from questions.tools import build_ask_question, build_finish_interview
 from store.eventlog import EventBus
 from store.secrets import Redactor
 from tools.fs import SnapshotSink, WorkspaceBackend
+from verify.settings import ContextSettings
 
 FS_TOOLS: list[Any] = [
     "ls",
@@ -67,6 +68,36 @@ class RedactingMiddleware(AgentMiddleware[Any, Any, Any]):
         return response
 
 
+def summarizer(
+    model: BaseChatModel,
+    root: Path,
+    redactor: Redactor,
+    cancelled: Event | None,
+    context: ContextSettings,
+    window: int | None = None,
+) -> RedactingSummarization:
+    """The one summarizer the context settings describe.
+
+    A percentage needs a window. Models that publish one take the fraction as it is;
+    the rest use the token count the catalog already knows, so the setting means the
+    same thing either way.
+    """
+    profile = model.profile if isinstance(model.profile, dict) else {}
+    known = isinstance(profile.get("max_input_tokens"), int)
+    extra: dict[str, Any] = {}
+    if known:
+        extra["trigger"] = ("fraction", context.compaction_percent / 100)
+    elif window:
+        extra["trigger"] = ("tokens", max(1, int(window * context.compaction_percent / 100)))
+    return RedactingSummarization(
+        model,
+        summary_backend(root, redactor, cancelled, offload=context.offload),
+        redactor,
+        keep=("messages", context.keep_messages),
+        **extra,
+    )
+
+
 def build_agent(
     root: Path,
     model: BaseChatModel,
@@ -82,7 +113,10 @@ def build_agent(
     model_name: str | None = None,
     provider_name: str | None = None,
     cancelled: Event | None = None,
+    context: ContextSettings | None = None,
+    window: int | None = None,
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
+    limits = context or ContextSettings()
     backend = WorkspaceBackend(root, redactor, snapshots, cancelled=cancelled)
     child_backend = ReadOnlyWorkspaceBackend(root, redactor)
     prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
@@ -175,7 +209,7 @@ def build_agent(
                     human_message_token_limit_before_evict=None,
                 ),
                 RedactingMiddleware(redactor),
-                RedactingSummarization(model, summary_backend(root, redactor, cancelled), redactor),
+                summarizer(model, root, redactor, cancelled, limits, window),
                 SubAgentMiddleware(backend=backend, subagents=children),
                 ActivityMiddleware(
                     model_name or model.name or type(model).__name__,

@@ -275,6 +275,14 @@ class RunRequest(WireModel):
     action: a run that asks for one without this flag is refused rather than quietly
     skipped.
     """
+    seed_summary_from: str | None = Field(default=None, pattern=r"^[a-f0-9]{8,64}$")
+    """Start from that run's summary instead of replaying its conversation."""
+
+
+class RunSummary(WireModel):
+    run_id: str
+    summary: str
+    created_at: datetime
 
 
 class RunResponse(WireModel):
@@ -318,3 +326,4 @@ class Protocol(WireModel):
     verify_settings: VerifySettingsResponse
     verify_config: VerifyConfig
     test_outcome: TestOutcome
+    run_summary: RunSummary

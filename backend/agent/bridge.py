@@ -4,6 +4,7 @@ import asyncio
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
@@ -14,11 +15,12 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.types import Command
 
 from agent.activity import finish_open_activity, open_activity
-from agent.events import Event, RunRequest
+from agent.events import Event, RunRequest, RunSummary
 from agent.factory import build_agent
 from agent.meter import TokenMeter
 from agent.projection import ActivityProjection
 from agent.steering import SteeringMiddleware
+from agent.summarization import read_summary, save_summary, seed_block
 from permissions.middleware import PermissionMiddleware
 from permissions.review import prepare_review
 from permissions.rules import RulesEngine
@@ -110,6 +112,30 @@ class RunManager:
     def contains(self, run_id: str) -> bool:
         return run_id in self.runs or any(
             record.request.run_id == run_id for record in self.actions.records()
+        )
+
+    def seeded(self, workspace: Path, task: str, source: str | None) -> str:
+        """Start a new chat from a previous summary instead of replaying its history."""
+        if not source:
+            return task
+        found = read_summary(workspace, source)
+        if found is None:
+            raise ValueError("That run has no summary to hand off")
+        return f"{seed_block(self.redactor.text(found[0]))}\n\n{task}"
+
+    def summary(self, run_id: str) -> RunSummary | None:
+        tasks = self.catalog.data.workspaces.tasks
+        task = next((item for item in tasks if item.id == run_id), None)
+        if task is None:
+            return None
+        found = read_summary(workspace_root(task.workspace), run_id)
+        if found is None:
+            return None
+        text, modified = found
+        return RunSummary(
+            run_id=run_id,
+            summary=text,
+            created_at=datetime.fromtimestamp(modified, UTC),
         )
 
     def pending_paths(self) -> set[str]:
@@ -208,6 +234,7 @@ class RunManager:
         steering = SteeringQueue(storage_path(workspace, f"runs/{run_id}/steering.json"), run_id)
         safe_task = self.redactor.text(request.task)
         grill = bool(re.match(r"^/grill(?:\s|$)", safe_task))
+        first_message = self.seeded(workspace, safe_task, request.seed_summary_from)
         if not restore_id:
             from tools.atomic import atomic_write
 
@@ -217,7 +244,7 @@ class RunManager:
 
             atomic_write(
                 storage_path(workspace, f"runs/{run_id}/request.json"),
-                request.model_copy(update={"task": safe_task}).model_dump_json(),
+                request.model_copy(update={"task": first_message}).model_dump_json(),
             )
             await bus.emit("run.started", task=safe_task, model=request.model)
         select_workspace(self.catalog, str(workspace))
@@ -303,12 +330,14 @@ class RunManager:
                         provider_name=record.name,
                         cancelled=runner.cancelled,
                         extra_middleware=[SteeringMiddleware(steering), gate, budget],
+                        context=settings.context,
+                        window=record.context.tokens,
                     )
                     config: RunnableConfig = {
                         "configurable": {"thread_id": run_id},
                         "recursion_limit": 256,
                     }
-                    payload: Any = {"messages": [{"role": "user", "content": safe_task}]}
+                    payload: Any = {"messages": [{"role": "user", "content": first_message}]}
                     if restore_id:
                         await finish_open_activity(bus, "interrupted")
                         snapshot = await graph.aget_state(config)
@@ -349,6 +378,7 @@ class RunManager:
                                 for change in update.values():
                                     if isinstance(change, dict):
                                         steering.reconcile(change)
+                                        save_summary(root, run_id, change, settings.context.offload)
                                 await steering.publish(bus)
                                 await projection.update(namespace, update)
 

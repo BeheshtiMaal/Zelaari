@@ -32,20 +32,67 @@ from tools.jail import storage_path
 
 summary_usage: ContextVar[dict[str, Any] | None] = ContextVar("summary_usage", default=None)
 
+SUMMARY_LIMIT = 8000
+
+
+def summary_path(root: Path, run_id: str) -> Path:
+    return storage_path(root, f"context/summaries/{run_id}.md")
+
+
+def summary_text(change: dict[str, Any]) -> str | None:
+    """The summary the middleware just produced, or `None` for other updates."""
+    event = change.get("_summarization_event")
+    if not isinstance(event, dict):
+        return None
+    message = event.get("summary_message")
+    content = message.get("content") if isinstance(message, dict) else None
+    text = content if isinstance(content, str) else getattr(message, "content", None)
+    return text if isinstance(text, str) and text.strip() else None
+
+
+def save_summary(root: Path, run_id: str, change: dict[str, Any], offload: bool) -> None:
+    """Persist the redacted summary so a new chat can start from it.
+
+    Offload off means the evicted history is not kept, so there is nothing to hand on.
+    """
+    if not offload:
+        return
+    text = summary_text(change)
+    if text is None:
+        return
+    from tools.atomic import atomic_write
+
+    atomic_write(summary_path(root, run_id), text[:SUMMARY_LIMIT])
+
+
+def read_summary(root: Path, run_id: str) -> tuple[str, float] | None:
+    path = summary_path(root, run_id)
+    if not path.exists():
+        return None
+    text = path.read_text(encoding="utf-8")[:SUMMARY_LIMIT]
+    return (text, path.stat().st_mtime) if text.strip() else None
+
+
+def seed_block(summary: str) -> str:
+    """The bounded block a new run starts with instead of replaying the old one."""
+    body = summary.strip()[:SUMMARY_LIMIT]
+    return f"Previous conversation summary\n\n{body}"
+
 
 def summary_backend(
-    root: Path, redactor: Redactor, cancelled: Event | None = None
+    root: Path, redactor: Redactor, cancelled: Event | None = None, *, offload: bool = True
 ) -> CompositeBackend:
     """Only the summarizer receives this private artifact-storage route."""
+    routes: dict[str, BackendProtocol] = {}
+    if offload:
+        # With offload off there is no artifact route, so evicted history is not
+        # recoverable: the setting is honoured instead of quietly ignored.
+        routes["/.harness/context/"] = WorkspaceBackend(
+            storage_path(root, "context"), redactor, cancelled=cancelled
+        )
     return CompositeBackend(
         default=ReadOnlyWorkspaceBackend(root, redactor),
-        routes={
-            "/.harness/context/": WorkspaceBackend(
-                storage_path(root, "context"),
-                redactor,
-                cancelled=cancelled,
-            )
-        },
+        routes=routes,
         artifacts_root="/.harness/context",
     )
 

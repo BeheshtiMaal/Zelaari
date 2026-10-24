@@ -396,6 +396,7 @@ export type Model2 = string;
 export type Mode = "read-only" | "ask" | "auto";
 export type Worktree = boolean;
 export type WorktreeApproved = boolean;
+export type SeedSummaryFrom = string | null;
 export type RunId31 = string;
 export type Status8 = "ok";
 export type Id3 = string;
@@ -556,6 +557,9 @@ export type Failures1 =
   | [string, string, string, string, string, string, string, string, string]
   | [string, string, string, string, string, string, string, string, string, string];
 export type Summary1 = string;
+export type RunId34 = string;
+export type Summary2 = string;
+export type CreatedAt2 = string;
 
 /**
  * Schema-generation envelope only; never sent over the wire.
@@ -591,6 +595,7 @@ export interface Protocol {
   verify_settings: VerifySettingsResponse;
   verify_config: VerifyConfig;
   test_outcome: TestOutcome;
+  run_summary: RunSummary;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -987,6 +992,7 @@ export interface RunRequest {
   mode?: Mode;
   worktree?: Worktree;
   worktree_approved?: WorktreeApproved;
+  seed_summary_from?: SeedSummaryFrom;
 }
 export interface RunResponse {
   run_id: RunId31;
@@ -1242,6 +1248,11 @@ export interface TestOutcome {
   duration_ms?: DurationMs2;
   failures?: Failures1;
   summary?: Summary1;
+}
+export interface RunSummary {
+  run_id: RunId34;
+  summary: Summary2;
+  created_at: CreatedAt2;
 }
 
 // Serialized events always include the Pydantic discriminator and timestamp defaults.
