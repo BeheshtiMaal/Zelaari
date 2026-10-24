@@ -418,3 +418,26 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .context-new-chat:disabled { border-color: var(--border); color: var(--text-muted); }
 .context-help { margin: 0; font-size: 11.5px; color: var(--text-muted); }
 .context-popover :focus-visible { outline: 2px solid #2DD4BF; outline-offset: 2px; }
+.command-block { margin-block: 8px; margin-inline: 18px; display: flex; flex-direction: column; gap: 8px; }
+.terminal-panel { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--terminal, #0B1118); }
+.terminal-header { display: flex; align-items: center; gap: 12px; padding-block: 7px; padding-inline: 12px; background: #14181E; border-block-end: 1px solid var(--border); font-size: 12.5px; }
+.terminal-command { color: #D6E0EA; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-status { margin-inline-start: auto; color: var(--text-muted); white-space: nowrap; }
+.terminal-status b { color: #F87171; }
+.terminal-timeout .terminal-header { background: #241618; border-block-end-color: #5C2A2A; }
+.terminal-timeout .terminal-command { color: #F87171; }
+.terminal-tag { background: #3A1A1A; color: #FCA5A5; border-radius: 20px; padding-inline: 10px; padding-block: 1px; font-size: 11.5px; }
+.terminal-timeout-note { margin: 0; padding-block: 6px; padding-inline: 12px; color: #FCA5A5; font-size: 12px; }
+.terminal-body { padding-inline: 8px; padding-block: 6px; overflow: auto; }
+.terminal-body .xterm { block-size: 100%; }
+.terminal-body .xterm-viewport { background: transparent !important; }
+.terminal-more { border: 0; border-block-start: 1px solid var(--border); background: transparent; color: #5EEAD4; font: inherit; font-size: 12px; padding-block: 6px; inline-size: 100%; }
+.test-results { display: flex; flex-direction: column; gap: 8px; }
+.test-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.test-chip { border-radius: 20px; padding-inline: 10px; padding-block: 2px; font-size: 12px; font-weight: 700; }
+.test-chip.ok { background: #12353A; color: #5EEAD4; }
+.test-chip.danger { background: #3A1A1A; color: #FCA5A5; }
+.test-chip.neutral { background: #26292F; color: var(--text-muted); }
+.test-failures { font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.test-failures ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.test-failures li { background: #1E2024; border-radius: 8px; padding-inline: 8px; }

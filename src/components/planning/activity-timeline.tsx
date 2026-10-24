@@ -8,6 +8,8 @@ import { disclosureValue, useDisclosure } from "../../lib/use-disclosure";
 import type { RunState } from "../../store/run";
 import { Message } from "../../genui/message";
 import { ToolErrorCard } from "../tool-error-card";
+import { TerminalPanel } from "../terminal/terminal-panel";
+import { TestResults } from "../terminal/test-results";
 import { toolFailure } from "../../lib/errors";
 import { dictionary } from "../../i18n";
 
@@ -34,8 +36,19 @@ function EventBody({ events, locale, runId, child = false, retry }: { events: Ha
   return <div className="step-body">
     {turns.map(event => <Thinking key={event.scope.scope_id} scope={event.scope} events={events} locale={locale} runId={runId} />)}
     {tools.map(({ event, result }) => {
-      if (result?.type === "tool.result" && toolFailure(result.text)) return <ToolErrorCard key={`${event.scope?.scope_id}-${event.call_id}`} text={result.text} t={dictionary(locale)} locale={locale} command={typeof event.args.command === "string" ? event.args.command : undefined} onRetry={retry ?? (() => undefined)} />;
-      return <details className="tool-line" key={`${event.scope?.scope_id}-${event.call_id}`} data-testid="tool-line"><summary><span className="status-dot" /><code dir="ltr">{event.name} · {String(event.args.file_path ?? event.args.command ?? "")}</code></summary><pre className="readable" dir="auto">{result?.type === "tool.result" ? result.text : "…"}</pre></details>;
+      const key = `${event.scope?.scope_id}-${event.call_id}`;
+      const text = result?.type === "tool.result" ? result.text : null;
+      if (event.name === "run_command" && typeof event.args.command === "string") {
+        const tested = events.find(item => item.type === "test.result" && item.call_id === event.call_id);
+        const timeout = text ? toolFailure(text) : null;
+        return <div className="command-block" key={key} data-testid="command-block">
+          <TerminalPanel command={event.args.command} result={text} locale={locale} />
+          {tested?.type === "test.result" && <TestResults result={tested} locale={locale} />}
+          {timeout?.kind === "timeout" && <ToolErrorCard text={text ?? ""} t={dictionary(locale)} locale={locale} command={timeout.command} onRetry={retry ?? (() => undefined)} />}
+        </div>;
+      }
+      if (result?.type === "tool.result" && toolFailure(result.text)) return <ToolErrorCard key={key} text={result.text} t={dictionary(locale)} locale={locale} command={typeof event.args.command === "string" ? event.args.command : undefined} onRetry={retry ?? (() => undefined)} />;
+      return <details className="tool-line" key={key} data-testid="tool-line"><summary><span className="status-dot" /><code dir="ltr">{event.name} · {String(event.args.file_path ?? event.args.command ?? "")}</code></summary><pre className="readable" dir="auto">{result?.type === "tool.result" ? result.text : "…"}</pre></details>;
     })}
     {messages.map(message => <Message key={message.id} text={message.text} streaming={message.streaming} />)}
   </div>;
