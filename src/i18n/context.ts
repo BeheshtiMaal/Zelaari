@@ -1,0 +1,36 @@
+import type { Locale } from ".";
+const en = {
+  ring: "Context used",
+  title: "Context",
+  messages: "Messages",
+  toolResults: "Tool results",
+  system: "System and tools",
+  skills: "Active skills",
+  memory: "Memory",
+  total: "Total",
+  threshold: "Compaction threshold",
+  newChat: "New chat with summary",
+  newChatHelp: "Starts a new task from this summary instead of the whole conversation.",
+  unavailable: "No measurement yet",
+  estimate: "Estimated",
+  close: "Close",
+  continueTask: "Continue from the summary",
+};
+const fa: typeof en = {
+  ring: "زمینه استفاده شده",
+  title: "زمینه",
+  messages: "پیام‌ها",
+  toolResults: "نتیجه‌ی ابزارها",
+  system: "سیستم و ابزارها",
+  skills: "مهارت‌های فعال",
+  memory: "حافظه",
+  total: "مجموع",
+  threshold: "آستانه‌ی فشرده‌سازی",
+  newChat: "گفتگوی جدید با خلاصه",
+  newChatHelp: "کار تازه از همین خلاصه شروع می‌شود، نه از کل گفتگو.",
+  unavailable: "هنوز اندازه‌گیری نشده",
+  estimate: "تخمینی",
+  close: "بستن",
+  continueTask: "ادامه از خلاصه",
+};
+export const contextCopy = (locale: Locale) => locale === "fa" ? fa : en;

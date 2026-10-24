@@ -8,8 +8,20 @@ import type { Session } from "../lib/use-session";
 import { Hint } from "./hint";
 import { useCommands } from "../lib/use-commands";
 import { questionCopy } from "../i18n/questions";
+import { contextCopy } from "../i18n/context";
+import { useRun } from "../store/run";
+import { currentContext } from "../lib/timeline";
+import { useVerifySettings } from "../lib/use-verify-settings";
+import { useRunSummary } from "../lib/use-summary";
+import { ContextRing } from "./context/context-ring";
 export function Composer({ t, task, setTask, session: s, submit }: {t: Dictionary; task: string; setTask(task: string): void; session: Session; submit(): void}) {
-  const commands = useCommands(task, setTask), q = questionCopy(s.locale);
+  const commands = useCommands(task, setTask), q = questionCopy(s.locale), c = contextCopy(s.locale);
+  const events = useRun(state => state.events), runId = useRun(state => state.runId);
+  const settings = useVerifySettings(s.workspace);
+  const summarised = events.filter(event => event.type === "context.summarized").length;
+  const summary = useRunSummary(runId, summarised);
+  const context = currentContext(events);
+  const ring = settings.value?.context ?? {};
   return <form className="composer-frame" onSubmit={event => { event.preventDefault(); submit(); }}>
     <div className="composer">
       <label className="sr-only" htmlFor="task">{t.taskLabel}</label>
@@ -19,7 +31,7 @@ export function Composer({ t, task, setTask, session: s, submit }: {t: Dictionar
         if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); }
       }} />
       <div className="composer-toolbar"><Hint text={t.soon}><button type="button" className="icon-button" disabled aria-label={t.add}><PlusIcon size={22} /></button></Hint>
-        <div className="model-send"><Hint text={t.placeholderRing}><span className="context-ring"><svg viewBox="0 0 36 36" width="22" height="22" aria-hidden="true"><circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" strokeWidth="4" /></svg></span></Hint>
+        <div className="model-send">{context?.type === "context.updated" && (ring.show_ring ?? true) && <ContextRing event={context} locale={s.locale} threshold={ring.compaction_percent ?? 60} summary={!!summary} busy={s.busy} onNewChat={() => void s.start(task.trim() || c.continueTask, false, runId ?? undefined)} />}
           <label className="model-select"><span className="sr-only">{t.modelSelect}</span><select aria-label={t.modelSelect} value={s.model} disabled={s.busy} onChange={event => s.setModel(event.target.value)}><option value="">{t.modelSelect}</option>{s.models.map(model => <option key={model.id} value={model.id} disabled={!model.supports_tools || model.probe?.status !== "ok"}>{model.kind === "demo" ? t.demo : model.name}</option>)}</select></label>
           <button className="send" type={s.busy ? "button" : "submit"} onClick={s.busy ? () => void s.stop() : undefined} disabled={!s.ready || (!s.busy && (!task.trim() || !s.workspace || !s.usableModel))} aria-label={s.busy ? t.stop : t.send}>{s.busy ? <span aria-hidden="true">■</span> : <ArrowUpIcon size={20} />}</button>
         </div>

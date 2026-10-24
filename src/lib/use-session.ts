@@ -137,13 +137,13 @@ export function useSession() {
       setVaultOk(true); await refresh(); return true;
     } catch { setVaultOk(false); return false; }
   }
-  async function start(task: string, approved = false) {
+  async function start(task: string, approved = false, seed?: string) {
     const bridge = connection();
     if (!bridge || !ready || busy || !workspace || !usableModel) return;
     active.current?.abort();
     const controller = new AbortController(); active.current = controller;
     setBusy(true); setFailed(false); useRun.getState().reset();
-    const request: RunRequest = { task, workspace, model, mode, ...(worktree ? { worktree: true, worktree_approved: approved } : {}) };
+    const request: RunRequest = { task, workspace, model, mode, ...(worktree ? { worktree: true, worktree_approved: approved } : {}), ...(seed ? { seed_summary_from: seed } : {}) };
     try {
       const result = await api<RunResponse>("/runs", "POST", request, controller.signal);
       await subscribe(bridge.baseUrl, bridge.token, result.run_id, useRun.getState().receive, controller.signal);

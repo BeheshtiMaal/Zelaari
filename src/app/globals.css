@@ -395,3 +395,26 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .question-exhausted { background: #151618; border: 1px solid #2C2F36; border-radius: 16px; }
 .question-exhausted .question-heading > span { background: #3A1A1A; color: #FCA5A5; }
 .question-failure { background: #0B1118; color: #D6E0EA; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 180px; overflow: auto; }
+.context-ring { display: flex; background: transparent; border: 0; padding: 4px; color: var(--text-dim); border-radius: 8px; }
+.context-ring:hover, .context-ring:focus-visible { color: #C9D3DD; }
+.context-ring .ring-track { stroke: #474B54; }
+.context-ring .ring-arc { stroke: #C9D3DD; transition: stroke-dashoffset .3s ease; }
+.context-popover { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding: 16px; inline-size: 300px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 18px 40px #0008; z-index: 20; }
+.context-heading { display: flex; align-items: center; gap: 8px; }
+.context-heading strong { font-size: 14px; }
+.context-badge { margin-inline-start: auto; background: #26292F; color: var(--text-muted); border-radius: 20px; padding-inline: 10px; font-size: 11.5px; }
+.context-meter { position: relative; block-size: 6px; border-radius: 4px; background: #26292F; overflow: visible; }
+.context-meter-fill { block-size: 100%; border-radius: 4px; background: #C9D3DD; }
+.context-marker { position: absolute; inset-block-start: -3px; inline-size: 2px; block-size: 12px; background: #5EEAD4; border-radius: 2px; }
+.context-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.context-rows li { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 12.5px; }
+.context-row-label { color: var(--text-muted); }
+.context-row-value { font-variant-numeric: tabular-nums; }
+.context-row-bar { grid-column: 1 / -1; block-size: 4px; border-radius: 3px; background: #26292F; overflow: hidden; }
+.context-row-bar > span { display: block; block-size: 100%; background: #7C8794; border-radius: 3px; }
+.context-total { display: flex; justify-content: space-between; font-size: 12.5px; margin: 0; border-block-start: 1px solid var(--border); padding-block-start: 8px; }
+.context-threshold-copy { margin: 0; font-size: 11.5px; color: var(--text-muted); }
+.context-new-chat { border: 1px solid var(--accent); background: transparent; color: #5EEAD4; border-radius: 12px; padding-block: 7px; padding-inline: 12px; font: inherit; font-size: 13px; }
+.context-new-chat:disabled { border-color: var(--border); color: var(--text-muted); }
+.context-help { margin: 0; font-size: 11.5px; color: var(--text-muted); }
+.context-popover :focus-visible { outline: 2px solid #2DD4BF; outline-offset: 2px; }
