@@ -16,7 +16,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.runtime import Runtime
 
 from store.eventlog import EventBus
-from verify.results import matches_verification
+from verify.results import matches_verification, run_outcome
 
 MUTATIONS = {"write_file", "edit_file", "delete"}
 VERIFICATION_HEADER = "Verification"
@@ -62,11 +62,8 @@ def failed(message: ToolMessage) -> bool:
 def verified(message: ToolMessage, command: str | None, verification: str) -> bool:
     if command is None or not matches_verification(command, verification):
         return False
-    try:
-        payload = json.loads(str(message.content))
-    except ValueError:
-        return False
-    return isinstance(payload, dict) and payload.get("exit_code") == 0
+    outcome = run_outcome(str(message.content))
+    return outcome is not None and outcome.exit_code == 0
 
 
 def adopted_command(call: dict[str, Any], message: ToolMessage) -> tuple[str | None, bool]:

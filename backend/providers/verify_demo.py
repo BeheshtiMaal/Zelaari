@@ -12,6 +12,16 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 COMMAND = re.compile(r"`([^`]+)`")
 VERIFICATION_HEADER = "Verification"
+BROKEN = (
+    'def parse_date(text):\n    raise ValueError("unsupported format")\n',
+    'def parse_date(text):\n    return text.split("-")\n',
+    'def parse_date(text):\n    return [int(part) for part in text.split("/")]\n',
+)
+FIXED = (
+    "def parse_date(text):\n"
+    '    year, month, day = (int(part) for part in text.split("-"))\n'
+    "    return year, month, day\n"
+)
 
 
 def call(name: str, args: dict[str, Any], identifier: str) -> AIMessage:
@@ -28,6 +38,29 @@ def injected(messages: list[Any]) -> list[str]:
         if isinstance(message, HumanMessage)
         and message.additional_kwargs.get("harness") == "verify"
     ]
+
+
+def marked(messages: list[Any], kind: str) -> list[str]:
+    """Instructions the budget middleware injected, by kind."""
+    return [
+        str(message.content)
+        for message in messages
+        if isinstance(message, HumanMessage)
+        and message.additional_kwargs.get("harness") == "budget"
+        and message.additional_kwargs.get("kind") == kind
+    ]
+
+
+def exhausted_payload(content: str) -> dict[str, Any]:
+    """The card the harness told the model to ask, copied verbatim."""
+    start = content.find("{")
+    if start < 0:
+        return {}
+    try:
+        value, _ = json.JSONDecoder().raw_decode(content[start:])
+    except ValueError:
+        return {}
+    return value if isinstance(value, dict) else {}
 
 
 def names(results: list[ToolMessage]) -> list[str]:
@@ -81,7 +114,9 @@ def verification_question() -> dict[str, Any]:
     }
 
 
-def prepare(results: list[ToolMessage], content: str) -> AIMessage | None:
+def prepare(
+    results: list[ToolMessage], content: str, path: str = "notes.txt"
+) -> AIMessage | None:
     """Read, then the accepted plan and active step a mutation needs (Phase 6 contract)."""
     kinds = names(results)
     if not results:
@@ -94,7 +129,7 @@ def prepare(results: list[ToolMessage], content: str) -> AIMessage | None:
                     {
                         "id": "change",
                         "title": "Apply the requested change",
-                        "expected_files": ["notes.txt"],
+                        "expected_files": [path],
                     }
                 ]
             },
@@ -104,7 +139,7 @@ def prepare(results: list[ToolMessage], content: str) -> AIMessage | None:
         todos = [{"content": "[change] Apply the requested change", "status": "in_progress"}]
         return call("write_todos", {"todos": todos}, "verify-progress")
     if "write_file" not in kinds:
-        return call("write_file", {"file_path": "notes.txt", "content": content}, "verify-write")
+        return call("write_file", {"file_path": path, "content": content}, "verify-write")
     return None
 
 
@@ -157,6 +192,101 @@ def asking(results: list[ToolMessage], prompts: list[str]) -> AIMessage:
     return AIMessage(content="no command was chosen")
 
 
+def exhausted_choice(results: list[ToolMessage]) -> str | None:
+    for item in reversed(results):
+        if item.name != "ask_user_question":
+            continue
+        try:
+            answer = json.loads(str(item.content))
+        except ValueError:
+            continue
+        if not isinstance(answer, dict):
+            continue
+        if answer.get("status") == "declined":
+            return "stop"
+        for selection in answer.get("answers") or []:
+            if not isinstance(selection, dict):
+                continue
+            chosen = selection.get("option_ids") or []
+            if chosen:
+                return str(chosen[0])
+            if selection.get("other"):
+                return "retry"
+    return None
+
+
+def exhausted_hint(results: list[ToolMessage]) -> str:
+    for item in reversed(results):
+        if item.name != "ask_user_question":
+            continue
+        try:
+            answer = json.loads(str(item.content))
+        except ValueError:
+            return ""
+        if not isinstance(answer, dict):
+            return ""
+        for selection in answer.get("answers") or []:
+            if not isinstance(selection, dict):
+                continue
+            hint = selection.get("hint") or selection.get("other")
+            if isinstance(hint, str) and hint.strip():
+                return hint.strip()
+    return ""
+
+
+def budget(results: list[ToolMessage], messages: list[Any], prompts: list[str]) -> AIMessage:
+    """Three failing fix attempts, the exhausted card, then whatever the person chose."""
+    ids = {item.tool_call_id for item in results}
+    prepared = prepare(results, BROKEN[0], "parser.py")
+    if prepared is not None:
+        return prepared
+    found = COMMAND.search(prompts[-1]) if prompts else None
+    command = found.group(1) if found else "pytest -q"
+    for index in range(len(BROKEN)):
+        if f"verify-run-{index}" in ids:
+            continue
+        if index and f"verify-fix-{index}" not in ids:
+            return call(
+                "write_file",
+                {"file_path": "parser.py", "content": BROKEN[index]},
+                f"verify-fix-{index}",
+            )
+        return call("run_command", {"command": command}, f"verify-run-{index}")
+    if "verify-question" not in ids:
+        asked = marked(messages, "ask")
+        if asked:
+            return call("ask_user_question", exhausted_payload(asked[-1]), "verify-question")
+        return AIMessage(content="out of attempts")
+    choice = exhausted_choice(results)
+    if choice in {"retry", "change"}:
+        if choice == "change" and "verify-revision" not in ids:
+            return call(
+                "submit_plan",
+                {
+                    "steps": [
+                        {
+                            "id": "retry",
+                            "title": "Retry the parser fix with a new approach",
+                            "expected_files": ["parser.py"],
+                        }
+                    ]
+                },
+                "verify-revision",
+            )
+        if "verify-fix-final" not in ids:
+            # The comment carries the person's guidance into the file, so a test can
+            # prove the hint actually reached the model instead of only the card.
+            guidance = exhausted_hint(results)
+            content = f"# guidance: {guidance}\n{FIXED}" if guidance else FIXED
+            return call(
+                "write_file", {"file_path": "parser.py", "content": content}, "verify-fix-final"
+            )
+        if "verify-run-final" not in ids:
+            return call("run_command", {"command": command}, "verify-run-final")
+        return AIMessage(content="parser fixed")
+    return AIMessage(content="stopped as asked; parser.py still raises")
+
+
 def demo_verify(task: str, messages: list[Any], results: list[ToolMessage]) -> AIMessage | None:
     if not task.startswith("demo verify"):
         return None
@@ -165,4 +295,6 @@ def demo_verify(task: str, messages: list[Any], results: list[ToolMessage]) -> A
         return asking(results, prompts)
     if task.startswith("demo verify fail"):
         return failing(results, prompts)
+    if task.startswith("demo verify budget"):
+        return budget(results, messages, prompts)
     return gate(results, prompts)

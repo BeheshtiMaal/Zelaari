@@ -4,8 +4,10 @@ Parsing is deliberately conservative: when the output does not state a number th
 field stays `None`, so the UI shows the exit code instead of inventing a count.
 """
 
+import json
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -134,3 +136,29 @@ def matches_verification(command: str, verification: str) -> bool:
     """
     value, expected = normalised(command), normalised(verification)
     return bool(expected) and value == expected
+
+
+@dataclass(frozen=True)
+class RunOutcome:
+    """What one `run_command` result actually reported."""
+
+    exit_code: int | None
+    output: str
+    timed_out: bool
+
+
+def run_outcome(content: str) -> RunOutcome | None:
+    """Read a command result payload; `None` when the text is not one."""
+    try:
+        payload = json.loads(content)
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    code = payload.get("exit_code")
+    output = payload.get("output")
+    return RunOutcome(
+        exit_code=code if isinstance(code, int) else None,
+        output=output if isinstance(output, str) else "",
+        timed_out=bool(payload.get("timed_out")),
+    )
