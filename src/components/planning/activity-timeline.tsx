@@ -40,11 +40,13 @@ function EventBody({ events, locale, runId, child = false, retry }: { events: Ha
       const text = result?.type === "tool.result" ? result.text : null;
       if (event.name === "run_command" && typeof event.args.command === "string") {
         const tested = events.find(item => item.type === "test.result" && item.call_id === event.call_id);
-        const timeout = text ? toolFailure(text) : null;
+        // Every failure kind keeps its card here too: a crashed command reports "Interrupted:"
+        // and must not disappear just because the call also owns a terminal.
+        const failure = text ? toolFailure(text) : null;
         return <div className="command-block" key={key} data-testid="command-block">
           <TerminalPanel command={event.args.command} result={text} locale={locale} />
           {tested?.type === "test.result" && <TestResults result={tested} locale={locale} />}
-          {timeout?.kind === "timeout" && <ToolErrorCard text={text ?? ""} t={dictionary(locale)} locale={locale} command={timeout.command} onRetry={retry ?? (() => undefined)} />}
+          {failure && <ToolErrorCard text={text ?? ""} t={dictionary(locale)} locale={locale} command={event.args.command} onRetry={retry ?? (() => undefined)} />}
         </div>;
       }
       if (result?.type === "tool.result" && toolFailure(result.text)) return <ToolErrorCard key={key} text={result.text} t={dictionary(locale)} locale={locale} command={typeof event.args.command === "string" ? event.args.command : undefined} onRetry={retry ?? (() => undefined)} />;

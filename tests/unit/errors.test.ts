@@ -48,6 +48,12 @@ test("the timeout card wins over the jail card", () => {
   assert.equal(toolFailure("Edit denied: file not found"), null);
 });
 
+test("a crashed command reports an interruption, not a timeout", () => {
+  assert.equal(toolFailure("Interrupted: the engine stopped before this command finished")?.kind, "interrupted");
+  // The interruption notice is prose, so it wins before any JSON payload is considered.
+  assert.equal(toolFailure('Interrupted: {"timed_out": true}')?.kind, "interrupted");
+});
+
 test("the card interpolates seconds in the active locale's digits", () => {
   assert.equal(fill("زمان {seconds} ثانیه", { seconds: 120 }, "fa"), "زمان ۱۲۰ ثانیه");
   assert.equal(fill("Stopped after {seconds}s", { seconds: 120 }, "en"), "Stopped after 120s");

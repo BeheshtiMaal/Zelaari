@@ -139,7 +139,8 @@ try {
   await openTask(page, "demo question mixed");
   await expect(page.getByTestId("approval-card")).toBeVisible();
   await page.getByTestId("approval-approve").click(); await expect(page.locator(".stop")).toBeDisabled();
-  assert.equal(await readFile(join(workspace, "demo-answer.txt"), "utf8"), "Approved mixed effect\n");
+  // The approved effect is dispatched after the barrier releases, so the file lands asynchronously.
+  await expect.poll(() => readFile(join(workspace, "demo-answer.txt"), "utf8").catch(() => "")).toBe("Approved mixed effect\n");
   await openTask(page, "background");
   await expect(activeCard(page)).toBeVisible(); await expect(page.getByTestId("inbox-badge")).toHaveCount(0);
   await expect(page.getByTestId("current-waiting")).toHaveText("1 item waiting for you");
