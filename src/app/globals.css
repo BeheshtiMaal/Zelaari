@@ -381,6 +381,9 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .delegate-card { border: 1px solid var(--border); background: var(--bg-card); border-radius: 12px; margin-block: 8px; margin-inline: 18px; }
 .delegate-card > div > p, .delegate-card > div > pre { padding-inline: 14px; font-size: 12px; }
 .summary-notice { background: #202226; border-radius: 10px; color: var(--text-muted); margin-block: 10px; margin-inline: 18px; padding: 10px; font-size: 12px; }
+.verify-notice { background: #2A2415; border: 1px solid #5A4510; border-radius: 10px; color: #FCD34D; margin-block: 10px; margin-inline: 18px; padding: 10px; font-size: 12px; }
+.verify-notice code { font-family: Consolas, monospace; color: #FDE68A; }
+.verify-notice.is-off { background: #202226; border-color: var(--border); color: var(--text-muted); }
 .steering-status { font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; margin-block: 5px; }
 .steering-status > span { color: #5EEAD4; }
 .run-elapsed { color: var(--text-muted); font-size: 12px; white-space: nowrap; }

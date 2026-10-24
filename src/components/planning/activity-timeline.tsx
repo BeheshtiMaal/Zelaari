@@ -64,6 +64,9 @@ export function ActivityTimeline({ run, locale, retry }: { run: RunState; locale
         return <Disclosure key={child.scope.scope_id} id={`${run.runId}-child-${child.scope.scope_id}`} active={!end} terminal={!!end} className="delegate-card" title={<><strong>{t[child.scope.agent === "reviewer" ? "reviewer" : "researcher"]}</strong><span className="read-only-badge">{t.readOnly}</span><span className="muted">{end?.type === "subagent.finished" ? t[end.status] : t.running}{seconds !== null && ` · ${number.format(seconds)} ${t.seconds}`}</span></>}><p dir="auto">{child.task}</p><EventBody events={childEvents} locale={locale} runId={run.runId ?? "history"} child />{end?.type === "subagent.finished" && end.result && <pre className="readable" dir="auto">{end.result}</pre>}</Disclosure>;
       })}
       {group.summaries.map(event => <p key={event.operation_id} className="summary-notice">{t.summary}{event.affected_messages ? ` · ${number.format(event.affected_messages)} ${t.messages}` : ""}</p>)}
+      {group.verifications.map((event, index) => <p key={`verify-${index}-${event.seq}`} className={`verify-notice ${event.blocked ? "" : "is-off"}`} data-testid="verify-notice">
+        {event.reason === "declined" ? t.verifyOff : event.reason === "no_command" ? t.verifyAsk : <>{t.verifyBlocked}{event.command ? <> <code dir="ltr">{event.command}</code></> : null}</>}
+      </p>)}
     </Disclosure>;
   })}</div>;
 }

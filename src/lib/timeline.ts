@@ -90,6 +90,7 @@ export function timelineGroups(run: RunState) {
     return { ...group, events, progress, active, terminal, children, counts: countTools(events),
       elapsed: duration(progress?.started_at, progress?.ended_at ?? (run.status !== "running" ? run.events.slice().reverse().find(e => e.type === "run.finished")?.ts : null)),
       summaries: events.filter(e => e.type === "context.summarized"),
+      verifications: events.filter(e => e.type === "verify.required"),
       visible: group.id !== null || !events.every(e => ["run.started", "usage.updated", "steering.updated"].includes(e.type)),
       reasoningAvailable: events.some(e => e.type === "reasoning.delta"),
       reasoningFinished: events.some(e => e.type === "activity.finished"),

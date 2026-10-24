@@ -86,3 +86,14 @@ test("a recovered call shows the interrupted result reported by the next activit
   assert.equal(tool.result?.type === "tool.result" ? tool.result.text.slice(0, 12) : null, "Interrupted:");
   assert.equal(group.attention, true);
 });
+
+test("gate notices stay in the analysis group and keep their reason", () => {
+  const events: HarnessEvent[] = [
+    { type: "run.started", run_id: "run", seq: 1, task: "Verify", model: "demo" },
+    { type: "verify.required", run_id: "run", seq: 2, reason: "unverified_changes", command: "pytest -q", injections: 1, blocked: true },
+    { type: "verify.required", run_id: "run", seq: 3, reason: "declined", command: null, injections: 0, blocked: false },
+  ];
+  const groups = timelineGroups(events.reduce(reduceEvent, initialRun));
+  assert.deepEqual(groups.find(group => group.id === null)?.verifications.map(event => event.reason), ["unverified_changes", "declined"]);
+  assert.deepEqual(groups.filter(group => group.id !== null).flatMap(group => group.verifications), []);
+});

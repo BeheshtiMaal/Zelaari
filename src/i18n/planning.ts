@@ -14,6 +14,9 @@ const en = {
   fileThreshold: "Review plans exceeding this many files", deviation: "Review changes outside the accepted plan",
   fixedRisk: "High-risk plans always require review outside Auto mode.", configError: "Could not load or propose planning settings.",
   review: "Review the settings change below.", noPlan: "The agent is analyzing the task.", noPlanHistory: "No submitted plan.",
+  verifyBlocked: "Unverified changes: the check must pass first —",
+  verifyAsk: "No check is configured; the agent asks which command to run.",
+  verifyOff: "Verification is off for this run.",
 };
 const fa: typeof en = {
   plan: "برنامه", analysis: "تحلیل و سابقه", approved: "تأیید شده", automatic: "پذیرفته‌شده خودکار",
@@ -30,5 +33,8 @@ const fa: typeof en = {
   fileThreshold: "بازبینی برنامه با بیش از این تعداد فایل", deviation: "بازبینی خروج از برنامه پذیرفته‌شده",
   fixedRisk: "برنامه پرخطر خارج از حالت خودکار همیشه نیازمند تأیید است.", configError: "بارگذاری یا پیشنهاد تنظیمات ممکن نشد.",
   review: "تغییر تنظیمات را در پایین بازبینی کنید.", noPlan: "عامل در حال تحلیل کار است.", noPlanHistory: "برنامه‌ای ثبت نشده است.",
+  verifyBlocked: "تغییرها تأیید نشده‌اند؛ اول باید آزمون موفق شود —",
+  verifyAsk: "دستور آزمونی تنظیم نشده؛ عامل می‌پرسد کدام دستور اجرا شود.",
+  verifyOff: "آزمون برای این اجرا خاموش است.",
 };
 export const planningCopy = (locale: Locale) => locale === "fa" ? fa : en;
