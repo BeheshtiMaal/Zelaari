@@ -27,6 +27,11 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | D19 | States | Run screen (thinking, sub-agents, context notice, inline approval), empty states, error states |
 | D20 | Mock is the source of truth | Where the specs disagreed with the mock, the specs were changed to match it (see "Audit log") |
 | D21 | Worktree | Home screen has a Worktree checkbox: run the task in a `git worktree` (git repos only, approval to create) |
+| D22 | Run "steps" counter | `گام‌ها ۷ از ۴۰` counts agent iterations, not plan steps: the mock shows it at plan step 3 of 4, so it cannot be plan progress |
+| D23 | Test detection order | Custom command → pytest → npm. A repo with both runners gets pytest; Settings shows what was detected and a custom command overrides both |
+| D24 | Breakdown numbers | Per-category rows are estimates (`~`); the total uses provider usage when reported, so the ring is exact and the rows are honest |
+| D25 | Unknown test command | The agent asks through `ask_user_question`; a middleware cannot raise the Phase 5 barrier without duplicating it, so the gate verifies the call happened and adopts the answer |
+| D26 | Terminal renderer | xterm.js (`@xterm/xterm` 6.0.0 + `@xterm/addon-fit` 0.11.0), output-only. The `<pre>` fallback was not needed; the install worked offline |
 
 ## Phases
 | # | Phase | Outcome | Mock screens |
@@ -38,7 +43,7 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | 4 | **Approvals inbox - complete** | Durable SQLite approval barriers, approve/edit/reject, unified diffs, linked allow-rule review, Rules grid, global counts and waiting dots, restart recovery and no replay of uncertain effects. Offline demo and Windows Electron evidence recorded in `2026-10-19-phase-4-approvals-inbox/validation.md`. | Approvals inbox |
 | 5 | **AskUserQuestion GenUI - complete** | Durable structured questions with single/multi/rank/Other, declined results, shared docked QuestionCard, mixed question/approval barriers and restart recovery, current-task waiting summary, built-in `/grill` interview and composer picker, exhausted-attempts integration contract. Windows Electron and offline evidence recorded in `2026-10-19-phase-5-ask-user-question/validation.md`. | Tasks (question moment), Errors (exhausted card), Home (command picker) |
 | 6 | **Planning + activity timeline - complete** | Structured plans, reviewed initial/deviation gates and workspace settings, stable todo progress, trusted PlanChecklist, scoped reasoning and concurrent read-only delegates, actual summarization notices, truthful telemetry, durable steering and cancellation/recovery. Offline engine and Windows Electron evidence is recorded in `2026-10-19-phase-6-planning-timeline/validation.md` and `learnings.md`. | Run |
-| 7 | Verify + self-correction + context ring | test detection (D2), TestResults + TerminalPanel, verify gate, reflect loop, budgets, context ring + breakdown + auto-compaction | Settings: context, terminal and tests |
+| 7 | **Verify + self-correction + context ring - complete** | Test detection (D2), the verify gate and unknown-command question, bounded self-correction with the exhausted card, real step/time/fix budgets, TestResults + read-only xterm terminal with the timeout variant, context ring + breakdown + auto-compaction with summary handoff, and both settings screens behind the configuration approval. Offline engine and Windows Electron evidence is recorded in `2026-10-24-phase-7-verify-context/validation.md` and `learnings.md`. | Settings: context, terminal and tests |
 | 8 | Skills + Customize hub | loader, `load_skill`, Skills tab (installed / marketplace / mine, toggles, detail, scan), install from folder/zip/git (approval), slash commands, 5 bundled skills + example project skill, Agents and Memory tabs, Connectors (MCP) tab | Customize: Skills (Connectors tab visible, inner screen not drawn) |
 | 9 | `render_ui` + polish | model-composed GenUI, themes, fa/en, empty/error states, shortcuts, accessibility, remaining settings | Settings: appearance, permissions, data, about; Empty; Errors |
 | 9b | Schedule | scheduler in engine (app-open only), Schedule tab, add dialog, templates, queued approvals, missed-run prompt | Schedule, Add schedule |
@@ -120,6 +125,32 @@ budgets and fix counters are explicit. Phase 7 supplies verification/test detect
 self-correction, enforced budgets and the context-ring/compaction policy; none of those
 later-phase features is claimed by Phase 6. Phase 5 question/exhaustion contracts remain
 available for its unknown-test-command and retry/change/stop flows.
+
+## Phase 7 handoff to Phase 8
+
+Phase 7 is complete; validation, installed-runtime contracts and the defects found by the final gates are recorded in
+`2026-10-24-phase-7-verify-context/validation.md` and `learnings.md`. Phase 8 inherits a middleware stack whose order is
+already load-bearing: the permission barrier stays the only human barrier, the verify gate sits after it and decides only
+from `ToolMessage` outcomes, and the budget counter sits in `abefore_model`. `load_skill` and the Customize surface must
+join that stack as read-only effects, or the gate will demand a verification command for reading a skill file.
+
+The gate treats a *successful mutation* as the trigger, so any new write-capable tool (skill install from folder/zip/git,
+marketplace catalog writes, MCP connector edits) is automatically covered by it and by the per-step fix budget. Those
+installs are configuration changes: reuse the protected-configuration approval path that Phase 7's settings already use
+(review → exact bytes → atomic write), rather than inventing a second approval surface. Unknown-command questions keep
+using `ask_user_question` (D25) and the Phase 5 exhausted card, whose `presentation: "exhausted"` contract is unchanged.
+
+Terminal and test results are reusable as-is for skill scripts and eval runs: `TerminalPanel` is output-only and takes a
+payload, `TestResults` matches a `test.result` by `call_id`, and the timeout variant already carries the longer-timeout
+approval. The Settings screen renders sections 1–4 (models, appearance, permissions, context/terminal) and defers the rest;
+Phase 8's Customize hub is a separate screen, so it should reuse the section/row primitives and the inline approval card
+rather than extend `settings-screen.tsx`.
+
+Preserve the invariants Phase 7 relies on: detection never leaves the workspace and never executes anything; the
+summarizer's private `.harness/context/` route stays read-only for everything else; the summary file is redacted and
+bounded; breakdown rows are estimates while the ring total is provider usage; and every gate/budget decision is
+reconstructable from persisted events so recovery after a crash is unchanged. The documented workspace-jail limits are
+inherited unchanged — this remains an application boundary, not an OS sandbox.
 
 ## Audit log (D20): the mock wins
 The mock was left exactly as sketched. These spec statements were changed to match it:
