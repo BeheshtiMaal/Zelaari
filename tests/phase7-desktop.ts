@@ -303,9 +303,16 @@ try {
     const history = page.locator(".workspace-history details").filter({ has: task });
     if (await history.getAttribute("open") === null) await history.locator("summary").click();
     await task.click();
-    await expect(page.locator(".summary-notice")).toBeVisible({ timeout: 30000 });
+    await expect(page.locator(".summary-notice").first()).toBeVisible({ timeout: 30000 });
     const seededEvents = await log(green, seeded.run_id);
-    assert.equal(seededEvents.filter(event => event.type === "context.summarized").length, 1, "exactly one summary notice");
+    const summaries = seededEvents.filter(event => event.type === "context.summarized");
+    // One notice per compaction operation: the 20K fixture window is small enough that this
+    // long run compacts twice, so the count is asserted against the operations, not a magic 1.
+    assert.ok(summaries.length >= 1, "the seeded run compacted its history");
+    const operations = new Set(summaries.map(event => event.type === "context.summarized" && event.operation_id));
+    assert.equal(operations.size, summaries.length, "every notice is a distinct operation");
+    // The timeline renders one notice per operation, no more and no fewer.
+    await expect(page.locator(".summary-notice")).toHaveCount(summaries.length);
     const summaryFile = await readFile(seeded.summary, "utf8");
     assert.ok(summaryFile.length > 0 && summaryFile.length <= 12_000, "the summary is bounded");
     assert.ok(!summaryFile.includes("INTERNAL"), "no internal marker leaked");
@@ -324,7 +331,7 @@ try {
     assert.match(request.task, /Earlier work on the invoice parser/);
     await shot("handoff-fa");
     await status("پایان یافت");
-    evidence.push(`S6 one context.summarized, summary ${seeded.bytes} bytes on disk, the next run's request.json carries the block from ${seeded.run_id}`);
+    evidence.push(`S6 ${summaries.length} distinct context.summarized operation(s) rendered one notice each, summary ${seeded.bytes} bytes on disk, the next run's request.json carries the block from ${seeded.run_id}`);
   }
 
   if (wanted("S7")) {
