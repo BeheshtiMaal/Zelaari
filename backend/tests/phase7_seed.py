@@ -122,11 +122,7 @@ def project(root: Path, parser_source: str) -> None:
 
 
 class WindowedDemo(DemoModel):
-    """Publishes a small window so the configured percentage is a real token trigger."""
-
-    @property
-    def profile(self) -> dict[str, Any]:
-        return {"max_input_tokens": 20_000}
+    """Answers summarization calls, so the summary is a known string."""
 
     def answer(self, messages: list[BaseMessage]) -> AIMessage:
         # The summarizer calls the model without a system prompt; the agent always has one.
@@ -158,7 +154,8 @@ async def main() -> None:
     original = build_agent
 
     def factory(*args: Any, **kwargs: Any) -> Any:
-        model = WindowedDemo(delay=0)
+        # A published window turns the configured percentage into a real token trigger.
+        model = WindowedDemo(delay=0, profile={"max_input_tokens": 20_000})
         redactor = Redactor()
         args = (args[0], model, args[2], redactor)
         kwargs["extra_middleware"] = [*kwargs.get("extra_middleware", []), History()]
