@@ -204,6 +204,32 @@ class UsageUpdated(EventBase):
     estimated: bool
 
 
+class VerifyRequired(EventBase):
+    """The harness blocked a finish because the changes are unverified."""
+
+    type: Literal["verify.required"] = "verify.required"
+    reason: Literal["unverified_changes", "no_command", "declined"]
+    command: str | None = None
+    injections: int = Field(default=0, ge=0)
+    blocked: bool = True
+
+
+class BudgetUpdated(EventBase):
+    type: Literal["budget.updated"] = "budget.updated"
+    steps: int = Field(ge=0)
+    max_steps: int = Field(ge=1)
+    fix_attempts: int = Field(ge=0)
+    max_fix_attempts: int = Field(ge=0)
+    elapsed_ms: int = Field(ge=0)
+    max_seconds: int = Field(ge=1)
+
+
+class BudgetExhausted(EventBase):
+    type: Literal["budget.exhausted"] = "budget.exhausted"
+    kind: Literal["steps", "time", "verify", "fix_attempts"]
+    limit: int = Field(ge=0)
+
+
 Event = Annotated[
     RunStarted
     | MessageDelta
@@ -227,6 +253,9 @@ Event = Annotated[
     | ContextUpdated
     | SteeringUpdated
     | TestResult
+    | VerifyRequired
+    | BudgetUpdated
+    | BudgetExhausted
     | FutureEvent,
     Field(discriminator="type"),
 ]

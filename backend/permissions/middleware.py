@@ -412,6 +412,8 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             ),
             tool_call_id=call_key(call),
             name=call["name"],
+            # An error status is the structural signal that nothing changed.
+            status="error",
         )
 
     async def awrap_tool_call(
@@ -433,6 +435,7 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
                     ),
                     tool_call_id=call_key(call),
                     name=call["name"],
+                    status="error",
                 )
         if call["name"] == "ask_user_question":
             value = (state.get("question_outcomes") or {}).get(call_key(call))

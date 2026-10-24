@@ -21,9 +21,7 @@ NPM_PLACEHOLDER = "no test specified"
 
 Source = Literal["custom", "pytest.ini", "pyproject.toml", "tests", "package.json", "none"]
 
-PYTEST_DEPENDENCY = re.compile(
-    r"""(?m)(?:^|[\s\[,"'])pytest(\[[^\]\n]*\])?\s*(?:[<>=!~,"'\]]|$)"""
-)
+PYTEST_DEPENDENCY = re.compile(r"""(?m)(?:^|[\s\[,"'])pytest(\[[^\]\n]*\])?\s*(?:[<>=!~,"'\]]|$)""")
 
 
 class Detection(BaseModel):

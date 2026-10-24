@@ -52,6 +52,7 @@ from tools.git import add_worktree, build_git_switch, repository
 from tools.jail import storage_path, workspace_root
 from tools.snapshot import SnapshotStore
 from verify.detection import detect
+from verify.gate import VerifyGateMiddleware
 from verify.settings import load_config
 
 
@@ -253,6 +254,18 @@ class RunManager:
             projection = ActivityProjection(
                 bus, meter, record.context.tokens, record.context.estimated, verification
             )
+
+            def adopt(command: str) -> None:
+                """A command the person chose in the Verification card applies to this run."""
+                run.verification = command
+                projection.verification = command
+
+            gate = VerifyGateMiddleware(
+                bus,
+                verification,
+                enabled=settings.verify.gate and request.mode != "read-only",
+                adopt=adopt,
+            )
             try:
                 async with AsyncSqliteSaver.from_conn_string(str(checkpoint)) as saver:
                     rules = RulesEngine.load(root, request.mode)
@@ -276,7 +289,7 @@ class RunManager:
                         model_name=record.model,
                         provider_name=record.name,
                         cancelled=runner.cancelled,
-                        extra_middleware=[SteeringMiddleware(steering)],
+                        extra_middleware=[SteeringMiddleware(steering), gate],
                     )
                     config: RunnableConfig = {
                         "configurable": {"thread_id": run_id},

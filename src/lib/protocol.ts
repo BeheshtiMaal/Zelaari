@@ -23,6 +23,9 @@ export type Event =
   | ContextUpdated
   | SteeringUpdated
   | TestResult
+  | VerifyRequired
+  | BudgetUpdated
+  | BudgetExhausted
   | FutureEvent;
 export type RunId = string;
 export type Seq = number;
@@ -362,14 +365,38 @@ export type Summary = string;
 export type RunId27 = string;
 export type Seq22 = number;
 export type Ts22 = string;
-export type Type23 = "ui.render";
+export type Type23 = "verify.required";
+export type Reason2 = "unverified_changes" | "no_command" | "declined";
+export type Command2 = string | null;
+export type Injections = number;
+export type Blocked = boolean;
+export type RunId28 = string;
+export type Seq23 = number;
+export type Ts23 = string;
+export type Type24 = "budget.updated";
+export type Steps1 = number;
+export type MaxSteps = number;
+export type FixAttempts = number;
+export type MaxFixAttempts = number;
+export type ElapsedMs = number;
+export type MaxSeconds = number;
+export type RunId29 = string;
+export type Seq24 = number;
+export type Ts24 = string;
+export type Type25 = "budget.exhausted";
+export type Kind3 = "steps" | "time" | "verify" | "fix_attempts";
+export type Limit = number;
+export type RunId30 = string;
+export type Seq25 = number;
+export type Ts25 = string;
+export type Type26 = "ui.render";
 export type Task3 = string;
 export type Workspace1 = string;
 export type Model2 = string;
 export type Mode = "read-only" | "ask" | "auto";
 export type Worktree = boolean;
 export type WorktreeApproved = boolean;
-export type RunId28 = string;
+export type RunId31 = string;
 export type Status8 = "ok";
 export type Id3 = string;
 export type Name1 = string;
@@ -378,7 +405,7 @@ export type Model3 = string;
 export type Id4 = string;
 export type Name2 = string;
 export type Model4 = string;
-export type Kind3 = "demo" | "openai-compatible" | "anthropic";
+export type Kind4 = "demo" | "openai-compatible" | "anthropic";
 export type BaseUrl1 = string | null;
 export type ApiKeyRef = string | null;
 export type KeySuffix = string;
@@ -409,7 +436,7 @@ export type Status10 = "running" | "completed" | "stopped" | "error" | "interrup
 export type Worktree1 = string | null;
 export type Tasks = TaskRecord[];
 export type Decision1 = "approve" | "reject";
-export type Reason2 = string | null;
+export type Reason3 = string | null;
 export type EditedArgs = {
   [k: string]: JsonValue;
 } | null;
@@ -418,7 +445,7 @@ export type Revision4 = string | null;
 export type InterruptId2 = string;
 export type Status11 = "pending" | "approved" | "rejected" | "cancelled";
 export type Decision2 = "approve" | "reject";
-export type Reason3 = string | null;
+export type Reason4 = string | null;
 export type EditedArgs1 = {
   [k: string]: JsonValue;
 } | null;
@@ -429,8 +456,8 @@ export type ResolvedAt1 = string | null;
 export type ExecutionStatus = "not_started" | "running" | "completed" | "interrupted";
 export type Result1 = string | null;
 export type Status12 = "ok";
-export type RunId29 = string | null;
-export type Command2 = string;
+export type RunId32 = string | null;
+export type Command3 = string;
 export type Shell = "powershell" | "cmd";
 export type ExitCode1 = number | null;
 export type DurationMs1 = number;
@@ -442,10 +469,10 @@ export type TimedOut = boolean;
 export type TimeoutSeconds = number;
 export type KilledTree = boolean;
 export type Path2 = string;
-export type Kind4 = "file" | "dir";
+export type Kind5 = "file" | "dir";
 export type Name5 = string;
 export type Path3 = string;
-export type Kind5 = "file" | "dir";
+export type Kind6 = "file" | "dir";
 export type Size = number;
 export type Changed = boolean;
 export type Entries = FileEntry[];
@@ -461,8 +488,8 @@ export type CreatedSnapshotId = string;
 export type Id6 = string;
 export type Path6 = string;
 export type Existed = boolean;
-export type Ts23 = string;
-export type RunId30 = string | null;
+export type Ts26 = string;
+export type RunId33 = string | null;
 export type CallId5 = string | null;
 export type Bytes = number;
 export type Tool1 = string;
@@ -481,7 +508,7 @@ export type Glob = string;
 export type Action = "allow" | "ask" | "deny";
 export type Mode4 = "read-only" | "ask" | "auto";
 export type AlwaysAsk = string[];
-export type Kind6 = "question";
+export type Kind7 = "question";
 export type InterruptId3 = string;
 export type Status13 = "answered" | "declined";
 /**
@@ -499,14 +526,14 @@ export type KeepMessages = number;
 export type Offload = boolean;
 export type ShowRing = boolean;
 export type Gate = boolean;
-export type Command3 = string | null;
-export type MaxSteps = number;
+export type Command4 = string | null;
+export type MaxSteps1 = number;
 export type MaxMinutes = number;
-export type FixAttempts = number;
+export type FixAttempts1 = number;
 export type Shell1 = string;
 export type TimeoutSeconds1 = number;
 export type MaxOutputLines = number;
-export type Command4 = string | null;
+export type Command5 = string | null;
 export type Source2 = "custom" | "pytest.ini" | "pyproject.toml" | "tests" | "package.json" | "none";
 export type Status14 = "passed" | "failed" | "error" | "timeout";
 export type ExitCode2 = number | null;
@@ -908,13 +935,46 @@ export interface TestResult {
   summary?: Summary;
 }
 /**
- * Reserved events: not emitted by the bridge yet.
+ * The harness blocked a finish because the changes are unverified.
  */
-export interface FutureEvent {
+export interface VerifyRequired {
   run_id: RunId27;
   seq: Seq22;
   ts?: Ts22;
-  type: Type23;
+  type?: Type23;
+  reason: Reason2;
+  command?: Command2;
+  injections?: Injections;
+  blocked?: Blocked;
+}
+export interface BudgetUpdated {
+  run_id: RunId28;
+  seq: Seq23;
+  ts?: Ts23;
+  type?: Type24;
+  steps: Steps1;
+  max_steps: MaxSteps;
+  fix_attempts: FixAttempts;
+  max_fix_attempts: MaxFixAttempts;
+  elapsed_ms: ElapsedMs;
+  max_seconds: MaxSeconds;
+}
+export interface BudgetExhausted {
+  run_id: RunId29;
+  seq: Seq24;
+  ts?: Ts24;
+  type?: Type25;
+  kind: Kind3;
+  limit: Limit;
+}
+/**
+ * Reserved events: not emitted by the bridge yet.
+ */
+export interface FutureEvent {
+  run_id: RunId30;
+  seq: Seq25;
+  ts?: Ts25;
+  type: Type26;
   data: Data;
 }
 export interface Data {
@@ -929,7 +989,7 @@ export interface RunRequest {
   worktree_approved?: WorktreeApproved;
 }
 export interface RunResponse {
-  run_id: RunId28;
+  run_id: RunId31;
 }
 export interface HealthResponse {
   status?: Status8;
@@ -944,7 +1004,7 @@ export interface ProviderRecord {
   id?: Id4;
   name: Name2;
   model: Model4;
-  kind: Kind3;
+  kind: Kind4;
   base_url?: BaseUrl1;
   api_key_ref?: ApiKeyRef;
   key_suffix?: KeySuffix;
@@ -993,7 +1053,7 @@ export interface TaskRecord {
 }
 export interface ApprovalDecision {
   decision: Decision1;
-  reason?: Reason2;
+  reason?: Reason3;
   edited_args?: EditedArgs;
   allow_glob?: AllowGlob;
   revision?: Revision4;
@@ -1015,7 +1075,7 @@ export interface ApprovalRecord {
  */
 export interface ApprovalAnswer {
   decision: Decision2;
-  reason?: Reason3;
+  reason?: Reason4;
   edited_args?: EditedArgs1;
   allow_glob?: AllowGlob1;
   revision?: Revision5;
@@ -1023,13 +1083,13 @@ export interface ApprovalAnswer {
 }
 export interface ApprovalResolution {
   status?: Status12;
-  run_id?: RunId29;
+  run_id?: RunId32;
 }
 /**
  * What `run_command` returns to the model and what the timeout card reads.
  */
 export interface CommandResult {
-  command: Command2;
+  command: Command3;
   shell: Shell;
   exit_code?: ExitCode1;
   duration_ms?: DurationMs1;
@@ -1046,14 +1106,14 @@ export interface CommandResult {
  */
 export interface FileListing {
   path: Path2;
-  kind: Kind4;
+  kind: Kind5;
   entries?: Entries;
   file?: FileContent | null;
 }
 export interface FileEntry {
   name: Name5;
   path: Path3;
-  kind: Kind5;
+  kind: Kind6;
   size?: Size;
   changed?: Changed;
 }
@@ -1074,8 +1134,8 @@ export interface SnapshotEntry {
   id: Id6;
   path: Path6;
   existed: Existed;
-  ts: Ts23;
-  run_id?: RunId30;
+  ts: Ts26;
+  run_id?: RunId33;
   call_id?: CallId5;
   bytes?: Bytes;
   tool?: Tool1;
@@ -1132,7 +1192,7 @@ export interface Defaults {
   [k: string]: string;
 }
 export interface QuestionDecision {
-  kind?: Kind6;
+  kind?: Kind7;
   interrupt_id: InterruptId3;
   status: Status13;
   answers?: Answers1;
@@ -1155,10 +1215,10 @@ export interface ContextSettings {
 }
 export interface VerifySettings {
   gate?: Gate;
-  command?: Command3;
-  max_steps?: MaxSteps;
+  command?: Command4;
+  max_steps?: MaxSteps1;
   max_minutes?: MaxMinutes;
-  fix_attempts?: FixAttempts;
+  fix_attempts?: FixAttempts1;
 }
 export interface TerminalSettings {
   shell?: Shell1;
@@ -1166,7 +1226,7 @@ export interface TerminalSettings {
   max_output_lines?: MaxOutputLines;
 }
 export interface Detection {
-  command?: Command4;
+  command?: Command5;
   source?: Source2;
 }
 export interface VerifyConfig {

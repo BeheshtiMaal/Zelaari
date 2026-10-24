@@ -38,8 +38,9 @@ class EventBus:
         self.changed = asyncio.Condition()
         self.finished = bool(self.history and self.history[-1].type == "run.finished")
 
-    async def emit(self, kind: str, **payload: Any) -> None:
-        await self.emit_many([(kind, payload)])
+    async def emit(self, event_type: str, /, **payload: Any) -> None:
+        # Positional-only: payloads may legitimately contain a `kind` or `type` field.
+        await self.emit_many([(event_type, payload)])
 
     async def emit_many(self, values: list[tuple[str, dict[str, Any]]]) -> None:
         """Commit a terminal transition atomically with one durable flush."""

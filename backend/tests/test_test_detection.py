@@ -30,8 +30,8 @@ def test_pytest_ini(tmp_path: Path) -> None:
     [
         "[project]\nname = 'x'\ndependencies = ['pytest>=8']\n",
         "[tool.pytest.ini_options]\naddopts = '-q'\n",
-        "[dependency-groups]\ndev = [\n  \"pytest\",\n]\n",
-        "[project.optional-dependencies]\ntest = [\"pytest[django]<9\"]\n",
+        '[dependency-groups]\ndev = [\n  "pytest",\n]\n',
+        '[project.optional-dependencies]\ntest = ["pytest[django]<9"]\n',
     ],
 )
 def test_pyproject_mentions_pytest(tmp_path: Path, body: str) -> None:
