@@ -117,6 +117,7 @@ class SnapshotStore:
                     in {
                         (".harness/rules.json", "rules_update"),
                         (".harness/config.json", "planning_settings_update"),
+                        (".harness/config.json", "verify_settings_update"),
                     }
                 ),
             )

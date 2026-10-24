@@ -32,6 +32,7 @@ from tools.types import (
     RulesResponse,
     SnapshotEntry,
 )
+from verify.settings import VerifyConfig, VerifySettingsResponse
 
 
 class WireModel(BaseModel):
@@ -271,3 +272,5 @@ class Protocol(WireModel):
     question_decision: QuestionDecision
     steering_submission: SteeringSubmission
     planning_settings: PlanningSettings
+    verify_settings: VerifySettingsResponse
+    verify_config: VerifyConfig

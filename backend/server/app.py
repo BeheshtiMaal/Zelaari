@@ -30,6 +30,7 @@ from server.git import git_routes
 from server.models import model_routes
 from server.rules import rules_routes
 from server.snapshots import snapshot_routes
+from server.verify import verify_routes
 from server.workspaces import workspace_routes
 from store.actions import ActionApprovals
 from store.catalog import Catalog
@@ -140,6 +141,7 @@ def create_app(
     app.include_router(git_routes(ActionApprovals(catalog)))
     app.include_router(file_routes(lambda: service.pending_paths() if service else set()))
     app.include_router(rules_routes(ActionApprovals(catalog)))
+    app.include_router(verify_routes(ActionApprovals(catalog)))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_input(request: object, error: RequestValidationError) -> JSONResponse:

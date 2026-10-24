@@ -12,6 +12,13 @@ from planning.policy import merged_settings
 from planning.review import plan_review
 from planning.types import PlanningSettings, PlanSubmission
 from tools.jail import MAX_TEXT_BYTES, resolve_virtual
+from verify.settings import (
+    ContextSettings,
+    TerminalSettings,
+    VerifyConfig,
+    VerifySettings,
+    merged_config,
+)
 
 
 def prepare_review(root: Path, request: ApprovalRequest) -> ApprovalRequest:
@@ -53,17 +60,30 @@ def prepare_review(root: Path, request: ApprovalRequest) -> ApprovalRequest:
         settings = PlanningSettings.model_validate(proposed_config.get("planning"))
         if json.loads(merged_settings(root, settings)) != proposed_config:
             raise ValueError("Only planning settings may be changed by this proposal")
+    if request.tool == "verify_settings_update":
+        proposed_config = json.loads(str(request.args.get("content", "")))
+        if not isinstance(proposed_config, dict):
+            raise ValueError("Workspace config must be an object")
+        verify_settings = VerifyConfig(
+            context=ContextSettings.model_validate(proposed_config.get("context")),
+            verify=VerifySettings.model_validate(proposed_config.get("verify")),
+            terminal=TerminalSettings.model_validate(proposed_config.get("terminal")),
+        )
+        if json.loads(merged_config(root, verify_settings)) != proposed_config:
+            raise ValueError("Only verification settings may be changed by this proposal")
     if request.path and request.tool in {
         "write_file",
         "edit_file",
         "delete",
         "rules_update",
         "planning_settings_update",
+        "verify_settings_update",
     }:
         target = resolve_virtual(
             root,
             request.path,
-            allow_protected=request.tool in {"rules_update", "planning_settings_update"},
+            allow_protected=request.tool
+            in {"rules_update", "planning_settings_update", "verify_settings_update"},
         ).path
         resolved_path = str(target)
         if target.is_file():
@@ -78,7 +98,12 @@ def prepare_review(root: Path, request: ApprovalRequest) -> ApprovalRequest:
                 raise ValueError("Only text files can be edited") from None
             binary_delete = True
             text = ""
-        if request.tool in {"write_file", "rules_update", "planning_settings_update"}:
+        if request.tool in {
+            "write_file",
+            "rules_update",
+            "planning_settings_update",
+            "verify_settings_update",
+        }:
             after = str(request.args.get("content", ""))
         elif request.tool == "edit_file":
             # WorkspaceBackend.edit uses read_text's universal newline conversion.

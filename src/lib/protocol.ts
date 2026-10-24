@@ -466,6 +466,20 @@ export type Answers1 =
   | [QuestionSelection, QuestionSelection, QuestionSelection];
 export type SubmissionId1 = string;
 export type Text6 = string;
+export type CompactionPercent = number;
+export type KeepMessages = number;
+export type Offload = boolean;
+export type ShowRing = boolean;
+export type Gate = boolean;
+export type Command2 = string | null;
+export type MaxSteps = number;
+export type MaxMinutes = number;
+export type FixAttempts = number;
+export type Shell1 = string;
+export type TimeoutSeconds1 = number;
+export type MaxOutputLines = number;
+export type Command3 = string | null;
+export type Source2 = "custom" | "pytest.ini" | "pyproject.toml" | "tests" | "package.json" | "none";
 
 /**
  * Schema-generation envelope only; never sent over the wire.
@@ -498,6 +512,8 @@ export interface Protocol {
   question_decision: QuestionDecision;
   steering_submission: SteeringSubmission;
   planning_settings: PlanningSettings;
+  verify_settings: VerifySettingsResponse;
+  verify_config: VerifyConfig;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -1056,6 +1072,39 @@ export interface QuestionDecision {
 export interface SteeringSubmission {
   submission_id: SubmissionId1;
   text: Text6;
+}
+export interface VerifySettingsResponse {
+  context?: ContextSettings;
+  verify?: VerifySettings;
+  terminal?: TerminalSettings;
+  detection?: Detection;
+}
+export interface ContextSettings {
+  compaction_percent?: CompactionPercent;
+  keep_messages?: KeepMessages;
+  offload?: Offload;
+  show_ring?: ShowRing;
+}
+export interface VerifySettings {
+  gate?: Gate;
+  command?: Command2;
+  max_steps?: MaxSteps;
+  max_minutes?: MaxMinutes;
+  fix_attempts?: FixAttempts;
+}
+export interface TerminalSettings {
+  shell?: Shell1;
+  timeout_seconds?: TimeoutSeconds1;
+  max_output_lines?: MaxOutputLines;
+}
+export interface Detection {
+  command?: Command3;
+  source?: Source2;
+}
+export interface VerifyConfig {
+  context?: ContextSettings;
+  verify?: VerifySettings;
+  terminal?: TerminalSettings;
 }
 
 // Serialized events always include the Pydantic discriminator and timestamp defaults.

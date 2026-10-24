@@ -27,6 +27,7 @@ from tools.atomic import atomic_write
 from tools.git import switch, validate_branch
 from tools.jail import resolve_virtual, storage_path, workspace_root
 from tools.snapshot import SnapshotError, SnapshotStore
+from verify.settings import VerifyConfig, merged_config
 
 _lock = RLock()
 
@@ -203,6 +204,26 @@ class ActionApprovals:
             ),
         )
 
+    def propose_verify(self, root: Path, value: VerifyConfig) -> ApprovalRecord:
+        content = merged_config(root, value)
+        if self.catalog.redactor.text(content) != content:
+            raise ValueError("Secret in workspace configuration")
+        return self.propose(
+            root,
+            ApprovalRequest(
+                approval_id="",
+                run_id="",
+                kind="tool",
+                tool="verify_settings_update",
+                path=".harness/config.json",
+                source_kind="configuration",
+                source_title="Context and tests settings",
+                policy_code="verify_settings_change",
+                reason="Changes to engine configuration always require approval",
+                args={"content": content},
+            ),
+        )
+
     @serialized
     def propose(self, root: Path, request: ApprovalRequest) -> ApprovalRecord:
         request = ApprovalRequest.model_validate(
@@ -286,8 +307,8 @@ class ActionApprovals:
                 ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
                 return
             remove = request.args.get("remove") is True
-            planning = request.tool == "planning_settings_update"
-            if not remove and not planning:
+            config = request.tool in {"planning_settings_update", "verify_settings_update"}
+            if not remove and not config:
                 RulesFile.model_validate_json(str(request.args["content"]))
             # An answer is durable before mutation. If the process dies in between,
             # the proposal stays decided and is never automatically applied again.
@@ -297,24 +318,30 @@ class ActionApprovals:
                 SnapshotStore(root, redactor=self.catalog.redactor).capture(
                     resolve_virtual(
                         root,
-                        ".harness/config.json" if planning else ".harness/rules.json",
+                        ".harness/config.json" if config else ".harness/rules.json",
                         allow_protected=True,
                     ),
-                    tool="planning_settings_update" if planning else "rules_update",
+                    tool=request.tool if config else "rules_update",
                     call_id=approval_id,
                 )
-                target = storage_path(root, "config.json" if planning else "rules.json")
+                target = storage_path(root, "config.json" if config else "rules.json")
                 if remove:
                     target.unlink(missing_ok=True)
                 else:
                     atomic_write(target, str(request.args["content"]))
             except (SnapshotError, OSError):
                 record.execution_status = "interrupted"
-                record.result = "Rules were not saved; inspect credentials and file permissions."
+                record.result = "Settings were not saved; inspect credentials and file permissions."
                 ledger.save()
                 raise ValueError(record.result) from None
             record.execution_status = "completed"
-            record.result = "Planning settings saved." if planning else "Rules saved."
+            record.result = (
+                "Planning settings saved."
+                if request.tool == "planning_settings_update"
+                else "Verification settings saved."
+                if request.tool == "verify_settings_update"
+                else "Rules saved."
+            )
             ledger.save()
         else:
             ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
