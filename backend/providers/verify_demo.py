@@ -287,10 +287,33 @@ def budget(results: list[ToolMessage], messages: list[Any], prompts: list[str]) 
     return AIMessage(content="stopped as asked; parser.py still raises")
 
 
+def slow(results: list[ToolMessage], prompts: list[str]) -> AIMessage:
+    """Keeps running a slow command until a budget stops the run."""
+    prepared = prepare(results, "slow work\n")
+    if prepared is not None:
+        return prepared
+    index = names(results).count("run_command")
+    return call("run_command", {"command": "ping -n 8 127.0.0.1"}, f"verify-slow-{index}")
+
+
+def hang(results: list[ToolMessage], prompts: list[str]) -> AIMessage:
+    """One command that outlives a short deadline, then an unverified finish attempt."""
+    prepared = prepare(results, "hanging work\n")
+    if prepared is not None:
+        return prepared
+    if names(results).count("run_command") >= 1:
+        return AIMessage(content="the command never answered")
+    return call("run_command", {"command": "ping -n 20 127.0.0.1"}, "verify-hang-0")
+
+
 def demo_verify(task: str, messages: list[Any], results: list[ToolMessage]) -> AIMessage | None:
     if not task.startswith("demo verify"):
         return None
     prompts = injected(messages)
+    if task.startswith("demo verify slow"):
+        return slow(results, prompts)
+    if task.startswith("demo verify hang"):
+        return hang(results, prompts)
     if task.startswith("demo verify question"):
         return asking(results, prompts)
     if task.startswith("demo verify fail"):

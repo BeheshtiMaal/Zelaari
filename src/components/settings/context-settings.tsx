@@ -47,7 +47,7 @@ export function ContextSettingsForm({ session }: { session: Session }) {
           onChange={next => change(withContext(value, { offload: next }))} />
       </Row>
       <Row title={t.ring}>
-        <Switch checked={context?.show_ring ?? true} label={t.ring} testId="context-ring"
+        <Switch checked={context?.show_ring ?? true} label={t.ring} testId="context-ring-switch"
           onChange={next => change(withContext(value, { show_ring: next }))} />
       </Row>
     </section>
