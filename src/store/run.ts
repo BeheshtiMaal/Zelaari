@@ -38,7 +38,8 @@ export function reduceEvent(state: RunState, event: HarnessEvent): RunState {
       break;
     }
     case "reasoning.delta": next.reasoning = { ...state.reasoning, [event.message_id]: (state.reasoning[event.message_id] ?? "") + event.text }; break;
-    case "usage.updated": next.usage = { input: event.input_tokens, output: event.output_tokens, estimated: event.estimated }; break;
+    // The totals are cumulative per run; the estimate marker sticks once any turn was estimated.
+    case "usage.updated": next.usage = { input: event.input_tokens, output: event.output_tokens, estimated: state.usage.estimated || event.estimated }; break;
     case "message.delta": {
       const existing = state.items.find(item => item.kind === "message" && item.id === event.message_id);
       next.items = existing ? state.items.map(item => item === existing && item.kind === "message" ?
