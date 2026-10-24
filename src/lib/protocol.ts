@@ -944,6 +944,7 @@ export interface TestResult {
   seq: Seq21;
   ts?: Ts21;
   type?: Type22;
+  scope: ActivityScope;
   call_id: CallId4;
   command: Command1;
   status: Status7;

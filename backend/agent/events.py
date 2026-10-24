@@ -120,6 +120,7 @@ class TestResult(EventBase):
     """One verification command's outcome, parsed from its real output."""
 
     type: Literal["test.result"] = "test.result"
+    scope: ActivityScope
     call_id: str
     command: str
     status: Literal["passed", "failed", "error", "timeout"]

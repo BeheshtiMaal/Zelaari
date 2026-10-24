@@ -169,6 +169,7 @@ def test_event_round_trips_through_the_wire_model() -> None:
     event = ResultEvent(
         run_id="run",
         seq=3,
+        scope=ActivityScope(scope_id="scope"),
         call_id="call",
         command="pytest -q",
         status="failed",

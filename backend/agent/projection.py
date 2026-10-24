@@ -66,7 +66,7 @@ class ActivityProjection:
         """The split of the prompt the model just received, counted the summarizer's way."""
         return self.prompt.breakdown() if self.prompt is not None else None
 
-    async def test_result(self, message: ToolMessage) -> None:
+    async def test_result(self, message: ToolMessage, scope: ActivityScope) -> None:
         """Emit `test.result` only for the run's verification command, from real output."""
         if not self.verification or message.tool_call_id in self.tested:
             return
@@ -91,7 +91,11 @@ class ActivityProjection:
             redact=self.bus.redactor.text,
         )
         await self.bus.emit(
-            "test.result", call_id=message.tool_call_id, command=command, **outcome.model_dump()
+            "test.result",
+            scope=scope,
+            call_id=message.tool_call_id,
+            command=command,
+            **outcome.model_dump(),
         )
 
     async def update(self, namespace: tuple[str, ...], update: dict[str, Any]) -> None:
@@ -209,7 +213,7 @@ class ActivityProjection:
                         call_id=message.tool_call_id,
                         text=str(message.content),
                     )
-                    await self.test_result(message)
+                    await self.test_result(message, scope)
                     if not namespace:
                         records = DelegateResults(
                             self.bus.path.with_name("delegates.json"), self.bus.redactor
