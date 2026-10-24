@@ -26,6 +26,7 @@ from questions.tools import build_ask_question, build_finish_interview
 from store.eventlog import EventBus
 from store.secrets import Redactor
 from tools.fs import SnapshotSink, WorkspaceBackend
+from verify.context import ContextMiddleware, Window
 from verify.settings import ContextSettings
 
 FS_TOOLS: list[Any] = [
@@ -115,6 +116,7 @@ def build_agent(
     cancelled: Event | None = None,
     context: ContextSettings | None = None,
     window: int | None = None,
+    measured: Window | None = None,
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
     limits = context or ContextSettings()
     backend = WorkspaceBackend(root, redactor, snapshots, cancelled=cancelled)
@@ -159,42 +161,48 @@ def build_agent(
                 ),
             }
         )
+    system = (
+        "You are CodeHarness, a coding agent working inside one workspace folder. "
+        "Use relative paths. Read before you edit. Keep changes small and explain them. "
+        "Analyze first, then submit_plan before mutations or commands. Use stable step IDs and "
+        "expected file globs. Track progress via write_todos content '[step_id] title', "
+        "with one "
+        "in_progress parent step. Follow accepted scope and submit revisions for deviations. "
+        "File tools: ls, read_file, write_file, edit_file, delete, glob, grep. "
+        "delete removes a single file only; directories need run_command. "
+        "run_command runs a shell command in the workspace and returns exit code, "
+        "duration and at most 200 lines; page with offset. "
+        "A call may come back with 'Permission denied': that is a decision, not an "
+        "error to retry. Explain it and adjust the plan. "
+        "Reply in the user's language. "
+        + (
+            "This is /grill interview mode. Read project context; ask_user_question one batch "
+            "at a time, using earlier answers. Avoid repeating answered questions. "
+            "When objective, scope, constraints and acceptance are specified, call "
+            "finish_interview with a summary, then continue the original task. Decline ends "
+            "the interview: report and do not implement. "
+            if grill
+            else ""
+        )
+        + "Your final response must use this UI library:\n"
+        + prompt
+    )
+    tools: list[Any] = [
+        build_ask_question(),
+        build_submit_plan(),
+        *([build_finish_interview()] if grill else []),
+        *(extra_tools or []),
+    ]
+    if measured is not None:
+        # The breakdown counts the prompt the model actually receives.
+        measured.system = system
+        measured.tools = list(tools)
     return create_deep_agent(
         model=model,
         backend=backend,
         checkpointer=saver,
-        system_prompt=(
-            "You are CodeHarness, a coding agent working inside one workspace folder. "
-            "Use relative paths. Read before you edit. Keep changes small and explain them. "
-            "Analyze first, then submit_plan before mutations or commands. Use stable step IDs and "
-            "expected file globs. Track progress via write_todos content '[step_id] title', "
-            "with one "
-            "in_progress parent step. Follow accepted scope and submit revisions for deviations. "
-            "File tools: ls, read_file, write_file, edit_file, delete, glob, grep. "
-            "delete removes a single file only; directories need run_command. "
-            "run_command runs a shell command in the workspace and returns exit code, "
-            "duration and at most 200 lines; page with offset. "
-            "A call may come back with 'Permission denied': that is a decision, not an "
-            "error to retry. Explain it and adjust the plan. "
-            "Reply in the user's language. "
-            + (
-                "This is /grill interview mode. Read project context; ask_user_question one batch "
-                "at a time, using earlier answers. Avoid repeating answered questions. "
-                "When objective, scope, constraints and acceptance are specified, call "
-                "finish_interview with a summary, then continue the original task. Decline ends "
-                "the interview: report and do not implement. "
-                if grill
-                else ""
-            )
-            + "Your final response must use this UI library:\n"
-            + prompt
-        ),
-        tools=[
-            build_ask_question(),
-            build_submit_plan(),
-            *([build_finish_interview()] if grill else []),
-            *(extra_tools or []),
-        ],
+        system_prompt=system,
+        tools=tools,
         middleware=cast(
             list[AgentMiddleware[Any, Any, Any]],
             [
@@ -217,6 +225,7 @@ def build_agent(
                     provider=provider_name,
                 ),
                 *(extra_middleware or []),
+                *([ContextMiddleware(measured)] if measured is not None else []),
             ],
         ),
     )

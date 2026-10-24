@@ -54,6 +54,7 @@ from tools.git import add_worktree, build_git_switch, repository
 from tools.jail import storage_path, workspace_root
 from tools.snapshot import SnapshotStore
 from verify.budget import BudgetMiddleware
+from verify.context import Window
 from verify.detection import detect
 from verify.gate import VerifyGateMiddleware
 from verify.settings import load_config
@@ -269,6 +270,7 @@ class RunManager:
             run = self.runs[run_id]
             prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
             meter = TokenMeter(len(safe_task) + len(prompt))
+            prompt_window = Window()
             settings = load_config(root)
             verification = detect(root, settings.verify.command).command
             run.verification = verification
@@ -280,7 +282,12 @@ class RunManager:
                 meter.output_tokens = previous_usage.output_tokens
                 meter.estimated = previous_usage.estimated
             projection = ActivityProjection(
-                bus, meter, record.context.tokens, record.context.estimated, verification
+                bus,
+                meter,
+                record.context.tokens,
+                record.context.estimated,
+                verification,
+                prompt_window,
             )
 
             def adopt(command: str) -> None:
@@ -332,6 +339,7 @@ class RunManager:
                         extra_middleware=[SteeringMiddleware(steering), gate, budget],
                         context=settings.context,
                         window=record.context.tokens,
+                        measured=prompt_window,
                     )
                     config: RunnableConfig = {
                         "configurable": {"thread_id": run_id},

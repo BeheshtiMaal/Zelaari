@@ -14,6 +14,7 @@ from planning.types import ActivityScope
 from store.delegates import DelegateResults
 from store.eventlog import EventBus
 from store.secrets import StreamRedactor
+from verify.context import ContextBreakdown, Window
 from verify.results import matches_verification, parse_test_output
 
 
@@ -25,12 +26,14 @@ class ActivityProjection:
         context_window: int | None,
         context_window_estimated: bool = False,
         verification: str | None = None,
+        prompt: Window | None = None,
     ) -> None:
         self.bus = bus
         self.meter = meter
         self.window = context_window
         self.window_estimated = context_window_estimated
         self.verification = verification
+        self.prompt = prompt
         self.scopes: dict[tuple[str, ...], ActivityScope] = {}
         self.buffers: dict[str, StreamRedactor] = {}
         self.streamed: set[str] = set()
@@ -58,6 +61,10 @@ class ActivityProjection:
                 text = buffer.push(value)
             if text:
                 await self.bus.emit(kind, scope=scope, message_id=identifier, text=text)
+
+    def measured(self) -> ContextBreakdown | None:
+        """The split of the prompt the model just received, counted the summarizer's way."""
+        return self.prompt.breakdown() if self.prompt is not None else None
 
     async def test_result(self, message: ToolMessage) -> None:
         """Emit `test.result` only for the run's verification command, from real output."""
@@ -172,6 +179,7 @@ class ActivityProjection:
                             context_window=self.window,
                             context_window_estimated=self.window_estimated,
                             estimated=False,
+                            breakdown=self.measured(),
                         )
                     elif isinstance(message.additional_kwargs.get("_harness_input_tokens"), int):
                         await self.bus.emit(
@@ -181,6 +189,7 @@ class ActivityProjection:
                             context_window=self.window,
                             context_window_estimated=self.window_estimated,
                             estimated=True,
+                            breakdown=self.measured(),
                         )
                     if self.meter.turn(message, scope.scope_id + (message.id or "assistant")):
                         await self.bus.emit(

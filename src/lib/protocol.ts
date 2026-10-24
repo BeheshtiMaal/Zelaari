@@ -324,6 +324,12 @@ export type InputTokens1 = number;
 export type ContextWindow = number | null;
 export type Estimated1 = boolean;
 export type ContextWindowEstimated = boolean;
+export type Messages = number;
+export type ToolResults = number;
+export type System = number;
+export type Skills = number;
+export type Memory = number;
+export type Estimated2 = boolean;
 export type RunId24 = string;
 export type Seq20 = number;
 export type Ts20 = string;
@@ -412,7 +418,7 @@ export type ApiKeyRef = string | null;
 export type KeySuffix = string;
 export type Tokens = number;
 export type Source1 = "metadata" | "table" | "error" | "fallback";
-export type Estimated2 = boolean;
+export type Estimated3 = boolean;
 export type Status9 = "untested" | "testing" | "retrying" | "ok" | "error";
 export type Code = ("unauthorized" | "rate_limit" | "no_tools" | "network" | "vault") | null;
 export type Attempt = number;
@@ -904,6 +910,15 @@ export interface ContextUpdated {
   context_window?: ContextWindow;
   estimated: Estimated1;
   context_window_estimated?: ContextWindowEstimated;
+  breakdown?: ContextBreakdown | null;
+}
+export interface ContextBreakdown {
+  messages: Messages;
+  tool_results: ToolResults;
+  system: System;
+  skills: Skills;
+  memory: Memory;
+  estimated?: Estimated2;
 }
 export interface SteeringUpdated {
   run_id: RunId24;
@@ -1021,7 +1036,7 @@ export interface ProviderRecord {
 export interface Context1 {
   tokens?: Tokens;
   source?: Source1;
-  estimated?: Estimated2;
+  estimated?: Estimated3;
 }
 export interface Probe {
   status?: Status9;

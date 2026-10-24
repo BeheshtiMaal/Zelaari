@@ -32,6 +32,7 @@ from tools.types import (
     RulesResponse,
     SnapshotEntry,
 )
+from verify.context import ContextBreakdown
 from verify.results import TestOutcome
 from verify.settings import VerifyConfig, VerifySettingsResponse
 
@@ -183,6 +184,7 @@ class ContextUpdated(EventBase):
     context_window: int | None = Field(default=None, ge=1)
     estimated: bool
     context_window_estimated: bool = False
+    breakdown: ContextBreakdown | None = None
 
 
 class SteeringUpdated(EventBase):
