@@ -24,6 +24,14 @@ export function duration(start?: string | null, end?: string | null): number | n
 export function currentContext(events: HarnessEvent[]) {
   return events.slice().reverse().find(event => event.type === "context.updated" && event.scope.agent === "parent");
 }
+/** The gate's run-level decisions, in order; they belong to no plan step. */
+export function verifyNotices(events: HarnessEvent[]) {
+  return events.filter(event => event.type === "verify.required");
+}
+export function verifyNoticeKey(reason: string): "verifyOff" | "verifyAsk" | "verifyBlocked" {
+  if (reason === "declined") return "verifyOff";
+  return reason === "no_command" ? "verifyAsk" : "verifyBlocked";
+}
 export function trustedPlan(plan: PlanRecord | null, runId: string | null, reference: { runId: string; planId: string; revision: string }) {
   return runId === reference.runId && plan?.run_id === runId && plan.plan_id === reference.planId && plan.revision === reference.revision ? plan : null;
 }
@@ -90,7 +98,6 @@ export function timelineGroups(run: RunState) {
     return { ...group, events, progress, active, terminal, children, counts: countTools(events),
       elapsed: duration(progress?.started_at, progress?.ended_at ?? (run.status !== "running" ? run.events.slice().reverse().find(e => e.type === "run.finished")?.ts : null)),
       summaries: events.filter(e => e.type === "context.summarized"),
-      verifications: events.filter(e => e.type === "verify.required"),
       visible: group.id !== null || !events.every(e => ["run.started", "usage.updated", "steering.updated"].includes(e.type)),
       reasoningAvailable: events.some(e => e.type === "reasoning.delta"),
       reasoningFinished: events.some(e => e.type === "activity.finished"),

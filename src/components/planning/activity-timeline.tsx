@@ -3,7 +3,7 @@ import { useEffect, type ReactNode } from "react";
 import type { Locale } from "../../i18n";
 import { planningCopy } from "../../i18n/planning";
 import type { ActivityScope, HarnessEvent } from "../../lib/protocol";
-import { eventBodyModel, thinkingState, timelineGroups } from "../../lib/timeline";
+import { eventBodyModel, thinkingState, timelineGroups, verifyNoticeKey, verifyNotices } from "../../lib/timeline";
 import { disclosureValue, useDisclosure } from "../../lib/use-disclosure";
 import type { RunState } from "../../store/run";
 import { Message } from "../../genui/message";
@@ -56,7 +56,11 @@ function EventBody({ events, locale, runId, child = false, retry }: { events: Ha
 
 export function ActivityTimeline({ run, locale, retry }: { run: RunState; locale: Locale; retry?: (command: string) => void }) {
   const t = planningCopy(locale), number = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
-  return <div className="activity-timeline">{timelineGroups(run).map(group => {
+  return <div className="activity-timeline">
+    {verifyNotices(run.events).map((event, index) => <p key={`verify-${index}-${event.seq}`} className={`verify-notice ${event.blocked ? "" : "is-off"}`} data-testid="verify-notice">
+      {t[verifyNoticeKey(event.reason)]}{event.blocked && event.command ? <> <code dir="ltr">{event.command}</code></> : null}
+    </p>)}
+    {timelineGroups(run).map(group => {
     const { events, progress, active, terminal, elapsed, counts, children } = group;
     return <Disclosure key={group.id ?? "analysis"} id={`${run.runId}-step-${group.id ?? "analysis"}`} active={active} terminal={terminal} attention={group.attention} className={`step-card ${active && run.status === "running" ? "active" : ""}`} title={<><span className="step-mark" aria-hidden="true">{progress?.status === "completed" ? "✓" : "○"}</span><strong>{group.title ?? t.analysis}</strong><span className="step-summary">{elapsed !== null && `${number.format(elapsed)} ${t.seconds} · `}{number.format(counts.read)} {t.read} · {number.format(counts.writes)} {t.writes} · {number.format(counts.commands)} {t.commands}{terminal && group.reasoningFinished && <small className="reasoning-note">{group.reasoningAvailable ? t.thinking : t.noReason}</small>}</span></>}>
       <EventBody events={events} locale={locale} runId={run.runId ?? "history"} retry={retry} />
@@ -64,9 +68,6 @@ export function ActivityTimeline({ run, locale, retry }: { run: RunState; locale
         return <Disclosure key={child.scope.scope_id} id={`${run.runId}-child-${child.scope.scope_id}`} active={!end} terminal={!!end} className="delegate-card" title={<><strong>{t[child.scope.agent === "reviewer" ? "reviewer" : "researcher"]}</strong><span className="read-only-badge">{t.readOnly}</span><span className="muted">{end?.type === "subagent.finished" ? t[end.status] : t.running}{seconds !== null && ` · ${number.format(seconds)} ${t.seconds}`}</span></>}><p dir="auto">{child.task}</p><EventBody events={childEvents} locale={locale} runId={run.runId ?? "history"} child />{end?.type === "subagent.finished" && end.result && <pre className="readable" dir="auto">{end.result}</pre>}</Disclosure>;
       })}
       {group.summaries.map(event => <p key={event.operation_id} className="summary-notice">{t.summary}{event.affected_messages ? ` · ${number.format(event.affected_messages)} ${t.messages}` : ""}</p>)}
-      {group.verifications.map((event, index) => <p key={`verify-${index}-${event.seq}`} className={`verify-notice ${event.blocked ? "" : "is-off"}`} data-testid="verify-notice">
-        {event.reason === "declined" ? t.verifyOff : event.reason === "no_command" ? t.verifyAsk : <>{t.verifyBlocked}{event.command ? <> <code dir="ltr">{event.command}</code></> : null}</>}
-      </p>)}
     </Disclosure>;
   })}</div>;
 }

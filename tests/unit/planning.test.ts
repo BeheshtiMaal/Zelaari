@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { disclosureValue } from "../../src/lib/use-disclosure";
-import { countTools, duration, eventBodyModel, groupEvents, timelineGroups, trustedPlan } from "../../src/lib/timeline";
+import { countTools, duration, eventBodyModel, groupEvents, timelineGroups, trustedPlan, verifyNoticeKey, verifyNotices } from "../../src/lib/timeline";
 import { initialRun, reduceEvent } from "../../src/store/run";
 import type { HarnessEvent, PlanRecord } from "../../src/lib/protocol";
 import { planReviewReason, planReviewSteps } from "../../src/lib/plan-review";
@@ -87,13 +87,19 @@ test("a recovered call shows the interrupted result reported by the next activit
   assert.equal(group.attention, true);
 });
 
-test("gate notices stay in the analysis group and keep their reason", () => {
+test("gate notices are run-level and keep their reason", () => {
   const events: HarnessEvent[] = [
     { type: "run.started", run_id: "run", seq: 1, task: "Verify", model: "demo" },
-    { type: "verify.required", run_id: "run", seq: 2, reason: "unverified_changes", command: "pytest -q", injections: 1, blocked: true },
-    { type: "verify.required", run_id: "run", seq: 3, reason: "declined", command: null, injections: 0, blocked: false },
+    { type: "plan.created", run_id: "run", seq: 2, plan },
+    { type: "verify.required", run_id: "run", seq: 3, reason: "unverified_changes", command: "pytest -q", injections: 1, blocked: true },
+    { type: "verify.required", run_id: "run", seq: 4, reason: "declined", command: null, injections: 0, blocked: false },
   ];
-  const groups = timelineGroups(events.reduce(reduceEvent, initialRun));
-  assert.deepEqual(groups.find(group => group.id === null)?.verifications.map(event => event.reason), ["unverified_changes", "declined"]);
-  assert.deepEqual(groups.filter(group => group.id !== null).flatMap(group => group.verifications), []);
+  const state = events.reduce(reduceEvent, initialRun);
+  assert.deepEqual(verifyNotices(state.events).map(event => event.seq), [3, 4]);
+  // They belong to no plan step, so they never hide inside a collapsed step row.
+  const steps = timelineGroups(state).filter(group => group.id !== null);
+  assert.deepEqual(steps.flatMap(group => group.events).filter(event => event.type === "verify.required"), []);
+  assert.equal(verifyNoticeKey("unverified_changes"), "verifyBlocked");
+  assert.equal(verifyNoticeKey("no_command"), "verifyAsk");
+  assert.equal(verifyNoticeKey("declined"), "verifyOff");
 });
