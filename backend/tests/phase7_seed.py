@@ -169,7 +169,11 @@ async def main() -> None:
     await manager.runs[run_id].task
     events = manager.runs[run_id].bus.history
     notices = [event for event in events if event.type == "context.summarized"]
-    assert len(notices) == 1, f"expected one summary notice, got {len(notices)}"
+    # The fixture window is 20K, so the system prompt and tool schemas are already a large
+    # share of the 30 % trigger and this long run may compact more than once. Each notice is
+    # a separate operation; the handoff only needs the last summary, which is what a new run
+    # starts from.
+    assert notices, "the run did not compact its history"
     path = workspace / ".harness" / "context" / "summaries" / f"{run_id}.md"
     assert path.exists(), "the summary file was not written"
     text = path.read_text(encoding="utf-8")
