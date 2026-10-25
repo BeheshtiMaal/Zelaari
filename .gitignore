@@ -24,3 +24,4 @@ spikes/python/*.spec
 .env*
 specs/
 prompts/
+AGENTS.md
