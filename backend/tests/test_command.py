@@ -54,18 +54,22 @@ def test_non_zero_exit_is_a_normal_result(runner: CommandRunner) -> None:
 
 
 def test_timeout_kills_the_whole_process_tree(runner: CommandRunner, tmp_path: Path) -> None:
-    # The timeout has to outlast a nested process launch, or the child never gets recorded
-    # and the assertion below proves nothing. Twelve seconds was enough on a quiet machine
-    # and not on a contended CI runner, so measure what this machine needs instead of
-    # trusting a constant: four launches of headroom, never less than twenty seconds.
+    # Two nested launches have to finish before the deadline fires, or the child is never
+    # recorded and the assertion below proves nothing. Twelve seconds covered that on a
+    # quiet machine and not on a contended runner, where one launch alone took twenty-two,
+    # so measure a launch here and allow four of them, bounded so a pathological machine
+    # cannot stretch the test without limit.
     probe = time.monotonic()
     runner.run("Write-Output probe")
-    budget = max(20.0, (time.monotonic() - probe) * 4)
+    budget = min(45.0, max(20.0, (time.monotonic() - probe) * 4))
 
+    # The command must outlast any plausible deadline. Sleeping sixty seconds while the
+    # deadline grew past eighty made the command finish first and report no timeout at all,
+    # which is a contradiction in the test rather than a bug in the runner.
     started = time.monotonic()
     result = runner.run(
-        "$p = Start-Process powershell -ArgumentList '-NoProfile','-Command','Start-Sleep 60' "
-        "-PassThru; Set-Content -Path child.pid -Value $p.Id; Start-Sleep 60",
+        "$p = Start-Process powershell -ArgumentList '-NoProfile','-Command','Start-Sleep 3600' "
+        "-PassThru; Set-Content -Path child.pid -Value $p.Id; Start-Sleep 3600",
         timeout=budget,
     )
     elapsed = time.monotonic() - started
