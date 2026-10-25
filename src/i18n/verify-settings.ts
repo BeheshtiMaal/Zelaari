@@ -1,7 +1,5 @@
 import type { Locale } from ".";
 const en = {
-  contextTitle: "Context and compaction",
-  contextIntro: "Conversation memory and run limits.",
   window: "Context window",
   size: "Window size",
   sizeHelp: "Detected per model (DeepSeek 128K, GLM 200K)",
@@ -22,8 +20,6 @@ const en = {
   usage: "Usage counting",
   usageHelp: "Tokens only; an estimate is marked ~",
   tokens: "Tokens",
-  terminalTitle: "Terminal and tests",
-  terminalIntro: "Running commands and detecting tests.",
   terminal: "Terminal",
   shell: "Shell",
   shellAuto: "Automatic",
@@ -54,8 +50,6 @@ const en = {
   approval: "Saving configuration needs an approval.",
 };
 const fa: typeof en = {
-  contextTitle: "زمینه و فشرده‌سازی",
-  contextIntro: "مدیریت حافظه‌ی گفتگو و سقف‌های اجرا.",
   window: "پنجره‌ی زمینه",
   size: "اندازه‌ی پنجره",
   sizeHelp: "برای هر مدل خودکار تشخیص داده می‌شود (DeepSeek ۱۲۸K، GLM ۲۰۰K)",
@@ -76,8 +70,6 @@ const fa: typeof en = {
   usage: "شمارش مصرف",
   usageHelp: "فقط توکن؛ اگر تخمینی بود با ~ نشان داده می‌شود",
   tokens: "توکن",
-  terminalTitle: "ترمینال و آزمون‌ها",
-  terminalIntro: "اجرای دستورها و تشخیص آزمون‌ها.",
   terminal: "ترمینال",
   shell: "شل",
   shellAuto: "خودکار",

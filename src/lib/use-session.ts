@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import type { ApprovalRequest, BranchList, ModelInput, Preset, ProviderRecord, RunRequest, RunResponse, Settings, WorkspaceState } from "./protocol";
+import type { Appearance, ApprovalRequest, BranchList, ModelInput, Preset, ProviderRecord, RunRequest, RunResponse, Settings, WorkspaceState } from "./protocol";
+import { withAppearance } from "./appearance";
 import { connection } from "./desktop";
 import { api, ApiError } from "./api";
 import { decision } from "./approvals";
@@ -65,7 +66,7 @@ export function useSession() {
           ]);
           if (controller.signal.aborted) return;
           setSettings(saved); setModels(providers); setPresets(options); setSpaces(workspaces);
-          setModel(saved.default_model ?? "");
+          setModel(saved.default_model ?? ""); setMode(saved.default_mode ?? "ask");
           setVaultOk(await connection()!.vaultStatus()); setReady(true); return;
         } catch { if (controller.signal.aborted) return; }
         await new Promise(resolve => setTimeout(resolve, 250));
@@ -120,6 +121,14 @@ export function useSession() {
     catch { setFailed(true); return false; }
   }
   async function setLocale(value: Locale) { await changeSettings({ ...settings, locale: value }); }
+  async function changeAppearance(patch: Appearance) {
+    const next = withAppearance(settings, patch), previous = settings;
+    // A theme or font switch has to land on the next frame, so the document updates first and the
+    // engine is asked afterwards; a rejected write puts the old preferences back.
+    setSettings(next);
+    try { setSettings(await api<Settings>("/settings", "PUT", next)); setFailed(false); return true; }
+    catch { setSettings(previous); setFailed(true); return false; }
+  }
   async function makeDefault(id: string) {
     if (await changeSettings({ ...settings, default_model: id })) setModel(id);
   }
@@ -204,7 +213,7 @@ export function useSession() {
     try { await api(`/runs/${id}/stop`, "POST"); } catch { setFailed(true); }
   }
   return { ready, failed, busy, testing, workspace, branch, spaces, models, presets, settings, model, mode, locale, vaultOk, usableModel, workspaceError,
-    branches, branchApproval, branchError, approveBranch, rejectBranch, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace,
+    branches, branchApproval, branchError, approveBranch, rejectBranch, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, changeAppearance, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace,
     revealWorkspace, switchBranch, start, approveWorktree, rejectWorktree, resolveApproval, retryWithLongerTimeout, stop, openTask, detach };
 }
 export type Session = ReturnType<typeof useSession>;

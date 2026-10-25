@@ -122,8 +122,14 @@ class Catalog:
         return record.model_copy(deep=True)
 
     def settings(self, value: Settings) -> Settings:
+        """Merge a settings payload onto the stored one.
+
+        Only the fields the client actually sent are replaced, so a caller that knows about
+        fewer preferences (an older build, a test) cannot reset the rest to their defaults.
+        """
         if value.default_model:
             self.require(value.default_model)
-        self.data.settings = value
+        changes = {name: getattr(value, name) for name in value.model_fields_set}
+        self.data.settings = self.data.settings.model_copy(update=changes)
         self.persist()
-        return value
+        return self.data.settings

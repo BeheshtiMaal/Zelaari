@@ -3,6 +3,7 @@ import { useRef } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import type { Dictionary } from "../../i18n";
+import { settingsCopy } from "../../i18n/settings";
 import type { ProviderRecord } from "../../lib/protocol";
 import type { Session } from "../../lib/use-session";
 import { useModelEditor } from "../../lib/use-model-editor";
@@ -15,7 +16,7 @@ export function ModelDialog({ session, existing, t, close }: {session: Session; 
   return <Dialog.Root open onOpenChange={open => { if (!open && !editor.saving) close(); }}>
     <Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="model-dialog" onCloseAutoFocus={event => { event.preventDefault(); if (previousFocus.current?.isConnected) previousFocus.current.focus(); else document.querySelector<HTMLButtonElement>(".settings-heading button")?.focus(); }} onEscapeKeyDown={event => { if (editor.saving) event.preventDefault(); }}>
       <div className="dialog-heading"><Dialog.Title>{existing ? t.editModel : t.addModel}</Dialog.Title><Dialog.Close className="icon-button" disabled={editor.saving} aria-label={t.close}><XIcon size={20} /></Dialog.Close></div>
-      <Dialog.Description className="sr-only">{t.modelsIntro}</Dialog.Description>
+      <Dialog.Description className="sr-only">{settingsCopy(session.locale).intro.models}</Dialog.Description>
       <form onSubmit={event => { event.preventDefault(); void editor.save(); }}>
         <fieldset disabled={editor.working}>
           <label>{t.displayName}<input aria-label={t.displayName} required maxLength={120} value={v.name} onChange={e => editor.update("name", e.target.value)} autoComplete="off" /></label>

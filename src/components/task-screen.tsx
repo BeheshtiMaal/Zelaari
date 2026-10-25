@@ -3,6 +3,8 @@ import { RunElapsed } from "./planning/run-elapsed";
 import { useEffect, useRef, useState } from "react";
 import { dictionary } from "../i18n";
 import { useSession } from "../lib/use-session";
+import { useAppearance } from "../lib/use-appearance";
+import { activityView } from "../lib/appearance";
 import { useRun } from "../store/run";
 import { ActivityTimeline } from "./planning/activity-timeline";
 import { RunInfo } from "./planning/run-info";
@@ -29,6 +31,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
   const [task, setTask] = useState("");
   const [view, setView] = useState<"home" | "settings" | "add-model" | "inbox" | "rules" | "customize">(initialView);
   const session = useSession(), run = useRun(), steering = useSteering();
+  useAppearance(session.settings);
   const questions = useQuestions(run.runId);
   const approvals = useInbox(state => state.records);
   const decisionError = useInbox(state => state.decisionError);
@@ -62,7 +65,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
         </div></header>}
         {running ? <div className="timeline" aria-live="polite"><div className="chat-column">
           <div className="user-message" dir="auto">{run.task}</div>
-          <ActivityTimeline run={run} locale={session.locale} retry={command => void session.retryWithLongerTimeout(command).then(() => setView("inbox"))} />
+          <ActivityTimeline run={run} locale={session.locale} activity={activityView(session.settings.appearance)} retry={command => void session.retryWithLongerTimeout(command).then(() => setView("inbox"))} />
           {approvals.filter(record => record.status === "pending" && record.request.run_id === run.runId).map(record => <ApprovalCard key={recordKey(record.request)} record={record} locale={session.locale} inline />)}
           {questions.filter(record => record.status !== "pending").map(record => <QuestionCard key={record.request.call_id} record={record} locale={session.locale} />)}
           <div ref={end} />

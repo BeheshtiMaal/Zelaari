@@ -15,6 +15,16 @@ export function Switch({ checked, label, testId, onChange }: { checked: boolean;
     className="verify-switch" onClick={() => onChange(!checked)}><span aria-hidden="true" /></button>;
 }
 
+/** A segmented choice: the pressed option is the stored value, in the mock's order. */
+export function Segment<T extends string>({ options, label, testId, onSelect }: {
+  options: { value: T; label: string; pressed: boolean }[]; label: string; testId: string; onSelect(value: T): void;
+}) {
+  return <div className="language-segment" role="group" aria-label={label} data-testid={testId}>
+    {options.map(option => <button key={option.value} type="button" aria-pressed={option.pressed}
+      onClick={() => onSelect(option.value)}>{option.label}</button>)}
+  </div>;
+}
+
 export function NumberField({ value, min, max, locale, label, testId, onChange }: {
   value: number; min: number; max: number; locale: Locale; label: string; testId: string; onChange(value: number): void;
 }) {

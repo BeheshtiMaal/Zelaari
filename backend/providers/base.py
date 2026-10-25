@@ -59,9 +59,23 @@ class ProviderRecord(Record):
     supports_tools: bool = False
 
 
+class Appearance(Record):
+    """Display preferences. Defaults come from the design mock: dark, medium, everything shown."""
+
+    theme: Literal["dark", "light", "system"] = "dark"
+    font: Literal["small", "medium", "large"] = "medium"
+    show_thinking: bool = True
+    keep_thinking_open: bool = True
+    show_terminal: bool = True
+
+
 class Settings(Record):
     locale: Literal["fa", "en"] = "fa"
     default_model: str | None = None
+    default_mode: Literal["read-only", "ask", "auto"] = "ask"
+    appearance: Appearance = Field(default_factory=Appearance)
+    retention_days: int = Field(default=30, ge=0, le=3650)
+    """Days of run history to keep. Zero keeps everything."""
 
 
 class Preset(Record):

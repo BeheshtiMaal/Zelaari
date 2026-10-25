@@ -441,6 +441,13 @@ export type RetrySeconds = number;
 export type SupportsTools = boolean;
 export type Locale = "fa" | "en";
 export type DefaultModel = string | null;
+export type DefaultMode = "read-only" | "ask" | "auto";
+export type Theme = "dark" | "light" | "system";
+export type Font = "small" | "medium" | "large";
+export type ShowThinking = boolean;
+export type KeepThinkingOpen = boolean;
+export type ShowTerminal = boolean;
+export type RetentionDays = number;
 export type Name4 = string;
 export type Url = string | null;
 export type Path1 = string;
@@ -1189,6 +1196,19 @@ export interface Probe {
 export interface Settings {
   locale?: Locale;
   default_model?: DefaultModel;
+  default_mode?: DefaultMode;
+  appearance?: Appearance;
+  retention_days?: RetentionDays;
+}
+/**
+ * Display preferences. Defaults come from the design mock: dark, medium, everything shown.
+ */
+export interface Appearance {
+  theme?: Theme;
+  font?: Font;
+  show_thinking?: ShowThinking;
+  keep_thinking_open?: KeepThinkingOpen;
+  show_terminal?: ShowTerminal;
 }
 export interface Preset {
   name: Name4;
