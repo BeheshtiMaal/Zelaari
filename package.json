@@ -17,7 +17,10 @@
     "build:engine": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-engine.ps1",
     "desktop": "npm run generate:genui && npm run build && npm run build:electron && electron .",
     "desktop:preview": "electron .",
-    "desktop:build": "npm run generate:genui && npm run build && npm run build:electron && npm run build:engine"
+    "desktop:build": "npm run generate:genui && npm run build && npm run build:electron && npm run build:engine",
+    "icon": "uv run --project backend python scripts/make-icon.py",
+    "package": "electron-builder --win --publish never",
+    "package:dir": "electron-builder --win --dir"
   },
   "dependencies": {
     "@fontsource/vazirmatn": "5.3.0",
@@ -42,6 +45,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "electron": "44.9.0",
+    "electron-builder": "^26.18.0",
     "esbuild": "0.28.2",
     "json-schema-to-typescript": "16.0.0",
     "tailwindcss": "4.3.3",
