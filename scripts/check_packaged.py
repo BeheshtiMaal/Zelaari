@@ -54,7 +54,11 @@ try:
         (Path(directory) / "README.md").write_text(
             "# Real packaged fixture\nmarker=cedar-light\n", encoding="utf-8"
         )
-        with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=60) as client:
+        # trust_env=False: a proxy variable in the shell would send these loopback requests
+        # to the proxy, which answers them 404, and the gate would fail for the wrong reason.
+        with httpx.Client(
+            base_url=f"http://127.0.0.1:{port}", timeout=60, trust_env=False
+        ) as client:
             assert client.get("/health").status_code == 401
             client.headers["Authorization"] = "Bearer packaged-fixture-token"
             assert client.get("/health").status_code == 200
