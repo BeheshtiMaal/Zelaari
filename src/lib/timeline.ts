@@ -2,6 +2,9 @@ import type { ActivityScope, HarnessEvent, PlanRecord, StepProgress } from "./pr
 import type { RunState } from "../store/run";
 
 export type ScopedEvent = Extract<HarnessEvent, { scope: ActivityScope }>;
+export type ToolCallEvent = Extract<HarnessEvent, { type: "tool.call" }>;
+/** A named predicate keeps the union narrowed once a second condition joins the filter. */
+export function isToolCall(event: HarnessEvent): event is ToolCallEvent { return event.type === "tool.call"; }
 export function eventScope(event: HarnessEvent): ActivityScope | null {
   return "scope" in event ? event.scope ?? null : null;
 }
@@ -69,12 +72,15 @@ export function eventBodyModel(events: HarnessEvent[], child: boolean) {
   const results = visible.filter(event => event.type === "tool.result");
   return {
     turns,
-    tools: visible.filter(e => e.type === "tool.call").map(event => ({ event,
+    // `render_ui` is shown as the interface it produced, not as a tool line: the raw program
+    // never reaches the reader, and a failed attempt keeps its note instead.
+    tools: visible.filter(isToolCall).filter(e => e.name !== "render_ui").map(event => ({ event,
       // A recovered invocation reports the interrupted call under a fresh activity, so a
       // result is matched by call id: same activity first, then the latest outcome overall.
       result: results.find(e => e.call_id === event.call_id && eventScope(e)?.scope_id === event.scope?.scope_id)
         ?? results.filter(e => e.call_id === event.call_id).at(-1),
     })),
+    renders: visible.filter(e => e.type === "ui.render"),
     messages: [...new Set(visible.filter(e => e.type === "message.delta").map(e => e.message_id))].map(id => {
       const deltas = visible.filter(e => e.type === "message.delta" && e.message_id === id);
       const scope = deltas[0] ? eventScope(deltas[0]) : null;

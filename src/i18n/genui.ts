@@ -8,6 +8,7 @@ const en = {
   loadingFiles: "Reading the changed files…",
   tabList: "Sections",
   table: "Table",
+  renderFailed: "The interface could not be drawn:",
 };
 const fa: typeof en = {
   notFound: "در این اجرا پیدا نشد",
@@ -18,6 +19,7 @@ const fa: typeof en = {
   loadingFiles: "خواندن فایل‌های تغییر‌یافته…",
   tabList: "بخش‌ها",
   table: "جدول",
+  renderFailed: "رابط کشیده نشد:",
 };
 export const genuiCopy = (locale: Locale) => locale === "fa" ? fa : en;
 export function fileCount(text: string, count: number, locale: Locale) {

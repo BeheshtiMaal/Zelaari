@@ -13,6 +13,7 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 
+from providers.genui_demo import demo_render
 from providers.planning_demo import demo_planning
 from providers.question_demo import demo_question
 from providers.skills_demo import demo_customize
@@ -45,6 +46,9 @@ class DemoModel(BaseChatModel):
         verify = demo_verify(task, messages, results)
         if verify is not None:
             return verify
+        render = demo_render(task, results, self.locale)
+        if render is not None:
+            return render
         customize = demo_customize(task, results)
         if customize is not None:
             return customize

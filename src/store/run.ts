@@ -2,7 +2,8 @@ import { create } from "zustand";
 import type { ApprovalRequest, HarnessEvent, QuestionRecord, PlanRecord, SteeringRecord } from "../lib/protocol";
 
 export type TimelineItem = { kind: "message"; id: string; text: string } |
-  { kind: "tool"; id: string; name: string; args: Record<string, unknown>; result?: string };
+  { kind: "tool"; id: string; name: string; args: Record<string, unknown>; result?: string } |
+  { kind: "ui"; id: string; callId: string; ok: boolean; text: string; error: string | null };
 export interface RunState {
   events: HarnessEvent[];
   plan: PlanRecord | null;
@@ -49,6 +50,13 @@ export function reduceEvent(state: RunState, event: HarnessEvent): RunState {
     }
     case "tool.call": next.items = [...state.items, { kind: "tool", id: event.call_id, name: event.name, args: event.args }]; break;
     case "tool.result": next.items = state.items.map(item => item.kind === "tool" && item.id === event.call_id ? { ...item, result: event.text } : item); break;
+    // One block per attempt, keyed by call id, so a replayed or duplicated event cannot draw twice.
+    case "ui.render": {
+      const block: TimelineItem = { kind: "ui", id: `ui:${event.call_id}`, callId: event.call_id, ok: event.ok, text: event.text, error: event.error ?? null };
+      const existing = state.items.find(item => item.kind === "ui" && item.callId === event.call_id);
+      next.items = existing ? state.items.map(item => item === existing ? block : item) : [...state.items, block];
+      break;
+    }
     case "approval.requested": next.approvals = { ...state.approvals, [event.approval.approval_id]: event.approval }; next.approval = Object.values(next.approvals)[0] ?? null; break;
     case "approval.resolved": next.approvals = { ...state.approvals }; delete next.approvals[event.approval_id]; next.approval = Object.values(next.approvals)[0] ?? null; break;
     case "run.error": next.error = event.message; next.status = "error"; next.approval = null; next.approvals = {}; break;

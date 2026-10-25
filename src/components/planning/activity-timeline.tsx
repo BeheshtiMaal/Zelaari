@@ -7,6 +7,7 @@ import { eventBodyModel, thinkingState, timelineGroups, verifyNoticeKey, verifyN
 import { disclosureValue, useDisclosure } from "../../lib/use-disclosure";
 import type { RunState } from "../../store/run";
 import { Message } from "../../genui/message";
+import { UiBlock } from "../../genui/ui-block";
 import { ToolErrorCard } from "../tool-error-card";
 import { TerminalPanel } from "../terminal/terminal-panel";
 import { TestResults } from "../terminal/test-results";
@@ -32,7 +33,7 @@ function Thinking({ scope, events, locale, runId }: { scope: ActivityScope; even
 }
 
 function EventBody({ events, locale, runId, child = false, retry }: { events: HarnessEvent[]; locale: Locale; runId: string; child?: boolean; retry?: (command: string) => void }) {
-  const { turns, tools, messages } = eventBodyModel(events, child);
+  const { turns, tools, messages, renders } = eventBodyModel(events, child);
   return <div className="step-body">
     {turns.map(event => <Thinking key={event.scope.scope_id} scope={event.scope} events={events} locale={locale} runId={runId} />)}
     {tools.map(({ event, result }) => {
@@ -53,6 +54,7 @@ function EventBody({ events, locale, runId, child = false, retry }: { events: Ha
       return <details className="tool-line" key={key} data-testid="tool-line"><summary><span className="status-dot" /><code dir="ltr">{event.name} · {String(event.args.file_path ?? event.args.command ?? "")}</code></summary><pre className="readable" dir="auto">{result?.type === "tool.result" ? result.text : "…"}</pre></details>;
     })}
     {messages.map(message => <Message key={message.id} text={message.text} streaming={message.streaming} />)}
+    {renders.map(event => <UiBlock key={`ui-${event.call_id}`} event={event} />)}
   </div>;
 }
 
