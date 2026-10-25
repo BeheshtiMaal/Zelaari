@@ -178,6 +178,10 @@ class ScheduleList(Record):
     """The engine's clock, so the client does not have to trust its own."""
 
 
+class ScheduleToggle(Record):
+    enabled: bool
+
+
 def started(schedule: ScheduleRecord, at: datetime, run_id: str) -> ScheduleRecord:
     """A run began. The next occurrence is computed from `at`, never from the old one."""
     return schedule.model_copy(

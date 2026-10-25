@@ -419,6 +419,7 @@ export type Mode = "read-only" | "ask" | "auto";
 export type Worktree = boolean;
 export type WorktreeApproved = boolean;
 export type SeedSummaryFrom = string | null;
+export type ScheduleId = string | null;
 export type RunId32 = string;
 export type Status8 = "ok";
 export type Id3 = string;
@@ -464,7 +465,41 @@ export type Model5 = string;
 export type Mode1 = "read-only" | "ask" | "auto";
 export type Status10 = "running" | "completed" | "stopped" | "error" | "interrupted";
 export type Worktree1 = string | null;
+export type ScheduleId1 = string | null;
 export type Tasks = TaskRecord[];
+export type Id6 = string;
+export type Name6 = string;
+export type Prompt = string;
+export type Workspace4 = string;
+export type Model6 = string;
+export type Mode2 = "read-only" | "ask" | "auto";
+export type Ceiling = "report" | "full";
+export type Repeat = "daily" | "weekly";
+export type Weekday = number | null;
+export type Time = string;
+export type ValidUntil = string | null;
+export type Enabled = boolean;
+export type CreatedAt2 = string;
+export type NextRunAt = string | null;
+export type LastRunAt = string | null;
+export type LastStatus = ("running" | "completed" | "error" | "stopped" | "interrupted" | "missed") | null;
+export type LastRunId = string | null;
+export type MissedAt = string | null;
+export type LastError = string | null;
+export type Schedules = ScheduleRecord[];
+export type Now = string;
+export type Name7 = string;
+export type Prompt1 = string;
+export type Workspace5 = string;
+export type Model7 = string;
+export type Mode3 = "read-only" | "ask" | "auto";
+export type Ceiling1 = "report" | "full";
+export type Repeat1 = "daily" | "weekly";
+export type Weekday1 = number | null;
+export type Time1 = string;
+export type ValidUntil1 = string | null;
+export type Enabled1 = boolean;
+export type Enabled2 = boolean;
 export type Decision1 = "approve" | "reject";
 export type Reason3 = string | null;
 export type EditedArgs = {
@@ -500,7 +535,7 @@ export type TimeoutSeconds = number;
 export type KilledTree = boolean;
 export type Path2 = string;
 export type Kind5 = "file" | "dir";
-export type Name6 = string;
+export type Name8 = string;
 export type Path3 = string;
 export type Kind6 = "file" | "dir";
 export type Size = number;
@@ -515,7 +550,7 @@ export type PendingApproval = boolean;
 export type Path5 = string;
 export type SnapshotId = string;
 export type CreatedSnapshotId = string;
-export type Id6 = string;
+export type Id7 = string;
 export type Path6 = string;
 export type Existed = boolean;
 export type Ts27 = string;
@@ -523,20 +558,20 @@ export type RunId34 = string | null;
 export type CallId6 = string | null;
 export type Bytes = number;
 export type Tool1 = string;
-export type Workspace4 = string;
+export type Workspace6 = string;
 export type Branch1 = string;
 export type Approved = boolean;
-export type Mode2 = ("read-only" | "ask" | "auto") | null;
+export type Mode4 = ("read-only" | "ask" | "auto") | null;
 export type Branch2 = string | null;
 export type Error1 = string | null;
 export type Git = boolean;
 export type Current = string | null;
 export type Branches = string[];
 export type Version = number;
-export type Mode3 = "read-only" | "ask" | "auto";
+export type Mode5 = "read-only" | "ask" | "auto";
 export type Glob = string;
 export type Action = "allow" | "ask" | "deny";
-export type Mode4 = "read-only" | "ask" | "auto";
+export type Mode6 = "read-only" | "ask" | "auto";
 export type AlwaysAsk = string[];
 export type Kind7 = "question";
 export type InterruptId3 = string;
@@ -588,50 +623,50 @@ export type Failures1 =
 export type Summary1 = string;
 export type RunId35 = string;
 export type Summary2 = string;
-export type CreatedAt2 = string;
+export type CreatedAt3 = string;
 export type RunId36 = string;
 export type Path7 = string;
 export type Tool2 = string;
 export type Created = boolean;
 export type Ts28 = string;
 export type Files = RunFile[];
-export type Name7 = string;
+export type Name9 = string;
 export type Description1 = string;
 export type Command7 = string | null;
 export type Category = "coding" | "tests" | "web" | "docs" | "other";
 export type Source4 = "bundled" | "user" | "workspace";
 export type Path8 = string;
-export type Enabled = boolean;
+export type Enabled3 = boolean;
 export type RequiresApproval = boolean;
 export type Tokens2 = number;
 export type Status15 = "clean" | "flagged" | "blocked";
 export type Findings = string[];
 export type Scripts = string[];
 export type Problem = string | null;
-export type Name8 = string;
+export type Name10 = string;
 export type Description2 = string;
 export type Command8 = string | null;
 export type Category1 = "coding" | "tests" | "web" | "docs" | "other";
 export type Source5 = "bundled" | "user" | "workspace";
 export type Path9 = string;
-export type Enabled1 = boolean;
+export type Enabled4 = boolean;
 export type RequiresApproval1 = boolean;
 export type Tokens3 = number;
 export type Problem1 = string | null;
 export type Body = string;
 export type References = string[];
 export type Command9 = string;
-export type Name9 = string;
+export type Name11 = string;
 export type Description3 = string;
 export type RequiresApproval2 = boolean;
-export type Workspace5 = string;
+export type Workspace7 = string;
 export type Skills1 = SkillRecord[];
 export type Commands = SkillCommand[];
 export type CatalogUrl = string | null;
 export type FetchedAt = string | null;
 export type Problems = SkillRecord[];
 export type Version1 = 1;
-export type Name10 = string;
+export type Name12 = string;
 export type Description4 = string;
 export type Url1 = string;
 export type Command10 = string | null;
@@ -642,41 +677,41 @@ export type Skills2 = MarketplaceEntry[];
 export type FetchedAt1 = string | null;
 export type CatalogUrl1 = string | null;
 export type Error2 = string | null;
-export type Name11 = string;
+export type Name13 = string;
 export type Transport = "stdio" | "http";
 export type Display = string;
-export type Enabled2 = boolean;
+export type Enabled5 = boolean;
 export type Status16 = "connected" | "error" | "disabled";
-export type Name12 = string;
+export type Name14 = string;
 export type Namespaced = string;
 export type Description5 = string;
 export type InputSchema = string;
 export type Tools2 = McpTool[];
 export type Error3 = string | null;
-export type Workspace6 = string;
+export type Workspace8 = string;
 export type Servers = ConnectorStatus[];
-export type Name13 = string;
+export type Name15 = string;
 export type Transport1 = "stdio" | "http";
 export type Command11 = string | null;
 export type Url2 = string | null;
 export type EnvKeys = string[];
-export type Enabled3 = boolean;
-export type Name14 = string;
+export type Enabled6 = boolean;
+export type Name16 = string;
 export type Description6 = string;
 export type Source6 = "workspace";
 export type Tools3 = string[];
 export type Path10 = string;
 export type Problem2 = string | null;
 export type Instructions = string;
-export type Name15 = string;
+export type Name17 = string;
 export type Description7 = string;
 export type Instructions1 = string;
 export type Tools4 = string[];
-export type Workspace7 = string;
+export type Workspace9 = string;
 export type Content = string;
 export type Bytes1 = number;
 export type Limit1 = number;
-export type Workspace8 = string;
+export type Workspace10 = string;
 export type Skills3 = number;
 export type EnabledSkills = number;
 export type Agents = number;
@@ -686,18 +721,18 @@ export type AppData = string;
 export type RetentionDays1 = number;
 export type Keys = number;
 export type Path11 = string;
-export type Name16 = string;
+export type Name18 = string;
 export type Harness = string;
 export type Runs = number;
 export type RunBytes = number;
 export type CheckpointsBytes = number;
 export type Tasks1 = number;
 export type Workspaces = WorkspaceData[];
-export type Workspace9 = string;
+export type Workspace11 = string;
 export type Runs1 = number;
 export type Bytes2 = number;
 export type Tasks2 = number;
-export type Name17 = string;
+export type Name19 = string;
 export type Version3 = string;
 export type Licence = string;
 export type AppData1 = string;
@@ -716,6 +751,10 @@ export interface Protocol {
   settings: Settings;
   preset: Preset;
   workspaces: WorkspaceState;
+  schedule_record: ScheduleRecord;
+  schedule_list: ScheduleList;
+  schedule_input: ScheduleInput;
+  schedule_toggle: ScheduleToggle;
   approval_request: ApprovalRequest;
   approval_decision: ApprovalDecision;
   approval_record: ApprovalRecord;
@@ -1182,6 +1221,7 @@ export interface RunRequest {
   worktree?: Worktree;
   worktree_approved?: WorktreeApproved;
   seed_summary_from?: SeedSummaryFrom;
+  schedule_id?: ScheduleId;
 }
 export interface RunResponse {
   run_id: RunId32;
@@ -1258,6 +1298,55 @@ export interface TaskRecord {
   mode?: Mode1;
   status?: Status10;
   worktree?: Worktree1;
+  schedule_id?: ScheduleId1;
+}
+export interface ScheduleRecord {
+  id: Id6;
+  name: Name6;
+  prompt: Prompt;
+  workspace: Workspace4;
+  model: Model6;
+  mode?: Mode2;
+  ceiling?: Ceiling;
+  repeat?: Repeat;
+  weekday?: Weekday;
+  time?: Time;
+  valid_until?: ValidUntil;
+  enabled?: Enabled;
+  created_at: CreatedAt2;
+  next_run_at?: NextRunAt;
+  last_run_at?: LastRunAt;
+  last_status?: LastStatus;
+  last_run_id?: LastRunId;
+  missed_at?: MissedAt;
+  last_error?: LastError;
+}
+export interface ScheduleList {
+  schedules?: Schedules;
+  pending?: Pending;
+  now: Now;
+}
+export interface Pending {
+  [k: string]: number;
+}
+/**
+ * What a person can set. Everything else is the engine's bookkeeping.
+ */
+export interface ScheduleInput {
+  name: Name7;
+  prompt: Prompt1;
+  workspace: Workspace5;
+  model: Model7;
+  mode?: Mode3;
+  ceiling?: Ceiling1;
+  repeat?: Repeat1;
+  weekday?: Weekday1;
+  time?: Time1;
+  valid_until?: ValidUntil1;
+  enabled?: Enabled1;
+}
+export interface ScheduleToggle {
+  enabled: Enabled2;
 }
 export interface ApprovalDecision {
   decision: Decision1;
@@ -1319,7 +1408,7 @@ export interface FileListing {
   file?: FileContent | null;
 }
 export interface FileEntry {
-  name: Name6;
+  name: Name8;
   path: Path3;
   kind: Kind6;
   size?: Size;
@@ -1339,7 +1428,7 @@ export interface RevertResult {
   created_snapshot_id: CreatedSnapshotId;
 }
 export interface SnapshotEntry {
-  id: Id6;
+  id: Id7;
   path: Path6;
   existed: Existed;
   ts: Ts27;
@@ -1349,10 +1438,10 @@ export interface SnapshotEntry {
   tool?: Tool1;
 }
 export interface BranchSwitch {
-  workspace: Workspace4;
+  workspace: Workspace6;
   branch: Branch1;
   approved?: Approved;
-  mode?: Mode2;
+  mode?: Mode4;
 }
 export interface BranchSwitchResult {
   branch?: Branch2;
@@ -1368,7 +1457,7 @@ export interface BranchList {
 }
 export interface RulesResponse {
   rules?: RulesFile;
-  mode: Mode4;
+  mode: Mode6;
   tools?: Tools1;
   defaults?: Defaults;
   always_ask?: AlwaysAsk;
@@ -1378,7 +1467,7 @@ export interface RulesResponse {
  */
 export interface RulesFile {
   version?: Version;
-  mode?: Mode3;
+  mode?: Mode5;
   tools?: Tools;
 }
 export interface Tools {
@@ -1454,7 +1543,7 @@ export interface TestOutcome {
 export interface RunSummary {
   run_id: RunId35;
   summary: Summary2;
-  created_at: CreatedAt2;
+  created_at: CreatedAt3;
 }
 export interface RunFileList {
   run_id: RunId36;
@@ -1470,13 +1559,13 @@ export interface RunFile {
   ts: Ts28;
 }
 export interface SkillRecord {
-  name: Name7;
+  name: Name9;
   description: Description1;
   command?: Command7;
   category?: Category;
   source?: Source4;
   path?: Path8;
-  enabled?: Enabled;
+  enabled?: Enabled3;
   requires_approval?: RequiresApproval;
   tokens?: Tokens2;
   scan?: SkillScan;
@@ -1491,13 +1580,13 @@ export interface SkillScan {
   scripts?: Scripts;
 }
 export interface SkillDetail {
-  name: Name8;
+  name: Name10;
   description: Description2;
   command?: Command8;
   category?: Category1;
   source?: Source5;
   path?: Path9;
-  enabled?: Enabled1;
+  enabled?: Enabled4;
   requires_approval?: RequiresApproval1;
   tokens?: Tokens3;
   scan?: SkillScan;
@@ -1507,12 +1596,12 @@ export interface SkillDetail {
 }
 export interface SkillCommand {
   command: Command9;
-  name: Name9;
+  name: Name11;
   description: Description3;
   requires_approval?: RequiresApproval2;
 }
 export interface SkillsResponse {
-  workspace: Workspace5;
+  workspace: Workspace7;
   skills?: Skills1;
   commands?: Commands;
   catalog_url?: CatalogUrl;
@@ -1527,7 +1616,7 @@ export interface MarketplaceCatalog {
   error?: Error2;
 }
 export interface MarketplaceEntry {
-  name: Name10;
+  name: Name12;
   description: Description4;
   url: Url1;
   command?: Command10;
@@ -1536,34 +1625,34 @@ export interface MarketplaceEntry {
   author?: Author;
 }
 export interface ConnectorStatus {
-  name: Name11;
+  name: Name13;
   transport?: Transport;
   display?: Display;
-  enabled?: Enabled2;
+  enabled?: Enabled5;
   status?: Status16;
   tools?: Tools2;
   error?: Error3;
 }
 export interface McpTool {
-  name: Name12;
+  name: Name14;
   namespaced: Namespaced;
   description?: Description5;
   input_schema?: InputSchema;
 }
 export interface ConnectorList {
-  workspace: Workspace6;
+  workspace: Workspace8;
   servers?: Servers;
 }
 export interface McpServerInput {
-  name: Name13;
+  name: Name15;
   transport?: Transport1;
   command?: Command11;
   url?: Url2;
   env_keys?: EnvKeys;
-  enabled?: Enabled3;
+  enabled?: Enabled6;
 }
 export interface AgentRecord {
-  name: Name14;
+  name: Name16;
   description: Description6;
   source?: Source6;
   tools?: Tools3;
@@ -1575,13 +1664,13 @@ export interface AgentDocument {
   instructions?: Instructions;
 }
 export interface AgentWriteInput {
-  name: Name15;
+  name: Name17;
   description: Description7;
   instructions?: Instructions1;
   tools?: Tools4;
 }
 export interface MemoryDocument {
-  workspace: Workspace7;
+  workspace: Workspace9;
   content?: Content;
   bytes?: Bytes1;
   limit?: Limit1;
@@ -1590,7 +1679,7 @@ export interface MemoryDocument {
  * The hub's read-only overview: counts and the workspace it describes.
  */
 export interface CustomizeSettings {
-  workspace: Workspace8;
+  workspace: Workspace10;
   skills?: Skills3;
   enabled_skills?: EnabledSkills;
   agents?: Agents;
@@ -1608,7 +1697,7 @@ export interface DataSummary {
 }
 export interface WorkspaceData {
   path: Path11;
-  name: Name16;
+  name: Name18;
   harness: Harness;
   runs?: Runs;
   run_bytes?: RunBytes;
@@ -1616,13 +1705,13 @@ export interface WorkspaceData {
   tasks?: Tasks1;
 }
 export interface DeletedRuns {
-  workspace: Workspace9;
+  workspace: Workspace11;
   runs?: Runs1;
   bytes?: Bytes2;
   tasks?: Tasks2;
 }
 export interface AppInfo {
-  name?: Name17;
+  name?: Name19;
   version: Version3;
   licence?: Licence;
   app_data: AppData1;

@@ -35,6 +35,7 @@ from server.files import file_routes
 from server.git import git_routes
 from server.models import model_routes
 from server.rules import rules_routes
+from server.schedules import schedules_routes
 from server.skills import skills_routes
 from server.snapshots import changed_files, snapshot_routes
 from server.verify import verify_routes
@@ -85,7 +86,6 @@ def create_app(
 
     warm: asyncio.Task[None] | None = None
     building: asyncio.Task[RunService] | None = None
-    scheduler: Scheduler | None = None
 
     async def build() -> RunService:
         # The agent stack takes seconds to import on Windows. Startup loads it in a worker
@@ -116,9 +116,32 @@ def create_app(
     async def warm_agent() -> None:
         await asyncio.to_thread(importlib.import_module, "agent.bridge")
 
+    async def start_run(request: RunRequest) -> str:
+        return await (await runs()).start(request)
+
+    async def events_of(run_id: str) -> AsyncIterator[Event]:
+        async for event in (await runs()).events(run_id, 0):
+            yield event
+
+    async def schedule_pending() -> dict[str, int]:
+        """Pending approvals per schedule: counted from the inbox, never stored twice."""
+        manager = await runs()
+        await manager.recover()
+        owner = {task.id: task.schedule_id for task in catalog.data.workspaces.tasks}
+        counts: dict[str, int] = {}
+        for record in manager.approvals("pending"):
+            schedule_id = owner.get(record.request.run_id)
+            if schedule_id:
+                counts[schedule_id] = counts.get(schedule_id, 0) + 1
+        return counts
+
+    # Created here rather than in the lifespan so the routes can hold it: the object does no
+    # work until `begin()` starts the loop, and the loop is the app's lifetime.
+    scheduler = Scheduler(catalog, start_run, events=events_of)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        nonlocal warm, scheduler
+        nonlocal warm
         warm = asyncio.create_task(warm_agent())
         # Retention walks the recent workspaces' run folders, so it runs off the event loop.
         # It is not awaited: a cold start must not wait for a large history to be scanned.
@@ -129,23 +152,13 @@ def create_app(
                 catalog.data.settings.retention_days,
             )
         )
-
-        async def start_run(request: RunRequest) -> str:
-            return await (await runs()).start(request)
-
-        async def events_of(run_id: str) -> AsyncIterator[Event]:
-            async for event in (await runs()).events(run_id, 0):
-                yield event
-
         # The ticker is the app's own lifetime: it starts here and stops here. Nothing is
         # scheduled while the engine is not running, which is the product rule, not a gap.
-        scheduler = Scheduler(catalog, start_run, events=events_of)
         scheduler.begin()
         try:
             yield
         finally:
-            if scheduler is not None:
-                await scheduler.close()
+            await scheduler.close()
             for pending in (warm, retention):
                 if pending is not None and not pending.done():
                     pending.cancel()
@@ -182,6 +195,7 @@ def create_app(
     app.include_router(connectors_routes(ActionApprovals(catalog)))
     app.include_router(customize_routes(ActionApprovals(catalog), app_data))
     app.include_router(data_routes(catalog, app_data, lambda: service.busy() if service else False))
+    app.include_router(schedules_routes(catalog, scheduler, schedule_pending))
     app.include_router(about_routes(app_data))
 
     @app.exception_handler(RequestValidationError)

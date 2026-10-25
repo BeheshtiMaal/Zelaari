@@ -23,6 +23,12 @@ from planning.types import (
 )
 from providers.base import ModelInput, Preset, ProviderRecord, Settings, WorkspaceState
 from questions.types import QuestionAnswer, QuestionDecision, QuestionRecord, QuestionRequest
+from scheduling.model import (
+    ScheduleInput,
+    ScheduleList,
+    ScheduleRecord,
+    ScheduleToggle,
+)
 from skills.types import (
     AgentDocument,
     AgentRecord,
@@ -352,6 +358,10 @@ class Protocol(WireModel):
     settings: Settings
     preset: Preset
     workspaces: WorkspaceState
+    schedule_record: ScheduleRecord
+    schedule_list: ScheduleList
+    schedule_input: ScheduleInput
+    schedule_toggle: ScheduleToggle
     approval_request: ApprovalRequest
     approval_decision: ApprovalDecision
     approval_record: ApprovalRecord
