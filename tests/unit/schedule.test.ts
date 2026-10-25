@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { scheduleCopy } from "../../src/i18n/schedule";
 import {
+  TEMPLATE_SCHEDULES,
   dayLabel,
+  draftFromTemplate,
   effectiveMode,
+  emptyDraft,
   formatTime,
   inputFrom,
   isExpired,
@@ -11,6 +14,7 @@ import {
   lastResultLabel,
   nextRunLabel,
   recurrenceLabel,
+  templateSchedule,
   toSchedule,
   type Schedule,
 } from "../../src/lib/schedule";
@@ -228,5 +232,38 @@ describe("the templates", () => {
     assert.equal(effectiveMode("read-only", "report"), "read-only");
     assert.equal(en.modes["read-only"], "Read-only");
     assert.equal(en.ceilings.report, "Read-only and report");
+  });
+
+  it("carry the recurrence they are named after, not a silent default", () => {
+    // Every template has its own entry, so none of them can fall back unnoticed.
+    assert.deepEqual(Object.keys(TEMPLATE_SCHEDULES).sort(), en.templates.map(item => item.id).sort());
+    // The mock's own row for the dependency check reads "جمعه‌ها ساعت ۰۹:۰۰", so the three
+    // weekly templates are the ones whose names say so — spelled out rather than inferred from
+    // prose, because "Test coverage each week" does not contain the word "weekly".
+    const weekly = ["dependencies", "coverage", "weekly-summary"];
+    for (const template of en.templates) {
+      const schedule = templateSchedule(template.id);
+      assert.ok(schedule.time.match(/^\d{2}:\d{2}$/), `${template.id} needs a clock time`);
+      assert.equal(schedule.repeat, weekly.includes(template.id) ? "weekly" : "daily", template.id);
+      if (schedule.repeat === "weekly") assert.ok(schedule.weekday >= 0 && schedule.weekday <= 6);
+      // Both languages agree about the recurrence: it is keyed by id, not by the words.
+      assert.deepEqual(templateSchedule(template.id), schedule);
+    }
+  });
+
+  it("fill the dialog with the name, the prompt and the recurrence, and nothing else", () => {
+    const base = emptyDraft("/work/repo", "demo");
+    const draft = draftFromTemplate(en.templates.find(item => item.id === "dependencies")!, base);
+    assert.equal(draft.name, "Weekly dependency check");
+    assert.equal(draft.repeat, "weekly");
+    assert.equal(draft.time, "09:00");
+    assert.equal(draft.weekday, 4);
+    // The permissions are the unattended default, not something a template chooses.
+    assert.equal(draft.mode, "read-only");
+    assert.equal(draft.ceiling, "report");
+    assert.equal(draft.workspace, "/work/repo");
+    // A template never creates anything: it only fills a draft.
+    assert.equal(base.name, "");
+    assert.equal(base.repeat, "daily");
   });
 });

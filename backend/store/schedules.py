@@ -100,7 +100,13 @@ def delete_schedule(catalog: Catalog, schedule_id: str) -> bool:
 def set_enabled(
     catalog: Catalog, schedule_id: str, enabled: bool, now: datetime
 ) -> ScheduleRecord:
-    """The switch. Turning it back on reschedules from now rather than firing a backlog."""
+    """The switch.
+
+    R11: pausing keeps the occurrence the schedule already had — the paused row still says
+    when it would have run, and the record is not quietly rewritten behind the person's back.
+    Resuming recomputes from now, so a schedule paused for a week does not fire a backlog on
+    the way back.
+    """
     with catalog.lock:
         old = next((item for item in catalog.data.schedules if item.id == schedule_id), None)
         if old is None:
@@ -108,7 +114,7 @@ def set_enabled(
         record = old.model_copy(
             update={
                 "enabled": enabled,
-                "next_run_at": next_run_after(old, now),
+                "next_run_at": next_run_after(old, now) if enabled else old.next_run_at,
                 "missed_at": None,
             }
         )

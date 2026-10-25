@@ -244,12 +244,27 @@ export function draftFrom(schedule: Schedule): ScheduleDraft {
   };
 }
 
-/** A template fills the name and the prompt and nothing else surprising: read-only, nightly. */
-export function draftFromTemplate(
-  template: { name: string; prompt: string },
-  base: ScheduleDraft,
-): ScheduleDraft {
-  return { ...base, name: template.name, prompt: template.prompt };
+/** The recurrence a template is named after. Data, not copy: a clock time is not a word. */
+export const TEMPLATE_SCHEDULES: Record<string, { repeat: ScheduleRepeat; weekday: number; time: string }> = {
+  "nightly-tests": { repeat: "daily", weekday: 4, time: "02:00" },
+  "git-review": { repeat: "daily", weekday: 4, time: "02:00" },
+  dependencies: { repeat: "weekly", weekday: 4, time: "09:00" },
+  coverage: { repeat: "weekly", weekday: 4, time: "09:00" },
+  todos: { repeat: "daily", weekday: 4, time: "02:00" },
+  "weekly-summary": { repeat: "weekly", weekday: 4, time: "09:00" },
+};
+
+export function templateSchedule(id: string): { repeat: ScheduleRepeat; weekday: number; time: string } {
+  return TEMPLATE_SCHEDULES[id] ?? { repeat: "daily", weekday: 4, time: "02:00" };
+}
+
+/**
+ * A template fills the name, the prompt and the recurrence it is named after — "weekly
+ * dependency check" that opens as a nightly schedule is a template that misleads. Everything
+ * else stays at the unattended default (R7, R15).
+ */
+export function draftFromTemplate(template: { id: string; name: string; prompt: string }, base: ScheduleDraft): ScheduleDraft {
+  return { ...base, name: template.name, prompt: template.prompt, ...templateSchedule(template.id) };
 }
 
 export function draftToInput(draft: ScheduleDraft): ScheduleInput {

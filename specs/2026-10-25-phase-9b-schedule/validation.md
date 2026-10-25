@@ -34,7 +34,8 @@ that proves them exists.
       into the future — without this the offer can never fire; `::test_an_overdue_occurrence_survives_a_restart`.
 - [x] A status left at "running" by a killed process reloads as interrupted; `::test_a_running_status_becomes_interrupted`.
 - [x] Editing reschedules and keeps the run history; `::test_edit_reschedules_and_keeps_history`.
-- [x] Switching off and on again recomputes the occurrence from now; `::test_the_switch_reschedules_from_now`.
+- [x] R11 pausing **keeps** the occurrence the schedule already had, and resuming recomputes it from now so a
+      schedule paused for a week fires no backlog; `::test_the_switch_reschedules_from_now` asserts both halves.
 - [x] A validity date in the past is refused at write time; `::test_an_expired_validity_is_refused`.
 
 ### Ticker and missed runs (Step 3)
@@ -87,6 +88,10 @@ that proves them exists.
 - [x] R19 no Persian literal in a component, and Persian digits in Persian output; `tests/unit/i18n.test.ts`,
       `tests/unit/schedule.test.ts`.
 - [x] R13/R14 every template has a name and a prompt in both locales; `tests/unit/schedule.test.ts`.
+- [x] R15 a template fills the dialog with its name, its prompt **and the recurrence it is named after** — the weekly
+      ones arrive weekly at 09:00, the nightly ones daily at 02:00 — and leaves the permissions at the unattended
+      default; `tests/unit/schedule.test.ts` ("carry the recurrence they are named after", "fill the dialog with…"),
+      and the walkthrough clicks the weekly dependency template and reads the four fields back before cancelling.
 - [x] R16 the empty state is reachable and offers the add action, and `WIRED.noSchedules` is `"schedule"`;
       `tests/unit/states.test.ts`.
 - [x] R20 the new CSS uses tokens only and logical properties only; `tests/unit/theme.test.ts`,

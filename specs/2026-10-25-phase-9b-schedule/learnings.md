@@ -79,6 +79,23 @@ sequential run per gate.
    never existed in this codebase; everything durable already lives in the JSON catalog. This is a constitution change
    and is **proposed, not made** — see "Open items".
 
+## What a requirements audit found after "done"
+
+Both of these were found by reading R1–R20 against the code rather than against the tests, which is the check that
+"all gates green" cannot make for you.
+
+1. **R11 was not implemented as written.** It says a disabled schedule "keeps its next occurrence"; `set_enabled`
+   recomputed it in both directions. Harmless in the common case (recomputing at 09:00 for a 02:00 schedule returns the
+   same time) and wrong in the one that matters: pausing an *overdue* schedule quietly moved its occurrence forward.
+   Disabling now preserves the record and enabling recomputes, so the paused row still says when it would have run and
+   resuming still fires no backlog. The test asserts both halves now; before, it only checked the resume.
+2. **R15's templates carried no recurrence.** They filled a name and a prompt, so "Weekly dependency check" opened as a
+   nightly 02:00 schedule — a template that contradicts its own name. The recurrence is now data keyed by template id
+   in `src/lib/schedule.ts` (`TEMPLATE_SCHEDULES`), *not* in the copy module: the i18n test rightly rejects ASCII
+   digits in Persian copy, and a clock time is machine data rather than a word. `draftFromTemplate` spreads it in, the
+   unit test asserts every id has an entry and that the three weekly templates are weekly, and the walkthrough clicks
+   the weekly one and reads four fields back before cancelling.
+
 ## Surprises
 
 - **The i18n discovery regex had been skipping modules.** It matched `export const x = (locale: Locale)` but not

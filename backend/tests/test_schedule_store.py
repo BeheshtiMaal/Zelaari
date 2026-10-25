@@ -141,9 +141,12 @@ def test_the_switch_reschedules_from_now(tmp_path: Path) -> None:
     off = set_enabled(catalog, created.id, False, NOW + timedelta(days=2))
     assert off.enabled is False
     assert off.missed_at is None
+    # R11: pausing keeps the occurrence it already had, so the paused row can still say when
+    # it would have run and nothing is rewritten behind the person's back.
+    assert off.next_run_at == created.next_run_at
     on = set_enabled(catalog, created.id, True, NOW + timedelta(days=2))
     assert on.enabled is True
-    # Not a backlog: the next occurrence is the first one after "now".
+    # Resuming is not a backlog: the next occurrence is the first one after "now".
     assert on.next_run_at == datetime(2026, 10, 24, 2, 0)
 
 

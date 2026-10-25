@@ -103,7 +103,22 @@ try {
   assert.ok(emptyText.length > 0, "the empty state has something to say");
   await page.screenshot({ path: resolve(artifacts, "phase9b-s1-empty.png") });
 
-  // S2: the dialog opens on the name field, and refuses to confirm an empty schedule.
+  // S2: a template fills the dialog — name, prompt and the recurrence it is named after — and
+  // creates nothing until Confirm. The weekly one must not arrive as a nightly schedule.
+  await page.getByTestId("schedule-template-dependencies").click();
+  await expect(page.getByTestId("schedule-dialog")).toBeVisible();
+  await expect(page.getByTestId("schedule-name")).toHaveValue("بررسی هفتگی وابستگی‌ها");
+  await expect(page.getByTestId("schedule-repeat")).toHaveValue("weekly");
+  await expect(page.getByTestId("schedule-weekday")).toHaveValue("4");
+  await expect(page.getByTestId("schedule-time")).toHaveValue("09:00");
+  await expect(page.getByTestId("schedule-mode")).toHaveValue("read-only");
+  await expect(page.getByTestId("schedule-ceiling")).toHaveValue("report");
+  await page.getByRole("button", { name: "انصراف" }).click();
+  await expect(page.getByTestId("schedule-dialog")).toBeHidden();
+  await expect(page.getByTestId("state-no-schedules")).toBeVisible();
+  assert.equal((await readSchedules()).length, 0, "a template creates nothing by itself");
+
+  // The dialog opens on the name field, and refuses to confirm an empty schedule.
   await page.getByTestId("state-add-schedule").click();
   await expect(page.getByTestId("schedule-dialog")).toBeVisible();
   const focused = await page.evaluate(() => document.activeElement?.getAttribute("data-testid"));
