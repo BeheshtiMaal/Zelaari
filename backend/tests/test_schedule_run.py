@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 from langchain_core.messages import AIMessage
+from test_approval_recovery import wait_for
+from test_permissions import FINAL, ScriptedModel
 
 from agent.bridge import RunManager
 from permissions.types import ApprovalDecision
@@ -13,8 +15,6 @@ from scheduling.model import ScheduleInput
 from scheduling.ticker import Scheduler
 from store.catalog import Catalog
 from store.schedules import add_schedule, find_schedule
-from test_approval_recovery import wait_for
-from test_permissions import FINAL, ScriptedModel
 from tools.jail import storage_path
 
 NOW = datetime(2026, 10, 21, 12, 0)
