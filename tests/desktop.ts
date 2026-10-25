@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -74,7 +75,10 @@ for (const language of ["fa", "en"] as const) {
     assert.equal(await page.evaluate(() => document.documentElement.dir), language === "fa" ? "rtl" : "ltr");
     assert.equal(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require), "undefined");
     assert.deepEqual(await page.evaluate(() => Object.keys(window.harness ?? {}).sort()), ["appInfo", "baseUrl", "clearKeys", "onEngineStatus", "openLogFolder", "pickWorkspace", "restartEngine", "revealAppData", "revealWorkspace", "saveModel", "testModelDraft", "token", "vaultStatus"]);
-    await expect(page.locator(".sidebar button:disabled")).toHaveCount(1);
+    // The sidebar's two nav buttons are gated on `busy` alone, so an idle, ready app has
+    // none disabled. This asked for one, from a time when a nav item carried its own
+    // condition; no state produces exactly one today, busy disables both.
+    await expect(page.locator(".sidebar button:disabled")).toHaveCount(0);
     await page.screenshot({ path: resolve(artifacts, `home-${language}.png`) });
     const body = await page.locator("body").boundingBox();
     const sidebar = await page.locator(".sidebar").boundingBox();
@@ -157,7 +161,13 @@ for (const language of ["fa", "en"] as const) {
 }
 
 // Kill only Electron main. The private pipe must close and kill the job members.
-for (const packaged of [false, true]) {
+// The packaged iteration needs `build/engine`, which is gitignored and built only by
+// `npm run desktop:build` in the packaging job. That job proves the real bundle with
+// tests/phase10-desktop.ts, so a checkout without the bundle covers the source engine.
+const bundle = resolve(root, "build/engine/watchdog/watchdog.exe");
+const modes = existsSync(bundle) ? [false, true] : [false];
+if (!existsSync(bundle)) console.log("Desktop: build/engine absent, packaged cleanup is covered by the packaging job.");
+for (const packaged of modes) {
   const app = await launch("fa", packaged);
   let owned: number[] = [];
   try {
