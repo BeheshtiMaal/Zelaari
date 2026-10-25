@@ -23,7 +23,9 @@ jobs:
       - run: uv run --project backend mypy --strict backend
       - run: npm run test:engine
       # Twenty deterministic cases through the real engine, plus the report artifact.
-      - run: uv run --project backend python -m evals
+      # `--project .` because the step already runs inside `backend`; `--project backend`
+      # makes uv look for a nested `backend/backend` and fail before the module loads.
+      - run: uv run --project . python -m evals
         working-directory: backend
       - run: npm run generate:protocol
       - run: npm run generate:genui
