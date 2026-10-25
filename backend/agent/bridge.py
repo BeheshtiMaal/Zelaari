@@ -57,6 +57,7 @@ from store.approvals import ApprovalLedger
 from store.catalog import Catalog
 from store.eventlog import EventBus
 from store.questions import QuestionLedger
+from store.schedules import schedule_of
 from store.secrets import Redactor
 from store.steering import SteeringQueue
 from store.workspaces import add_task, select_workspace
@@ -272,6 +273,7 @@ class RunManager:
             model=request.model,
             mode=request.mode,
             worktree=str(worktree) if worktree else None,
+            schedule_id=request.schedule_id,
         )
         if not restore_id:
             add_task(self.catalog, task_record)
@@ -705,7 +707,11 @@ class RunManager:
                     None,
                 )
                 if task:
-                    request.source_title = task.title
+                    # A scheduled run is labelled with its schedule: "weekly dependency
+                    # check" tells the person where this came from, the prompt does not.
+                    scheduled = schedule_of(self.catalog, task.schedule_id)
+                    request.source_title = scheduled.name if scheduled else task.title
+                    request.source_kind = "schedule" if scheduled else "task"
                     if "approval" not in task.waiting_on:
                         task.waiting_on.append("approval")
                 if run.ledger:

@@ -26,6 +26,7 @@ from permissions.types import (
 )
 from planning.types import SteeringRecord, SteeringSubmission
 from questions.types import QuestionDecision, QuestionRecord
+from scheduling.ticker import Scheduler
 from server.about import about_routes
 from server.connectors import connectors_routes
 from server.customize import customize_routes
@@ -84,6 +85,7 @@ def create_app(
 
     warm: asyncio.Task[None] | None = None
     building: asyncio.Task[RunService] | None = None
+    scheduler: Scheduler | None = None
 
     async def build() -> RunService:
         # The agent stack takes seconds to import on Windows. Startup loads it in a worker
@@ -116,7 +118,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        nonlocal warm
+        nonlocal warm, scheduler
         warm = asyncio.create_task(warm_agent())
         # Retention walks the recent workspaces' run folders, so it runs off the event loop.
         # It is not awaited: a cold start must not wait for a large history to be scanned.
@@ -127,9 +129,23 @@ def create_app(
                 catalog.data.settings.retention_days,
             )
         )
+
+        async def start_run(request: RunRequest) -> str:
+            return await (await runs()).start(request)
+
+        async def events_of(run_id: str) -> AsyncIterator[Event]:
+            async for event in (await runs()).events(run_id, 0):
+                yield event
+
+        # The ticker is the app's own lifetime: it starts here and stops here. Nothing is
+        # scheduled while the engine is not running, which is the product rule, not a gap.
+        scheduler = Scheduler(catalog, start_run, events=events_of)
+        scheduler.begin()
         try:
             yield
         finally:
+            if scheduler is not None:
+                await scheduler.close()
             for pending in (warm, retention):
                 if pending is not None and not pending.done():
                     pending.cancel()

@@ -99,6 +99,8 @@ class TaskRecord(Record):
     status: Literal["running", "completed", "stopped", "error", "interrupted"] = "running"
     worktree: str | None = None
     """Where the run actually executed when the Worktree option was used."""
+    schedule_id: str | None = None
+    """Which schedule started this run, if any. The link the Schedule row counts from."""
 
 
 class WorkspaceSelection(Record):

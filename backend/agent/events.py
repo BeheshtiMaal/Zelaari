@@ -318,6 +318,12 @@ class RunRequest(WireModel):
     """
     seed_summary_from: str | None = Field(default=None, pattern=r"^[a-f0-9]{8,64}$")
     """Start from that run's summary instead of replaying its conversation."""
+    schedule_id: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_-]{1,64}$")
+    """Set only by the scheduler, so a run can say which schedule asked for it.
+
+    It is on the request rather than in a side table because `request.json` is the run's own
+    record of what it was asked: a scheduled run that cannot name its schedule is not evidence.
+    """
 
 
 class RunSummary(WireModel):
