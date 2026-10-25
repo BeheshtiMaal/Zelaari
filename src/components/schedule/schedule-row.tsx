@@ -6,9 +6,12 @@ import { DotsThreeIcon } from "@phosphor-icons/react/dist/csr/DotsThree";
 import type { Locale } from "../../i18n";
 import type { ScheduleCopy } from "../../i18n/schedule";
 import {
+  effectiveMode,
   formatTime,
+  isExpired,
   isMissed,
   lastResultLabel,
+  nextRunLabel,
   recurrenceLabel,
   type Schedule,
 } from "../../lib/schedule";
@@ -27,6 +30,9 @@ export function ScheduleRow({ schedule, pending, now, locale, copy, busy, onTogg
   const [menu, setMenu] = useState(false);
   const result = lastResultLabel(schedule, pending, now, copy, locale);
   const missed = isMissed(schedule);
+  // The chip shows what the run will actually be allowed to do, not what was picked: with a
+  // report ceiling an "ask" schedule runs read-only, and the row must not claim otherwise.
+  const mode = effectiveMode(schedule.mode, schedule.ceiling);
   return <div className={`schedule-row ${schedule.enabled ? "" : "paused"}`} data-testid={`schedule-row-${schedule.id}`}>
     <span className={`schedule-row-icon ${schedule.enabled ? "on" : ""}`} aria-hidden="true"><ClockIcon size={22} /></span>
     <div className="schedule-row-main">
@@ -36,9 +42,13 @@ export function ScheduleRow({ schedule, pending, now, locale, copy, busy, onTogg
         {" · "}
         {recurrenceLabel(schedule, copy, locale)}
       </small>
+      {/* R1: past the last occurrence the row has to say so, not just stop mentioning a time. */}
+      <small className={isExpired(schedule) ? "schedule-next expired" : "schedule-next"} data-testid={`schedule-next-${schedule.id}`}>
+        {nextRunLabel(schedule, now, copy, locale)}
+      </small>
     </div>
-    <span className={`type-chip mode-${schedule.mode}`} data-testid={`schedule-mode-${schedule.id}`}>
-      {copy.modes[schedule.mode]}
+    <span className={`type-chip mode-${mode}`} data-testid={`schedule-mode-${schedule.id}`}>
+      {copy.modes[mode]}
     </span>
     <span className={`schedule-result ${result.tone}`} data-testid={`schedule-result-${schedule.id}`}>{result.text}</span>
     <button type="button" role="switch" aria-checked={schedule.enabled} className={`switch ${schedule.enabled ? "on" : ""}`}

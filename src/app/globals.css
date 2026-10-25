@@ -728,6 +728,7 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .schedule-row-main { flex: 1; min-inline-size: 220px; display: flex; flex-direction: column; gap: 2px; }
 .schedule-row-main strong { font-weight: 600; }
 .schedule-row-main small { color: var(--text-muted); font-size: var(--fs-12-5); }
+.schedule-row-main .schedule-next.expired { color: var(--warn-text); }
 .schedule-result { font-size: var(--fs-12-5); }
 .schedule-result.ok { color: var(--ok-text); }
 .schedule-result.warn { color: var(--warn-text); }
@@ -758,8 +759,13 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .schedule-template-text { display: flex; flex-direction: column; gap: 3px; min-inline-size: 0; }
 .schedule-template-text strong { font-size: var(--fs-15); font-weight: 600; }
 .schedule-template-text small { color: var(--text-muted); font-size: var(--fs-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.schedule-dialog { position: fixed; inset-block-start: 50%; inset-inline-start: 50%; transform: translate(-50%, -50%); inline-size: min(700px, calc(100vw - 48px)); max-block-size: calc(100vh - 48px); overflow: auto; background: var(--bg-raised); border: 1px solid var(--border-strong); border-radius: 28px; padding: 28px; z-index: 21; }
+.schedule-dialog { position: fixed; inset-block-start: 50%; inset-inline-start: 50%; transform: translate(-50%, -50%); inline-size: min(700px, calc(100vw - 48px)); max-block-size: calc(100dvh - 48px); display: flex; flex-direction: column; overflow: hidden; background: var(--bg-raised); border: 1px solid var(--border-strong); border-radius: 28px; padding: 28px; z-index: 21; }
 .schedule-dialog.narrow { inline-size: min(460px, calc(100vw - 48px)); }
+/* The form is taller than a laptop window, so the fields scroll and Cancel/Confirm stay
+   reachable: a dialog whose only way out is below the fold is a dialog with no way out. */
+.schedule-dialog form { display: flex; flex-direction: column; min-block-size: 0; }
+.schedule-dialog fieldset { border: 0; margin: 0; padding: 0; min-block-size: 0; overflow: auto; }
+.schedule-dialog .dialog-actions { flex: none; }
 .schedule-dialog label { display: flex; flex-direction: column; gap: 4px; color: var(--text-soft); font-size: var(--fs-13); }
 .schedule-dialog input, .schedule-dialog select, .schedule-dialog textarea { border: 1px solid var(--border-input); background: var(--bg-input); color: var(--text); border-radius: 14px; padding-block: 10px; padding-inline: 14px; font: inherit; inline-size: 100%; }
 .schedule-dialog textarea { resize: vertical; }
@@ -768,4 +774,18 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .prompt-box-tools { display: flex; justify-content: space-between; align-items: center; padding-inline: 10px; padding-block-end: 6px; }
 .prompt-box-tools .chip { border: 1px solid var(--border-strong); border-radius: 20px; padding-block: 2px; padding-inline: 10px; font-size: var(--fs-13); color: var(--text-soft); }
 .danger-note { color: var(--danger); font-size: var(--fs-12-5); margin-block: 8px 0; }
+/* The warning and the "runs as" line are two different statements; without this they read as
+   one paragraph, and the second one is the one a person has to act on. */
+.schedule-dialog fieldset > .muted { margin-block: 10px 0; }
+.schedule-dialog fieldset > .dialog-row { margin-block-start: 14px; }
 .danger-button { border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text); border-radius: 12px; padding-block: 8px; padding-inline: 20px; font-weight: 700; }
+
+/* A `transform` is physical even when the insets are logical. In a right-to-left document
+   `inset-inline-start: 50%` anchors the trailing edge, so the same -50% shift over-corrects
+   by a full width and parks the dialog half off the screen — the wider the dialog, the worse.
+   One flip, and it centres in both directions. Found by the Phase 9b walkthrough; it affected
+   every dialog in Persian. */
+[dir="rtl"] .model-dialog,
+[dir="rtl"] .confirm-dialog,
+[dir="rtl"] .customize-dialog,
+[dir="rtl"] .schedule-dialog { transform: translate(50%, -50%); }

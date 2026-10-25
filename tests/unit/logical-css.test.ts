@@ -39,6 +39,23 @@ describe("the stylesheet", () => {
       assert.ok(CSS.includes(property), `the stylesheet should use ${property}`);
     }
   });
+
+  /**
+   * `transform` has no logical form, so a dialog centred with `inset-inline-start: 50%` plus
+   * `translate(-50%, -50%)` is correct in English and half a width off-screen in Persian. The
+   * Phase 9b walkthrough found this on the schedule dialog, where it made Confirm unclickable;
+   * every dialog that centres this way needs the mirrored rule.
+   */
+  it("mirrors the centring transform for a right-to-left document", () => {
+    const centred = [...CSS.matchAll(/\.([a-z][a-z-]*-dialog)\s*\{[^}]*transform:\s*translate\(-50%,\s*-50%\)/g)];
+    assert.ok(centred.length > 0, "there should be at least one centred dialog");
+    for (const [, name] of centred) {
+      const head = CSS.indexOf(`[dir="rtl"] .${name}`);
+      assert.notEqual(head, -1, `${name} must be mirrored for RTL`);
+      const open = CSS.indexOf("{", head), close = CSS.indexOf("}", open);
+      assert.match(CSS.slice(open, close), /translate\(50%,\s*-50%\)/, `${name} must flip its horizontal shift`);
+    }
+  });
 });
 
 describe("the inline styles", () => {

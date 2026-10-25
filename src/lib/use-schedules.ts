@@ -36,6 +36,22 @@ export function useSchedules() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // A schedule screen is about time, so it cannot be a snapshot taken once on mount: a run
+  // that finished two minutes ago would leave the row claiming it never ran. The ticker looks
+  // every twenty seconds, so this does too — and immediately whenever the window comes back,
+  // which is the case where the app was open but nobody was looking.
+  useEffect(() => {
+    const refresh = () => { if (!document.hidden) void load(); };
+    const timer = setInterval(refresh, 20000);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [load]);
+
   const submit = useCallback(
     async (call: () => Promise<unknown>, failure: "save" | "run") => {
       if (busy) return false;
