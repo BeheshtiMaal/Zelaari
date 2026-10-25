@@ -21,6 +21,7 @@ import { ApprovalCard } from "./approvals/approval-card";
 import { recordKey, useInbox } from "../lib/inbox";
 import { RulesScreen } from "./approvals/rules-screen";
 import { CustomizeScreen } from "./customize/customize-screen";
+import { ScheduleScreen } from "./schedule/schedule-screen";
 import { approvalCopy } from "../i18n/approvals";
 import { SettingsScreen } from "./settings/settings-screen";
 import { CrashCard } from "./states/crash-card";
@@ -32,9 +33,9 @@ import { CaretRightIcon } from "@phosphor-icons/react/dist/csr/CaretRight";
 import { FolderIcon } from "@phosphor-icons/react/dist/csr/Folder";
 import { GearIcon } from "@phosphor-icons/react/dist/csr/Gear";
 
-export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "inbox" | "rules" | "customize" }) {
+export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "inbox" | "rules" | "customize" | "schedule" }) {
   const [task, setTask] = useState("");
-  const [view, setView] = useState<"home" | "settings" | "add-model" | "inbox" | "rules" | "customize">(initialView);
+  const [view, setView] = useState<"home" | "settings" | "add-model" | "inbox" | "rules" | "customize" | "schedule">(initialView);
   const session = useSession(), run = useRun(), steering = useSteering();
   useAppearance(session.settings);
   const states = statesCopy(session.locale);
@@ -64,7 +65,7 @@ export function TaskScreen({ initialView = "home" }: { initialView?: "home" | "i
   return <div className="app-shell" data-ready={session.ready}>
     <Sidebar t={t} session={session} settings={view === "settings" || view === "add-model"} current={view === "rules" ? "customize" : view} reset={reset} openSettings={() => setView("settings")} openTask={id => { setView("home"); void session.openTask(id); }} />
     <main id="main" tabIndex={-1} className={`surface ${view !== "home" ? "settings-surface" : running ? "run-surface" : "home-surface"}`}>
-      {view === "inbox" ? <InboxScreen locale={session.locale} onHome={() => setView("home")} /> : view === "customize" ? <CustomizeScreen session={session} /> : view === "rules" ? <RulesScreen session={session} /> : view !== "home" ? <SettingsScreen key={view} session={session} t={t} addInitially={view === "add-model"} /> : <>
+      {view === "inbox" ? <InboxScreen locale={session.locale} onHome={() => setView("home")} /> : view === "customize" ? <CustomizeScreen session={session} /> : view === "rules" ? <RulesScreen session={session} /> : view === "schedule" ? <ScheduleScreen session={session} /> : view !== "home" ? <SettingsScreen key={view} session={session} t={t} addInitially={view === "add-model"} /> : <>
         <div className={running ? "run-layout" : "home-layout"}><div className={running ? "run-main" : "home-main"}>
         {running && <header className="run-header"><h1>{run.task}</h1><div className="run-actions"><RunElapsed run={run} locale={session.locale} />
           {total > 0 && <span data-testid="token-meter">{run.usage.estimated ? "~" : ""}{new Intl.NumberFormat(session.locale).format(total)} {t.tokens}</span>}

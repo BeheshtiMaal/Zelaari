@@ -23,8 +23,8 @@ const en = {
   noSchedules: {
     label: "Nothing scheduled",
     title: "No schedules yet",
-    help: "A schedule runs a task at a set time. This build has no scheduler, so nothing can be added here.",
-    primary: "Back to the task",
+    help: "A schedule runs a task at a set time, but only while the app is open. Anything it needs to ask you waits in the approvals inbox.",
+    primary: "Add a schedule",
   },
   noTasks: {
     label: "No runs yet",
@@ -72,8 +72,8 @@ const fa: typeof en = {
   noSchedules: {
     label: "چیزی زمان‌بندی نشده",
     title: "هنوز زمان‌بندی‌ای نیست",
-    help: "زمان‌بندی یک کار را در ساعتی مشخص اجرا می‌کند. این ساخت زمان‌بند ندارد، پس چیزی هم نمی‌شود اضافه کرد.",
-    primary: "بازگشت به کار",
+    help: "زمان‌بندی یک کار را در ساعتی مشخص اجرا می‌کند، اما فقط وقتی برنامه باز است. هر چیزی که لازم باشد از شما بپرسد، در صندوق تأیید منتظر می‌ماند.",
+    primary: "افزودن زمان‌بندی",
   },
   noTasks: {
     label: "هنوز اجرایی نیست",

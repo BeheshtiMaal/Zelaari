@@ -6,17 +6,14 @@ export const STATE_KEYS = ["noWorkspace", "noModel", "emptyInbox", "noSchedules"
 export type StateKey = (typeof STATE_KEYS)[number];
 
 /**
- * Where each state lives. `null` is a state with no surface yet.
- *
- * The schedules state is the phase's one recorded deviation: this build has no scheduler,
- * so the card and its copy exist and are tested, and Phase 9b puts them on a page. A
- * state wired to a screen that cannot produce it would be worse than an honest `null`.
+ * Where each state lives. `null` would be a state with no surface; there is none left, and
+ * the test asserts that, so a state cannot quietly lose its screen.
  */
 export const WIRED: Record<StateKey, string | null> = {
   noWorkspace: "home",
   noModel: "home",
   emptyInbox: "inbox",
-  noSchedules: null,
+  noSchedules: "schedule",
   noTasks: "workspace",
   noSkills: "customize/skills",
 };

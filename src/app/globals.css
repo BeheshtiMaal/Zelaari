@@ -713,3 +713,59 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .command-picker button .type-chip { margin-inline-start: auto; }
 .active-skill { display: flex; align-items: center; gap: 8px; margin: 0; padding-block: 6px; padding-inline: 4px; font-size: var(--fs-12-5); color: var(--accent-text); }
 .active-skill code { background: var(--bg-accent-chip); border-radius: 6px; padding-inline: 6px; font-family: Consolas, monospace; }
+
+/* ---- Schedule ---------------------------------------------------------------------- */
+
+.schedule-screen { display: flex; flex-direction: column; gap: 14px; padding-block: 24px; padding-inline: 28px; overflow: auto; block-size: 100%; }
+.schedule-screen h1 { font-size: var(--fs-22); font-weight: 800; margin: 0; }
+.schedule-screen p { margin: 0; }
+.new-schedule { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.schedule-group { color: var(--text-soft); font-weight: 600; margin-block-start: 6px; }
+.schedule-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding-block: 14px; padding-inline: 18px; }
+.schedule-row.paused { opacity: .78; }
+.schedule-row-icon { color: var(--text-muted); display: flex; }
+.schedule-row-icon.on { color: var(--accent-text); }
+.schedule-row-main { flex: 1; min-inline-size: 220px; display: flex; flex-direction: column; gap: 2px; }
+.schedule-row-main strong { font-weight: 600; }
+.schedule-row-main small { color: var(--text-muted); font-size: var(--fs-12-5); }
+.schedule-result { font-size: var(--fs-12-5); }
+.schedule-result.ok { color: var(--ok-text); }
+.schedule-result.warn { color: var(--warn-text); }
+.schedule-result.danger { color: var(--danger-text); }
+.schedule-result.muted { color: var(--text-muted); }
+.type-chip.mode-ask, .chip.mode-ask { background: var(--bg-accent-chip); color: var(--accent-text); }
+.type-chip.mode-auto, .chip.mode-auto { background: var(--danger-bg); color: var(--danger-text); }
+.chip { display: inline-flex; align-items: center; gap: 7px; }
+.chip select { border: 0; background: transparent; color: inherit; font: inherit; padding: 0; }
+.schedule-dialog .chip { border-radius: 20px; padding-block: 5px; padding-inline: 10px; font-size: var(--fs-12); }
+.chip.ceiling-report { background: var(--bg-raised); color: var(--text-soft); }
+.chip.ceiling-full { background: var(--danger-bg); color: var(--danger-text); }
+.row-more { border: 0; background: transparent; color: var(--text-muted); padding-inline: 6px; display: flex; }
+.row-menu { background: var(--bg-raised); border: 1px solid var(--border-strong); border-radius: 14px; padding: 6px; display: flex; flex-direction: column; gap: 2px; min-inline-size: 160px; z-index: 30; }
+.row-menu button { border: 0; background: transparent; color: var(--text); text-align: start; border-radius: 10px; padding-block: 7px; padding-inline: 10px; }
+.row-menu button:hover, .row-menu button:focus-visible { background: var(--bg-active); }
+.row-menu button.danger { color: var(--danger-text); }
+.schedule-missed { flex-basis: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 14px; padding-block: 10px; padding-inline: 14px; }
+.schedule-missed p { flex: 1; min-inline-size: 200px; color: var(--warn-text); font-size: var(--fs-13); }
+.schedule-missed button { border: 1px solid var(--border-button); background: transparent; color: var(--text); border-radius: 12px; padding-block: 6px; padding-inline: 14px; }
+.schedule-missed button.light-button { border-color: transparent; font-weight: 700; }
+.schedule-templates-heading { font-size: var(--fs-16); margin-block-start: 14px; }
+.schedule-templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.schedule-template { display: flex; align-items: flex-start; gap: 14px; text-align: start; background: var(--bg-card); border: 1px solid transparent; border-radius: 18px; padding-block: 16px; padding-inline: 18px; color: var(--text); min-inline-size: 0; }
+.schedule-template:hover:not(:disabled) { border-color: var(--border-strong); }
+.schedule-template:disabled { opacity: .55; }
+.schedule-template-icon { color: var(--text-soft); display: flex; }
+.schedule-template-text { display: flex; flex-direction: column; gap: 3px; min-inline-size: 0; }
+.schedule-template-text strong { font-size: var(--fs-15); font-weight: 600; }
+.schedule-template-text small { color: var(--text-muted); font-size: var(--fs-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-dialog { position: fixed; inset-block-start: 50%; inset-inline-start: 50%; transform: translate(-50%, -50%); inline-size: min(700px, calc(100vw - 48px)); max-block-size: calc(100vh - 48px); overflow: auto; background: var(--bg-raised); border: 1px solid var(--border-strong); border-radius: 28px; padding: 28px; z-index: 21; }
+.schedule-dialog.narrow { inline-size: min(460px, calc(100vw - 48px)); }
+.schedule-dialog label { display: flex; flex-direction: column; gap: 4px; color: var(--text-soft); font-size: var(--fs-13); }
+.schedule-dialog input, .schedule-dialog select, .schedule-dialog textarea { border: 1px solid var(--border-input); background: var(--bg-input); color: var(--text); border-radius: 14px; padding-block: 10px; padding-inline: 14px; font: inherit; inline-size: 100%; }
+.schedule-dialog textarea { resize: vertical; }
+.prompt-box { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 22px; padding: 6px; margin-block: 12px; }
+.prompt-box textarea { border: 0; background: transparent; }
+.prompt-box-tools { display: flex; justify-content: space-between; align-items: center; padding-inline: 10px; padding-block-end: 6px; }
+.prompt-box-tools .chip { border: 1px solid var(--border-strong); border-radius: 20px; padding-block: 2px; padding-inline: 10px; font-size: var(--fs-13); color: var(--text-soft); }
+.danger-note { color: var(--danger); font-size: var(--fs-12-5); margin-block: 8px 0; }
+.danger-button { border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text); border-radius: 12px; padding-block: 8px; padding-inline: 20px; font-weight: 700; }

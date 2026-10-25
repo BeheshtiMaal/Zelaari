@@ -48,10 +48,10 @@ describe("the six empty states", () => {
     assert.deepEqual(shape(statesCopy("fa")), shape(statesCopy("en")));
   });
 
-  it("are all wired to a surface except the one this build cannot reach", () => {
+  it("are all wired to a surface", () => {
     const wired = STATE_KEYS.filter(key => WIRED[key] !== null);
-    assert.equal(wired.length, 5);
-    assert.equal(WIRED.noSchedules, null, "the schedules state is Phase 9b: no scheduler exists yet");
+    assert.equal(wired.length, STATE_KEYS.length, "a state with no surface is a card nobody can reach");
+    assert.equal(WIRED.noSchedules, "schedule");
     assert.equal(WIRED.noWorkspace, "home");
     assert.equal(WIRED.noModel, "home");
     assert.equal(WIRED.emptyInbox, "inbox");
@@ -59,11 +59,13 @@ describe("the six empty states", () => {
     assert.equal(WIRED.noSkills, "customize/skills");
   });
 
-  it("name the schedule state honestly instead of offering a button that does nothing", () => {
+  it("offer the one action that ends the schedule state", () => {
+    // The scheduler exists now, so the card must not still say nothing can be added here.
     for (const locale of LOCALES) {
       const text = statesCopy(locale).noSchedules;
       assert.ok(text.help.length > 0);
-      assert.equal(/add|new|create|ساخت|افزودن/i.test(text.primary), false, text.primary);
+      assert.equal(/add|new|create|ساخت|افزودن/i.test(text.primary), true, text.primary);
+      assert.equal(/no scheduler|زمان‌بند ندارد/i.test(text.help), false, text.help);
     }
   });
 });

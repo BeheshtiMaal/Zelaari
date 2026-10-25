@@ -195,3 +195,86 @@ export function inputFrom(schedule: Schedule): ScheduleInput {
     enabled: schedule.enabled,
   };
 }
+
+/** What the dialog holds while a person types. `validUntil` is "" for long-term. */
+export interface ScheduleDraft {
+  name: string;
+  prompt: string;
+  workspace: string;
+  model: string;
+  mode: ScheduleMode;
+  ceiling: ScheduleCeiling;
+  repeat: ScheduleRepeat;
+  weekday: number;
+  time: string;
+  validUntil: string;
+  enabled: boolean;
+}
+
+export function emptyDraft(workspace: string, model: string): ScheduleDraft {
+  return {
+    name: "",
+    prompt: "",
+    workspace,
+    model,
+    // The unattended default: read-only and report (R7).
+    mode: "read-only",
+    ceiling: "report",
+    repeat: "daily",
+    weekday: 4,
+    time: "02:00",
+    validUntil: "",
+    enabled: true,
+  };
+}
+
+export function draftFrom(schedule: Schedule): ScheduleDraft {
+  return {
+    name: schedule.name,
+    prompt: schedule.prompt,
+    workspace: schedule.workspace,
+    model: schedule.model,
+    mode: schedule.mode,
+    ceiling: schedule.ceiling,
+    repeat: schedule.repeat,
+    weekday: schedule.weekday ?? 4,
+    time: schedule.time,
+    validUntil: schedule.validUntil ?? "",
+    enabled: schedule.enabled,
+  };
+}
+
+/** A template fills the name and the prompt and nothing else surprising: read-only, nightly. */
+export function draftFromTemplate(
+  template: { name: string; prompt: string },
+  base: ScheduleDraft,
+): ScheduleDraft {
+  return { ...base, name: template.name, prompt: template.prompt };
+}
+
+export function draftToInput(draft: ScheduleDraft): ScheduleInput {
+  return {
+    name: draft.name.trim(),
+    prompt: draft.prompt.trim(),
+    workspace: draft.workspace,
+    model: draft.model,
+    mode: draft.mode,
+    ceiling: draft.ceiling,
+    repeat: draft.repeat,
+    weekday: draft.repeat === "weekly" ? draft.weekday : null,
+    time: draft.time,
+    valid_until: draft.validUntil === "" ? null : draft.validUntil,
+    enabled: draft.enabled,
+  };
+}
+
+/** Why Confirm is disabled, or null when it can be pressed. */
+export function draftProblem(
+  draft: ScheduleDraft,
+  copy: { emptyName: string; emptyPrompt: string; noWorkspace: string },
+): string | null {
+  if (!draft.name.trim()) return copy.emptyName;
+  if (!draft.prompt.trim()) return copy.emptyPrompt;
+  if (!draft.workspace) return copy.noWorkspace;
+  return null;
+}
