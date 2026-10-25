@@ -1,7 +1,8 @@
 name: Checks
 on: [push, pull_request]
+
 jobs:
-  phase1:
+  gates:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,7 +13,11 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --project backend --frozen
       - run: npm ci
-      - run: uv run --project backend ruff check --config backend/pyproject.toml backend scripts
+      # Run from `backend` so the isort classification matches the config's own root.
+      # Passing `--config backend/pyproject.toml` from the repository root makes every
+      # first-party import look unsorted, which is 147 false positives.
+      - run: uv run --project . ruff check . ../scripts
+        working-directory: backend
       - run: uv run --project backend mypy --strict backend
       - run: npm run test:engine
       - run: npm run generate:protocol
@@ -22,6 +27,43 @@ jobs:
       - run: npm run test:ui
       - run: npm run build
       - run: npm run build:electron
-      - run: npm run build:engine
-      - run: uv run --project backend python scripts/check_packaged.py
       - run: npm run test:desktop
+
+  # The engine bundle is built here once, in the job that proves it, rather than in both.
+  package:
+    needs: gates
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --project backend --frozen
+      - run: npm ci
+      - name: Version is 0.1.0
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          if ($version -ne '0.1.0') { throw "package.json says $version, the artifacts are named for 0.1.0" }
+      # The static export, the Electron bundle and the PyInstaller engine in one step.
+      - run: npm run desktop:build
+      - run: uv run --project backend python scripts/check_packaged.py
+      - run: npm run package
+      - name: Both artifacts exist
+        shell: pwsh
+        run: |
+          foreach ($artifact in 'dist/CodeHarness-Setup-0.1.0.exe', 'dist/CodeHarness-0.1.0-x64.zip') {
+            if (-not (Test-Path $artifact)) { throw "missing $artifact" }
+            Get-Item $artifact | Select-Object Name, Length
+          }
+      - run: uv run --project backend python scripts/smoke-installer.py dist/win-unpacked
+      - run: npx tsx tests/phase10-desktop.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codeharness-0.1.0
+          path: |
+            dist/CodeHarness-Setup-0.1.0.exe
+            dist/CodeHarness-0.1.0-x64.zip
+          if-no-files-found: error
