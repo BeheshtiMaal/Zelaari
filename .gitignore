@@ -22,3 +22,5 @@ spikes/python/*.spec
 /build/work/
 *.env
 .env*
+specs/
+prompts/
