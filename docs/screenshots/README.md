@@ -1,9 +1,6 @@
-# Screenshots
+# تصاویر
 
-Every PNG in this folder comes from `tests/phase10-screens.ts`, which drives the packaged app
-(`dist/win-unpacked/CodeHarness.exe`) — the same tree the installer lays down — in Persian at
-the reference size. Nothing here is a drawing of the app: the screens, the tool calls, the
-diffs and the refusals are produced by the real engine.
+هر فایل PNG در این پوشه از `tests/phase10-screens.ts` می‌آید که برنامهٔ نصب‌شده (`dist/win-unpacked/CodeHarness.exe`) — همان درختی که نصب‌کننده می‌گذارد — را به فارسی و در اندازهٔ مرجع می‌راند. هیچ‌کدام نقاشی برنامه نیست: صفحه‌ها، فراخوانی ابزارها، diffها و امتناع‌ها را موتور واقعی تولید می‌کند.
 
 ```powershell
 npm run desktop:build      # engine bundle + Electron
@@ -11,73 +8,48 @@ npm run package            # dist/win-unpacked
 npx tsx tests/phase10-screens.ts
 ```
 
-If your environment injects `NODE_OPTIONS` with a safe-delete shim, run the last line as
-`env -u NODE_OPTIONS npx tsx tests/phase10-screens.ts` — the shim blocks the cleanup of the
-disposable profile and fails Playwright's teardown.
+اگر محیط شما `NODE_OPTIONS` را با یک shim حذف ایمن تزریق می‌کند، خط آخر را به‌صورت `env -u NODE_OPTIONS npx tsx tests/phase10-screens.ts` اجرا کنید — آن shim پاک‌کردن پروفایل یک‌بارمصرف را می‌بندد و teardown خود Playwright را به شکست می‌کشاند.
 
-## How the images were made
+## تصاویر چطور ساخته شدند
 
-- **Window and size.** The window opens at 1440×960 device-independent pixels. This machine
-  runs a 133% display scale, so the CSS viewport is 1080×675 and each image is captured with
-  `scale: "device"` — a 1440×900 PNG, the size the mocks in `docs/mock-source/` were drawn at.
-- **Language.** `CODEHARNESS_LANGUAGE=fa`, so the first paint is Persian and `dir="rtl"`.
-- **Profile.** The app runs on a disposable profile at `artifacts/readme-profile` (ignored by
-  git), which is why the workspace path in the images reads like a project folder.
-- **Model.** `home`, `main`, `run`, `workspace`, `skills`, `schedule`, `schedule-add`,
-  `inbox-empty` and the settings screens use the built-in **demo** model: no key, no network.
-- **Pending approval.** `inbox` is a real demo run: it reads the file, submits a plan (adopted
-  automatically for a single low-risk step), starts it, and asks before the edit. The record
-  is left pending on purpose and the run is stopped after the shot.
-- **Fixture.** `errors` needs a state a person cannot summon on demand — a model that asks for
-  a path outside the workspace — so a local OpenAI-compatible server answers with that one
-  tool call. The engine, the permission layer and the jail card are real; only the model is
-  scripted. The provider is registered through the engine's own routes (vault key, model
-  record, connection test) and the fake server listens on loopback only.
-- **No staged DOM.** The script never injects markup, edits styles or fakes an event stream.
-  It clicks, types, navigates and reads what the app renders.
+- **پنجره و اندازه.** پنجره با ۱۴۴۰×۹۶۰ پیکسل مستقل از دستگاه باز می‌شود. این دستگاه مقیاس نمایش ۱۳۳٪ دارد، پس viewport در CSS برابر ۱۰۸۰×۶۷۵ است و هر تصویر با `scale: "device"` گرفته می‌شود — یک PNG ۱۴۴۰×۹۰۰، همان اندازه‌ای که ماکت‌های `docs/mock-source/` در آن کشیده شده‌اند.
+- **زبان.** `CODEHARNESS_LANGUAGE=fa`، پس اولین رنگ‌آمیزی فارسی است و `dir="rtl"`.
+- **پروفایل.** برنامه روی یک پروفایل یک‌بارمصرف در `artifacts/readme-profile` اجرا می‌شود (که گیت نادیده می‌گیرد)؛ به همین دلیل مسیر فضای کاری در تصاویر شبیه یک پوشهٔ پروژه است.
+- **مدل.** `home`، `main`، `run`، `workspace`، `skills`، `schedule`، `schedule-add`، `inbox-empty` و صفحه‌های تنظیمات از مدل **نمایشی** استفاده می‌کنند: بدون کلید، بدون شبکه.
+- **تأیید در انتظار.** `inbox` یک اجرای واقعی با مدل نمایشی است: فایل را می‌خواند، برنامه‌ای می‌فرستد (که برای یک گام کم‌خطر خودکار پذیرفته می‌شود)، آن را شروع می‌کند و پیش از ویرایش می‌پرسد. رکورد عمداً در حالت انتظار می‌ماند و اجرا بعد از عکس متوقف می‌شود.
+- **فیکسچر.** `errors` حالتی را لازم دارد که آدم نمی‌تواند به‌خواست خودش بسازد — مدلی که مسیری بیرون از فضای کاری می‌خواهد — پس یک سرور محلی سازگار با OpenAI همان یک فراخوانی را برمی‌گرداند. موتور، لایهٔ مجوز و کارت جیل واقعی‌اند؛ فقط مدل اسکریپت شده است. ارائه‌دهنده از مسیرهای خود موتور ثبت می‌شود (کلید در vault، رکورد مدل، آزمایش اتصال) و سرور جعلی فقط روی loopback گوش می‌دهد.
+- **بدون DOM ساختگی.** اسکریپت هیچ نشانه‌گذاری تزریق نمی‌کند، استایل را عوض نمی‌کند و جریان رویداد جعل نمی‌کند. کلیک می‌کند، تایپ می‌کند، جابه‌جا می‌شود و همان چیزی را می‌خواند که برنامه رندر می‌کند.
 
-## The images
+## تصاویر
 
-| File | Mock source | What it shows |
+| فایل | ماکت مرجع | چه چیزی را نشان می‌دهد |
 | --- | --- | --- |
-| `home.png` | `Home.dc.html` | First run: no folder, no model, both empty-state cards |
-| `main.png` | `Main.dc.html` | The sample project open, demo model selected, composer ready |
-| `run.png` | `Run.dc.html` | A finished demo run: tool line, summary, token meter |
-| `workspace.png` | `Workspace.dc.html` | The file browser with a file open |
-| `skills.png` | `Skills.dc.html` | Customize › Skills, with the sample's project skill counted |
-| `schedule.png` | `Schedule.dc.html` | A weekly schedule with its next run and permission ceiling |
-| `schedule-add.png` | `ScheduleAdd.dc.html` | The add-schedule dialog, filled, before saving |
-| `inbox-empty.png` | `Empty.dc.html` | The approvals inbox with nothing waiting |
-| `inbox.png` | `Inbox.dc.html` | One real pending approval, with the diff and the decision buttons |
-| `errors.png` | `Errors.dc.html` | The jail card: a path outside the workspace, refused by the tool layer |
-| `settings.png` | `Settings.dc.html` | Settings › Models and keys |
-| `settings-add-model.png` | `SettingsAddModel.dc.html` | The add-model dialog: presets, base URL, key, Test |
-| `settings-appearance.png` | `SettingsAppearance.dc.html` | Settings › Appearance and language |
-| `settings-permissions.png` | `SettingsPermissions.dc.html` | Settings › Permissions and safety |
-| `settings-context.png` | `SettingsContext.dc.html` | Settings › Context and compaction |
-| `settings-terminal.png` | `SettingsTerminal.dc.html` | Settings › Terminal and tests |
-| `settings-data.png` | `SettingsData.dc.html` | Settings › Data and privacy |
-| `settings-about.png` | `SettingsAbout.dc.html` | Settings › About |
+| `home.png` | `Home.dc.html` | اولین اجرا: نه پوشه، نه مدل، هر دو کارت خالی |
+| `main.png` | `Main.dc.html` | پروژهٔ نمونه باز، مدل نمایشی انتخاب‌شده، نوار نوشتن آماده |
+| `run.png` | `Run.dc.html` | یک اجرای نمایشی تمام‌شده: خط ابزار، خلاصه، شمارندهٔ توکن |
+| `workspace.png` | `Workspace.dc.html` | مرورگر فایل‌ها با یک فایل باز |
+| `skills.png` | `Skills.dc.html` | سفارشی‌سازی › مهارت‌ها، با مهارت پروژهٔ نمونه شمرده‌شده |
+| `schedule.png` | `Schedule.dc.html` | یک زمان‌بندی هفتگی با اجرای بعدی و سقف مجوز |
+| `schedule-add.png` | `ScheduleAdd.dc.html` | دیالوگ افزودن زمان‌بندی، پرشده، پیش از ذخیره |
+| `inbox-empty.png` | `Empty.dc.html` | صندوق تأیید وقتی چیزی در انتظار نیست |
+| `inbox.png` | `Inbox.dc.html` | یک تأیید واقعی در انتظار، با diff و دکمه‌های تصمیم |
+| `errors.png` | `Errors.dc.html` | کارت جیل: مسیری بیرون از فضای کاری، ردشده توسط لایهٔ ابزار |
+| `settings.png` | `Settings.dc.html` | تنظیمات › مدل‌ها و کلیدها |
+| `settings-add-model.png` | `SettingsAddModel.dc.html` | دیالوگ افزودن مدل: پیش‌تنظیم‌ها، نشانی پایه، کلید، آزمایش |
+| `settings-appearance.png` | `SettingsAppearance.dc.html` | تنظیمات › ظاهر و زبان |
+| `settings-permissions.png` | `SettingsPermissions.dc.html` | تنظیمات › مجوزها و ایمنی |
+| `settings-context.png` | `SettingsContext.dc.html` | تنظیمات › زمینه و فشرده‌سازی |
+| `settings-terminal.png` | `SettingsTerminal.dc.html` | تنظیمات › ترمینال و آزمون‌ها |
+| `settings-data.png` | `SettingsData.dc.html` | تنظیمات › داده‌ها و حریم خصوصی |
+| `settings-about.png` | `SettingsAbout.dc.html` | تنظیمات › درباره |
 
-## Deviations from the mocks
+## تفاوت‌ها با ماکت‌ها
 
-The mock files are design references, not screenshots of the shipped build. Where the build
-differs, this is why:
+فایل‌های ماکت مرجع طراحی‌اند، نه تصویر نسخهٔ تحویل‌شده. هرجا ساخت با ماکت فرق دارد، دلیلش این است:
 
-1. **`Empty` is a catalogue, not a route.** `Empty.dc.html` draws the empty states side by
-   side. The app renders them where they belong — no folder and no model on the task screen,
-   and `inbox-empty.png` for the approvals inbox. `home.png` shows the other two.
-2. **`Errors` is one real refusal.** The mock collects the error cards. The screenshot shows
-   the one that can be produced deterministically: `jail-card`, from a model asking for a
-   path outside the workspace. The timeout and interrupted cards are covered by
-   `tests/phase3-desktop.ts`, not by a screenshot.
-3. **`Inbox` carries a real diff.** The mock's approval is drawn; this one is a real pending
-   record from a demo run, so the file name, the added line and the risk badge are real.
-4. **Settings shows seven sections, as drawn**, but the section names come from `src/i18n/fa.ts`
-   (`مدل‌ها و کلیدها`, `ظاهر و زبان`, …) rather than the mock's placeholder headings.
-5. **SmartScreen is not here.** The "Windows protected your PC → More info → Run anyway"
-   dialog belongs to Windows, not to the app, and it only appears for a freshly downloaded,
-   unsigned installer. It cannot be produced from a test run; the README describes the two
-   clicks in words instead. Capture it once on a clean machine if you want the picture.
-6. **The task list in the sidebar is real.** The mock shows invented tasks; the screenshots
-   show the one task this walkthrough actually ran, because the profile is fresh.
+1. **`Empty` یک کاتالوگ است، نه یک مسیر.** `Empty.dc.html` حالت‌های خالی را کنار هم می‌کشد. برنامه آن‌ها را همان‌جا که باید نشان می‌دهد — نبودِ پوشه و مدل در صفحهٔ کار، و `inbox-empty.png` برای صندوق تأیید. `home.png` آن دو حالت دیگر را نشان می‌دهد.
+2. **`Errors` یک امتناع واقعی است.** ماکت کارت‌های خطا را جمع کرده است. تصویر آن چیزی را نشان می‌دهد که قطعی قابل تولید است: `jail-card`، از مدلی که مسیری بیرون از فضای کاری می‌خواهد. کارت‌های timeout و interrupted در `tests/phase3-desktop.ts` پوشش داده شده‌اند، نه با تصویر.
+3. **`Inbox` یک diff واقعی دارد.** تأیید ماکت کشیده شده است؛ این یکی رکورد واقعیِ در انتظار از یک اجرای نمایشی است، پس نام فایل، خط افزوده و نشان ریسک واقعی‌اند.
+4. **تنظیمات همان هفت بخش را دارد**، اما نام بخش‌ها از `src/i18n/fa.ts` می‌آید (`مدل‌ها و کلیدها`، `ظاهر و زبان`، …) نه از سرتیترهای جای‌نگهدار ماکت.
+5. **SmartScreen اینجا نیست.** دیالوگ «Windows protected your PC → More info → Run anyway» مال ویندوز است، نه برنامه، و فقط برای نصب‌کنندهٔ امضانشده‌ای ظاهر می‌شود که تازه دانلود شده باشد. از یک اجرای تست تولید نمی‌شود؛ README آن دو کلیک را با کلمه توضیح می‌دهد. اگر تصویرش را می‌خواهید، یک‌بار روی یک دستگاه تمیز بگیرید.
+6. **فهرست کارها در نوار کنار واقعی است.** ماکت کارهای ساختگی نشان می‌دهد؛ تصاویر همان یک کاری را نشان می‌دهند که این مسیر واقعاً اجرا کرده، چون پروفایل تازه است.

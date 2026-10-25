@@ -1,41 +1,29 @@
 # CodeHarness
 
-A local coding assistant for Windows that runs on your machine and asks before it touches
-anything. Persian (RTL) is the default interface; English is one switch away.
+دستیار برنامه‌نویسی محلی برای ویندوز که روی رایانهٔ خودتان اجرا می‌شود و پیش از دست‌زدن به هر چیزی اجازه می‌گیرد. رابط پیش‌فرض فارسی (راست‌به‌چپ) است و انگلیسی با یک سوئیچ در دسترس.
 
-It ships with an offline demo model, so you can see a real tool call and a real answer
-before you own a key.
+یک مدل نمایشی آفلاین همراه برنامه است تا پیش از آنکه کلید داشته باشید، یک فراخوانی واقعی ابزار و یک پاسخ واقعی ببینید.
 
 <p align="center">
   <img src="docs/screenshots/run.png" alt="یک اجرای واقعی با مدل نمایشی" width="880">
 </p>
 <p align="center" dir="rtl"><strong>تصویر ۱.</strong> یک اجرای واقعی با مدل نمایشی: خط ابزار <code>read_file</code>، پاسخ مدل با نقل‌قول از فایل، و شمارندهٔ توکن.</p>
 
-Every image below is the packaged app (`CodeHarness-Setup-0.1.0.exe`), in Persian, at the
-reference size. How each one was taken — and where the build differs from the design mocks —
-is in [`docs/screenshots/README.md`](docs/screenshots/README.md).
+همهٔ تصاویر زیر از برنامهٔ نصب‌شده (`CodeHarness-Setup-0.1.0.exe`) گرفته شده‌اند، به فارسی و در اندازهٔ مرجع. روش تهیهٔ هر تصویر و تفاوت‌های ساخت با ماکت‌های طراحی در [`docs/screenshots/README.md`](docs/screenshots/README.md) آمده است.
 
-## Install
+## نصب
 
-1. Download `CodeHarness-Setup-0.1.0.exe` (or `CodeHarness-0.1.0-x64.zip` to keep it
-   portable — unzip anywhere and run `CodeHarness.exe`).
-2. Run it. Windows shows **"Windows protected your PC"** because the installer is not
-   code-signed. Click **More info**, then **Run anyway**.
-3. Choose a folder — the default per-user location needs no administrator rights — and
-   finish.
+1. `CodeHarness-Setup-0.1.0.exe` را دانلود کنید (یا `CodeHarness-0.1.0-x64.zip` را برای نسخهٔ قابل‌حمل بردارید — هرجا باز کنید و `CodeHarness.exe` را اجرا کنید).
+2. اجرایش کنید. ویندوز پیام **«Windows protected your PC»** را نشان می‌دهد، چون نصب‌کننده امضای کد ندارد. روی **More info** و سپس **Run anyway** بزنید.
+3. یک پوشه انتخاب کنید — مسیر پیش‌فرضِ هر کاربر است و به دسترسی مدیر نیاز ندارد — و نصب را تمام کنید.
 
-Nothing else is required: **no Python, no Node, no build tools.** The engine is inside the
-app, and the installer puts it there.
+هیچ چیز دیگری لازم نیست: **نه پایتون، نه نود، نه ابزار ساخت.** موتور داخل برنامه است و نصب‌کننده آن را همان‌جا می‌گذارد.
 
-## First run
+## اولین اجرا
 
-1. Pick a project folder, or click **Sample project** to open the bundled one. It carries a
-   project skill (`read-framework-docs`) that starts switched off, because a project skill
-   should be a deliberate choice.
-2. Leave the model on **demo**. It answers offline and calls the same tools a real model
-   does.
-3. Ask: `read README.md and summarize`. You should see a tool line, then an answer quoting
-   your file.
+1. یک پوشهٔ پروژه انتخاب کنید، یا روی **پروژهٔ نمونه** بزنید تا نمونهٔ همراه برنامه باز شود. این نمونه یک مهارت پروژه‌ای (`read-framework-docs`) دارد که خاموش شروع می‌شود، چون مهارت پروژه باید یک انتخاب آگاهانه باشد.
+2. مدل را روی **نمایشی** بگذارید. آفلاین پاسخ می‌دهد و همان ابزارهایی را صدا می‌زند که یک مدل واقعی صدا می‌زند.
+3. بنویسید: `read README.md and summarize`. باید یک خط ابزار ببینید و بعد پاسخی که از فایل خودتان نقل‌قول می‌کند.
 
 <p align="center">
   <img src="docs/screenshots/home.png" alt="صفحهٔ نخست در اولین اجرا" width="880">
@@ -47,23 +35,18 @@ app, and the installer puts it there.
 </p>
 <p align="center" dir="rtl"><strong>تصویر ۳.</strong> صفحهٔ کار با فضای کاری نمونه و مدل نمایشی؛ نوار پایین: انتخاب فضا، شاخه، Worktree، حالت اجازه و مدل.</p>
 
-## The workspace
+## فضای کاری
 
-The agent works inside one folder. This view is the same folder it sees: a tree, a file
-preview, and the tasks that touched this space. A file the agent changed can be put back,
-byte for byte, from here.
+عامل داخل یک پوشه کار می‌کند. این نما همان پوشه‌ای است که او می‌بیند: درخت فایل‌ها، پیش‌نمایش فایل، و کارهایی که در این فضا اجرا شده‌اند. فایلی را که عامل تغییر داده می‌توانید از همین‌جا بایت‌به‌بایت برگردانید.
 
 <p align="center">
   <img src="docs/screenshots/workspace.png" alt="مرورگر فضای کاری" width="880">
 </p>
 <p align="center" dir="rtl"><strong>تصویر ۴.</strong> مرورگر فضای کاری: درخت فایل‌ها، پیش‌نمایش README نمونه و کارهایی که در این فضا اجرا شده‌اند.</p>
 
-## Approvals and refusals
+## تأییدها و امتناع‌ها
 
-In **ask** mode the agent stops before a write and waits. The inbox holds the same records
-the run holds; deciding there resumes the run. A request for something outside the folder is
-not an approval question at all — the tool layer refuses it, and the run carries on with the
-refusal in its history.
+در حالت **با تأیید**، عامل پیش از هر نوشتن می‌ایستد و منتظر می‌ماند. صندوق تأیید همان رکوردهایی را دارد که اجرا دارد؛ تصمیم‌گرفتن در آن، اجرا را ادامه می‌دهد. درخواست چیزی بیرون از پوشه اصلاً سؤال تأیید نیست — لایهٔ ابزار آن را رد می‌کند و اجرا با همان رد در تاریخچه‌اش ادامه پیدا می‌کند.
 
 <p align="center">
   <img src="docs/screenshots/inbox.png" alt="یک درخواست در انتظار تصمیم" width="880">
@@ -80,13 +63,9 @@ refusal in its history.
 </p>
 <p align="center" dir="rtl"><strong>تصویر ۷.</strong> کارت امتناع: مسیری بیرون از فضای کاری، حتی با تأیید هم خوانده نمی‌شود.</p>
 
-## Add a model
+## افزودن مدل
 
-Settings › Models › **Add**. Choose a preset (or type a base URL), paste the key, and press
-**Test**. Keys are encrypted with the Windows data-protection API (DPAPI) in app user-data
-`vault.json`; the engine receives them in memory and never writes them down. Editing a model
-with a blank key keeps the old one. The Test button is the only thing that talks to a
-provider before you run a task.
+تنظیمات › مدل‌ها › **افزودن**. یک پیش‌تنظیم انتخاب کنید (یا نشانی پایه را بنویسید)، کلید را بچسبانید و **آزمایش** را بزنید. کلیدها با API حفاظت دادهٔ ویندوز (DPAPI) در فایل `vault.json` داده‌های کاربرِ برنامه رمز می‌شوند؛ موتور آن‌ها را در حافظه می‌گیرد و هیچ‌جا نمی‌نویسد. ویرایش یک مدل با کلید خالی، کلید قبلی را نگه می‌دارد. دکمهٔ آزمایش تنها چیزی است که پیش از اجرای یک کار با ارائه‌دهنده حرف می‌زند.
 
 <p align="center">
   <img src="docs/screenshots/settings.png" alt="تنظیمات، مدل‌ها و کلیدها" width="880">
@@ -98,25 +77,18 @@ provider before you run a task.
 </p>
 <p align="center" dir="rtl"><strong>تصویر ۹.</strong> افزودن مدل: پیش‌تنظیم‌ها، نشانی پایه، کلید و دکمهٔ آزمایش اتصال.</p>
 
-## Add a skill
+## افزودن مهارت
 
-Customize › Skills. A skill is a folder with a `SKILL.md`; put it in
-`%APPDATA%\CodeHarness\skills\` for every project, or in `<your project>\.harness\skills\`
-for one. Skills are **not** pasted into every prompt: the model sees their names and asks
-for a body with `load_skill` when it needs one, and the timeline shows when that happened.
+سفارشی‌سازی › مهارت‌ها. مهارت یک پوشه با فایل `SKILL.md` است؛ برای همهٔ پروژه‌ها آن را در `%APPDATA%\CodeHarness\skills\` بگذارید، یا برای یک پروژه در `<your project>\.harness\skills\`. مهارت‌ها در هر پرامپت چسبانده نمی‌شوند: مدل نامشان را می‌بیند و وقتی لازم داشت با `load_skill` بدنه را می‌خواهد، و خط زمان نشان می‌دهد این کار چه وقت رخ داد.
 
 <p align="center">
   <img src="docs/screenshots/skills.png" alt="سفارشی‌سازی، مهارت‌ها" width="880">
 </p>
 <p align="center" dir="rtl"><strong>تصویر ۱۰.</strong> سفارشی‌سازی › مهارت‌ها: مهارت پروژهٔ نمونه شمرده شده ولی روشن نیست — شمارنده می‌گوید ۱ مهارت، ۰ فعال، ۰ سرور؛ روشن‌کردن، یک تصمیم آگاهانه است.</p>
 
-## Add a schedule
+## افزودن زمان‌بندی
 
-Schedule › **New**. A schedule is a saved task plus a recurrence. It only runs while the app
-is open — that is the product rule, not a limitation. An occurrence that fell due while the
-app was closed is **offered** when you next open it; nothing starts on its own. The
-permission ceiling is part of the schedule, and an unattended run defaults to read-only with
-a report.
+زمان‌بندی › **جدید**. یک زمان‌بندی، یک درخواست ذخیره‌شده به‌همراه تکرار است. فقط وقتی برنامه باز است اجرا می‌شود — این قاعدهٔ محصول است، نه محدودیت. نوبتی که در زمان بسته‌بودن برنامه رسیده باشد، دفعهٔ بعد که برنامه را باز می‌کنید **پیشنهاد** می‌شود؛ هیچ چیز خودبه‌خود شروع نمی‌شود. سقف مجوز بخشی از خود زمان‌بندی است و اجرای بدون‌ناظر به‌طور پیش‌فرض فقط‌خواندنی و با گزارش است.
 
 <p align="center">
   <img src="docs/screenshots/schedule.png" alt="زمان‌بندی" width="880">
@@ -128,7 +100,7 @@ a report.
 </p>
 <p align="center" dir="rtl"><strong>تصویر ۱۲.</strong> افزودن زمان‌بندی از یک الگوی آماده: نام، درخواست، تکرار هفتگی، ساعت و سقف مجوز؛ حالت اجرای مؤثر زیر همان انتخاب نوشته می‌شود.</p>
 
-## The rest of settings
+## بقیهٔ تنظیمات
 
 <table>
   <tr>
@@ -157,7 +129,7 @@ a report.
   </tr>
 </table>
 
-## How it fits together
+## معماری
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -180,70 +152,52 @@ a report.
                   └────────────────────────────────────────┘
 ```
 
-The token is generated per launch, kept in the Electron main process, and required by every
-route including `/health`. The engine binds loopback only. Closing the window ends the
-watchdog's job, which ends the engine and anything it started.
+توکن در هر اجرا ساخته می‌شود، در فرایند اصلی الکترون می‌ماند و هر مسیر — از جمله `/health` — آن را می‌خواهد. موتور فقط روی loopback گوش می‌دهد. بستن پنجره، job نگهبان را تمام می‌کند و آن هم موتور و هر چیزی را که موتور شروع کرده پایان می‌دهد.
 
-The engine also runs on its own from `backend/` with `python -m server` and a token on
-stdin; `python -m server --dev` disables auth for local development. Both bind
-`127.0.0.1` on an OS-assigned port.
+موتور جدا از برنامه هم از `backend/` با `python -m server` و یک توکن روی stdin اجرا می‌شود؛ `python -m server --dev` احراز هویت را برای توسعهٔ محلی خاموش می‌کند. هر دو روی `127.0.0.1` با پورتی که سیستم‌عامل می‌دهد گوش می‌دهند.
 
-## The eval suite
+## مجموعهٔ ارزیابی
 
 ```powershell
 cd backend
 uv run --project . python -m evals
 ```
 
-Twenty deterministic cases through the real engine — jail escapes, risky commands, the plan
-gate, the verify gate, the reflect-loop budget, approvals, allow rules, skill disclosure,
-questions, crash and resume, an unattended read-only run, and a malformed UI payload. It
-writes `backend/evals/report.md` and exits non-zero on a failure. Live models are a written
-checklist (`backend/evals/live-checklist.md`), not a skipped test that pretends to be
-coverage.
+بیست مورد قطعی از دل موتور واقعی — فرار از جیل، دستورهای پرخطر، دروازهٔ برنامه، دروازهٔ بازبینی، سقف حلقهٔ اصلاح، تأییدها، قواعد مجاز، افشای مهارت، پرسش‌ها، خرابی و ادامه، یک اجرای بدون‌ناظرِ فقط‌خواندنی، و یک بار دادهٔ معیوبِ رابط. گزارش را در `backend/evals/report.md` می‌نویسد و با شکست، خروجی غیرصفر می‌دهد. مدل‌های زنده یک چک‌لیست نوشته‌شده‌اند (`backend/evals/live-checklist.md`)، نه تستی که رد شده باشد و ادعای پوشش کند.
 
-## Checks
+## بررسی‌ها
 
 ```powershell
 cd backend; uv run --project . ruff check . ../scripts
 uv run --project backend mypy --strict backend
-npm run test:engine        # pytest
-npm run typecheck          # tsc --noEmit
-npm run test:ui            # theme, logical CSS and i18n contracts
+npm run test:engine        # آزمون‌های موتور با pytest
+npm run typecheck          # بررسی نوع‌ها با tsc
+npm run test:ui            # قراردادهای تم، CSS منطقی و i18n
 npm run build; npm run build:electron
-npm run test:desktop       # Playwright against the checkout
-npm run desktop:build      # export + Electron + PyInstaller engine
-npm run package            # NSIS installer and portable zip into dist/
+npm run test:desktop       # Playwright روی نسخهٔ کاری
+npm run desktop:build      # خروجی + الکترون + موتور PyInstaller
+npm run package            # نصب‌کنندهٔ NSIS و zip قابل‌حمل در dist/
 uv run --project backend python scripts/smoke-installer.py dist/win-unpacked
 npx tsx tests/phase10-desktop.ts
-npx tsx tests/phase10-screens.ts   # the images above
+npx tsx tests/phase10-screens.ts   # تصاویر بالا
 ```
 
-Run the engine tests before the UI tests: they generate a real event log for the replay
-test. Desktop walkthroughs drive the real app and save screenshots and sanitized evidence
-under the ignored `artifacts/`. Symlink tests need Windows Developer Mode or symlink
-privileges; they never skip the containment check itself.
+تست‌های موتور را پیش از تست‌های رابط اجرا کنید: یک لاگ رویداد واقعی برای تست بازپخش می‌سازند. مسیرهای دسکتاپ برنامهٔ واقعی را می‌رانند و تصویرها و شواهد پاک‌سازی‌شده را در `artifacts/` (که در گیت نادیده گرفته می‌شود) ذخیره می‌کنند. تست‌های symlink به Developer Mode ویندوز یا دسترسی ساخت symlink نیاز دارند؛ خودِ بررسی containment هرگز رد نمی‌شود.
 
-## Limits, honestly
+## محدودیت‌ها، صادقانه
 
-Read [`SECURITY.md`](SECURITY.md) before you point this at anything you care about. The short
-version: there is no sandbox. The permission layer stops the assistant from doing things you
-would not have approved; it does not stop a program you approved from doing anything at all.
-Work in a folder you can restore from version control.
+پیش از اینکه این را به چیزی که برایتان مهم است وصل کنید، [`SECURITY.md`](SECURITY.md) را بخوانید. خلاصه‌اش: سندباکسی وجود ندارد. لایهٔ مجوز جلوی کارهایی را می‌گیرد که تأییدشان نکرده‌اید؛ جلوی برنامه‌ای را که تأیید کرده‌اید و بعد هر کاری می‌کند نمی‌گیرد. در پوشه‌ای کار کنید که بتوانید از کنترل نسخه برگردانید.
 
-## Development
+## توسعه
 
-Install Node 24 and uv, then:
+Node 24 و uv را نصب کنید، بعد:
 
 ```powershell
 uv sync --project backend --frozen
 npm ci
 npm run generate:protocol
 npm run generate:genui
-npm run desktop          # export, bundle, open
+npm run desktop          # خروجی، بسته‌بندی، اجرا
 ```
 
-`npm run desktop:build` additionally builds the PyInstaller engine; `npm run package`
-produces the installer. `npm run icon` regenerates `build/icon.ico` from code, so no drawing
-tool is needed. MIT; design inspired by onboard-harness, with no code copied from that AGPL
-project.
+`npm run desktop:build` موتور PyInstaller را هم می‌سازد؛ `npm run package` نصب‌کننده را تولید می‌کند. `npm run icon` فایل `build/icon.ico` را از کد بازمی‌سازد، پس به ابزار طراحی نیاز نیست. مجوز MIT؛ طراحی با الهام از onboard-harness و بدون کپی کد از آن پروژهٔ AGPL.
