@@ -1,5 +1,7 @@
 """Snapshot listing and revert. Revert is user-initiated, so it is not an approval."""
 
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -8,7 +10,26 @@ from store.actions import ActionApprovals
 from store.secrets import Redactor
 from tools.jail import JailError, workspace_root
 from tools.snapshot import SnapshotError, SnapshotStore
-from tools.types import RevertRequest, RevertResult, SnapshotEntry
+from tools.types import RevertRequest, RevertResult, RunFile, SnapshotEntry
+
+
+def changed_files(root: Path, run_id: str) -> list[RunFile]:
+    """Every path this run captured, newest state per path, from the persisted snapshots.
+
+    `FileTree` renders this list instead of a path list the model supplied, so a rendered
+    tree can only ever show work the engine actually did.
+    """
+    newest: dict[str, RunFile] = {}
+    for entry in SnapshotStore(root).entries():
+        if entry.run_id != run_id:
+            continue
+        path = entry.path.replace("\\", "/")
+        previous = newest.get(path)
+        if previous is None or entry.ts >= previous.ts:
+            newest[path] = RunFile(
+                path=path, tool=entry.tool, created=not entry.existed, ts=entry.ts
+            )
+    return sorted(newest.values(), key=lambda item: item.path)
 
 
 def snapshot_routes(

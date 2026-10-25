@@ -45,6 +45,7 @@ from tools.types import (
     FileListing,
     RevertResult,
     RulesResponse,
+    RunFileList,
     SnapshotEntry,
 )
 from verify.context import ContextBreakdown
@@ -356,6 +357,7 @@ class Protocol(WireModel):
     verify_config: VerifyConfig
     test_outcome: TestOutcome
     run_summary: RunSummary
+    run_files: RunFileList
     skill_record: SkillRecord
     skill_detail: SkillDetail
     skill_command: SkillCommand

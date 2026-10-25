@@ -32,12 +32,14 @@ from server.git import git_routes
 from server.models import model_routes
 from server.rules import rules_routes
 from server.skills import skills_routes
-from server.snapshots import snapshot_routes
+from server.snapshots import changed_files, snapshot_routes
 from server.verify import verify_routes
 from server.workspaces import workspace_routes
 from store.actions import ActionApprovals
 from store.catalog import Catalog
 from store.secrets import Redactor
+from tools.jail import JailError, workspace_root
+from tools.types import RunFileList
 
 
 class RunService(Protocol):
@@ -207,6 +209,18 @@ def create_app(
         if found is None:
             raise HTTPException(404, "This run has no summary")
         return found
+
+    @app.get("/runs/{run_id}/files")
+    async def run_files(run_id: str) -> RunFileList:
+        """The files this run changed, read from its snapshots rather than from the model."""
+        task = next((item for item in catalog.data.workspaces.tasks if item.id == run_id), None)
+        if task is None:
+            raise HTTPException(404, "Unknown run")
+        try:
+            root = workspace_root(task.worktree or task.workspace)
+        except (JailError, OSError):
+            raise HTTPException(400, "The workspace of this run is not accessible") from None
+        return RunFileList(run_id=run_id, files=changed_files(root, run_id))
 
     @app.post("/runs/{run_id}/messages", status_code=202)
     async def steer_run(run_id: str, value: SteeringSubmission) -> SteeringRecord:

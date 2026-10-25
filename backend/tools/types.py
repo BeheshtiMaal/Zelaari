@@ -70,6 +70,20 @@ class SnapshotEntry(SnapshotMeta):
     pass
 
 
+class RunFile(ToolModel):
+    """One path a run changed, derived from its snapshots rather than from the model's words."""
+
+    path: str
+    tool: str = ""
+    created: bool = False
+    ts: str
+
+
+class RunFileList(ToolModel):
+    run_id: str
+    files: list[RunFile] = Field(default_factory=list)
+
+
 class RevertResult(ToolModel):
     path: str
     snapshot_id: str

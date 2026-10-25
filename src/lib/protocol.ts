@@ -575,12 +575,18 @@ export type Summary1 = string;
 export type RunId35 = string;
 export type Summary2 = string;
 export type CreatedAt2 = string;
+export type RunId36 = string;
+export type Path7 = string;
+export type Tool2 = string;
+export type Created = boolean;
+export type Ts28 = string;
+export type Files = RunFile[];
 export type Name7 = string;
 export type Description1 = string;
 export type Command7 = string | null;
 export type Category = "coding" | "tests" | "web" | "docs" | "other";
 export type Source4 = "bundled" | "user" | "workspace";
-export type Path7 = string;
+export type Path8 = string;
 export type Enabled = boolean;
 export type RequiresApproval = boolean;
 export type Tokens2 = number;
@@ -593,7 +599,7 @@ export type Description2 = string;
 export type Command8 = string | null;
 export type Category1 = "coding" | "tests" | "web" | "docs" | "other";
 export type Source5 = "bundled" | "user" | "workspace";
-export type Path8 = string;
+export type Path9 = string;
 export type Enabled1 = boolean;
 export type RequiresApproval1 = boolean;
 export type Tokens3 = number;
@@ -645,7 +651,7 @@ export type Name14 = string;
 export type Description6 = string;
 export type Source6 = "workspace";
 export type Tools3 = string[];
-export type Path9 = string;
+export type Path10 = string;
 export type Problem2 = string | null;
 export type Instructions = string;
 export type Name15 = string;
@@ -698,6 +704,7 @@ export interface Protocol {
   verify_config: VerifyConfig;
   test_outcome: TestOutcome;
   run_summary: RunSummary;
+  run_files: RunFileList;
   skill_record: SkillRecord;
   skill_detail: SkillDetail;
   skill_command: SkillCommand;
@@ -1392,13 +1399,26 @@ export interface RunSummary {
   summary: Summary2;
   created_at: CreatedAt2;
 }
+export interface RunFileList {
+  run_id: RunId36;
+  files?: Files;
+}
+/**
+ * One path a run changed, derived from its snapshots rather than from the model's words.
+ */
+export interface RunFile {
+  path: Path7;
+  tool?: Tool2;
+  created?: Created;
+  ts: Ts28;
+}
 export interface SkillRecord {
   name: Name7;
   description: Description1;
   command?: Command7;
   category?: Category;
   source?: Source4;
-  path?: Path7;
+  path?: Path8;
   enabled?: Enabled;
   requires_approval?: RequiresApproval;
   tokens?: Tokens2;
@@ -1419,7 +1439,7 @@ export interface SkillDetail {
   command?: Command8;
   category?: Category1;
   source?: Source5;
-  path?: Path8;
+  path?: Path9;
   enabled?: Enabled1;
   requires_approval?: RequiresApproval1;
   tokens?: Tokens3;
@@ -1490,7 +1510,7 @@ export interface AgentRecord {
   description: Description6;
   source?: Source6;
   tools?: Tools3;
-  path?: Path9;
+  path?: Path10;
   problem?: Problem2;
 }
 export interface AgentDocument {

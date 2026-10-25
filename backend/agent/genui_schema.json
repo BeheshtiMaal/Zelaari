@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "Callout": {
+      "$ref": "#/$defs/Callout"
+    },
+    "KeyValue": {
+      "$ref": "#/$defs/KeyValue"
+    },
+    "Table": {
+      "$ref": "#/$defs/Table"
+    },
+    "DiffView": {
+      "$ref": "#/$defs/DiffView"
+    },
+    "FileTree": {
+      "$ref": "#/$defs/FileTree"
+    },
+    "TerminalPanel": {
+      "$ref": "#/$defs/TerminalPanel"
+    },
+    "TestResults": {
+      "$ref": "#/$defs/TestResults"
+    },
+    "ApprovalCard": {
+      "$ref": "#/$defs/ApprovalCard"
+    },
+    "QuestionCard": {
+      "$ref": "#/$defs/QuestionCard"
+    },
+    "PlanChecklist": {
+      "$ref": "#/$defs/PlanChecklist"
+    },
+    "Stack": {
+      "$ref": "#/$defs/Stack"
+    },
+    "Tabs": {
+      "$ref": "#/$defs/Tabs"
+    }
+  },
+  "required": [
+    "Callout",
+    "KeyValue",
+    "Table",
+    "DiffView",
+    "FileTree",
+    "TerminalPanel",
+    "TestResults",
+    "ApprovalCard",
+    "QuestionCard",
+    "PlanChecklist",
+    "Stack",
+    "Tabs"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "Callout": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "A short status or summary"
+    },
+    "KeyValue": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "additionalProperties": false,
+      "description": "A labeled value"
+    },
+    "Table": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "additionalProperties": false,
+      "description": "A display-only table: column headers and rows of cells, all strings"
+    },
+    "DiffView": {
+      "type": "object",
+      "properties": {
+        "diff": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "diff"
+      ],
+      "additionalProperties": false,
+      "description": "Unified diff with old/new line numbers"
+    },
+    "FileTree": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId"
+      ],
+      "additionalProperties": false,
+      "description": "The files this run actually changed, read from the engine by run ID; it takes ids only and never a path list"
+    },
+    "TerminalPanel": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string"
+        },
+        "callId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "callId"
+      ],
+      "additionalProperties": false,
+      "description": "Read-only output of a command this run already ran, by its exact run and call IDs; it takes ids only and never executes anything"
+    },
+    "TestResults": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string"
+        },
+        "callId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "callId"
+      ],
+      "additionalProperties": false,
+      "description": "Counts and failures of a test command this run already ran, by its exact run and call IDs; it takes ids only and never runs tests"
+    },
+    "ApprovalCard": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string"
+        },
+        "approvalId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "approvalId"
+      ],
+      "additionalProperties": false,
+      "description": "Review an existing engine approval by its exact run and approval IDs; it takes ids only and cannot create permissions"
+    },
+    "QuestionCard": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string"
+        },
+        "callId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "callId"
+      ],
+      "additionalProperties": false,
+      "description": "Answer an existing engine question using its exact run and call IDs; it takes ids only and cannot create a question"
+    },
+    "PlanChecklist": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "planId",
+        "revision"
+      ],
+      "additionalProperties": false,
+      "description": "Display the active engine plan using its exact run, plan and revision IDs; it takes ids only and cannot set progress or approve"
+    },
+    "Stack": {
+      "type": "object",
+      "properties": {
+        "children": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Callout"
+              },
+              {
+                "$ref": "#/$defs/KeyValue"
+              },
+              {
+                "$ref": "#/$defs/Table"
+              },
+              {
+                "$ref": "#/$defs/DiffView"
+              },
+              {
+                "$ref": "#/$defs/FileTree"
+              },
+              {
+                "$ref": "#/$defs/TerminalPanel"
+              },
+              {
+                "$ref": "#/$defs/TestResults"
+              },
+              {
+                "$ref": "#/$defs/ApprovalCard"
+              },
+              {
+                "$ref": "#/$defs/QuestionCard"
+              },
+              {
+                "$ref": "#/$defs/PlanChecklist"
+              },
+              {
+                "$ref": "#/$defs/Stack"
+              },
+              {
+                "$ref": "#/$defs/Tabs"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "children"
+      ],
+      "additionalProperties": false,
+      "description": "Vertical content; children are references to other statements"
+    },
+    "Tabs": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "panels": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Callout"
+              },
+              {
+                "$ref": "#/$defs/KeyValue"
+              },
+              {
+                "$ref": "#/$defs/Table"
+              },
+              {
+                "$ref": "#/$defs/DiffView"
+              },
+              {
+                "$ref": "#/$defs/FileTree"
+              },
+              {
+                "$ref": "#/$defs/TerminalPanel"
+              },
+              {
+                "$ref": "#/$defs/TestResults"
+              },
+              {
+                "$ref": "#/$defs/ApprovalCard"
+              },
+              {
+                "$ref": "#/$defs/QuestionCard"
+              },
+              {
+                "$ref": "#/$defs/PlanChecklist"
+              },
+              {
+                "$ref": "#/$defs/Stack"
+              },
+              {
+                "$ref": "#/$defs/Tabs"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "labels",
+        "panels"
+      ],
+      "additionalProperties": false,
+      "description": "Tabbed panels: labels and panels are two positional arrays of equal length; a panel is a reference to one statement"
+    }
+  }
+}

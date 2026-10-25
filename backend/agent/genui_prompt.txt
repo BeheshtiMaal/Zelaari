@@ -17,11 +17,16 @@ Arguments marked with ? are optional. Sub-components can be inline or referenced
 
 Callout(text: string) — A short status or summary
 KeyValue(label: string, value: string) — A labeled value
-ApprovalCard(runId: string, approvalId: string) — Review an existing engine approval by its exact IDs; cannot create permissions
+Table(columns: string[], rows: string[][]) — A display-only table: column headers and rows of cells, all strings
 DiffView(diff: string) — Unified diff with old/new line numbers
-QuestionCard(runId: string, callId: string) — Answer an existing engine question using exact run and call IDs
-PlanChecklist(runId: string, planId: string, revision: string) — Display the active engine plan using its exact run, plan and revision IDs; cannot set progress or approve
-Stack(children: (Callout | KeyValue | ApprovalCard | DiffView | QuestionCard | PlanChecklist)[]) — Vertical content
+FileTree(runId: string) — The files this run actually changed, read from the engine by run ID; it takes ids only and never a path list
+TerminalPanel(runId: string, callId: string) — Read-only output of a command this run already ran, by its exact run and call IDs; it takes ids only and never executes anything
+TestResults(runId: string, callId: string) — Counts and failures of a test command this run already ran, by its exact run and call IDs; it takes ids only and never runs tests
+ApprovalCard(runId: string, approvalId: string) — Review an existing engine approval by its exact run and approval IDs; it takes ids only and cannot create permissions
+QuestionCard(runId: string, callId: string) — Answer an existing engine question using its exact run and call IDs; it takes ids only and cannot create a question
+PlanChecklist(runId: string, planId: string, revision: string) — Display the active engine plan using its exact run, plan and revision IDs; it takes ids only and cannot set progress or approve
+Stack(children: any[]) — Vertical content; children are references to other statements
+Tabs(labels: string[], panels: any[]) — Tabbed panels: labels and panels are two positional arrays of equal length; a panel is a reference to one statement
 
 ## Hoisting & Streaming (CRITICAL)
 
