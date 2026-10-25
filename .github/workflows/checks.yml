@@ -10,7 +10,9 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - uses: astral-sh/setup-uv@v10
+      # Pinned to a release, not a major: setup-uv stopped publishing moving major tags
+      # after v7, so `@v10` does not resolve and the whole job fails before it starts.
+      - uses: astral-sh/setup-uv@v10.3.2
       - run: uv sync --project backend --frozen
       - run: npm ci
       # Run from `backend` so the isort classification matches the config's own root.
@@ -42,7 +44,9 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - uses: astral-sh/setup-uv@v10
+      # Pinned to a release, not a major: setup-uv stopped publishing moving major tags
+      # after v7, so `@v10` does not resolve and the whole job fails before it starts.
+      - uses: astral-sh/setup-uv@v10.3.2
       - run: uv sync --project backend --frozen
       - run: npm ci
       - name: Version is 0.1.0
