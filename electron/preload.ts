@@ -9,4 +9,8 @@ contextBridge.exposeInMainWorld("harness", Object.freeze({
   saveModel: (value: unknown): Promise<{ok: boolean}> => ipcRenderer.invoke("save-model", value),
   vaultStatus: (): Promise<boolean> => ipcRenderer.invoke("vault-status"),
   testModelDraft: (value: unknown): Promise<unknown> => ipcRenderer.invoke("test-model-draft", value),
+  appInfo: (): Promise<{name: string; version: string; appData: string; logDirectory: string} | null> => ipcRenderer.invoke("app-info"),
+  revealAppData: (): Promise<boolean> => ipcRenderer.invoke("reveal-app-data"),
+  openLogFolder: (): Promise<boolean> => ipcRenderer.invoke("open-log-folder"),
+  clearKeys: (): Promise<{ok: boolean; keys: number}> => ipcRenderer.invoke("clear-keys"),
 }));

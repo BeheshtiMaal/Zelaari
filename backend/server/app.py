@@ -16,6 +16,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, Field
 
 from agent.events import Event, HealthResponse, RunRequest, RunResponse, RunSummary
+from appdata.retention import prune_workspace, prune_workspaces
 from permissions.types import (
     ApprovalDecision,
     ApprovalRecord,
@@ -25,8 +26,10 @@ from permissions.types import (
 )
 from planning.types import SteeringRecord, SteeringSubmission
 from questions.types import QuestionDecision, QuestionRecord
+from server.about import about_routes
 from server.connectors import connectors_routes
 from server.customize import customize_routes
+from server.data import data_routes
 from server.files import file_routes
 from server.git import git_routes
 from server.models import model_routes
@@ -62,6 +65,7 @@ class RunService(Protocol):
     def events(self, run_id: str, after: int) -> AsyncIterator[Event]: ...
     def contains(self, run_id: str) -> bool: ...
     def summary(self, run_id: str) -> RunSummary | None: ...
+    def busy(self) -> bool: ...
     def pending_paths(self) -> set[str]: ...
     async def close(self) -> None: ...
 
@@ -114,11 +118,21 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         nonlocal warm
         warm = asyncio.create_task(warm_agent())
+        # Retention walks the recent workspaces' run folders, so it runs off the event loop.
+        # It is not awaited: a cold start must not wait for a large history to be scanned.
+        retention = asyncio.create_task(
+            asyncio.to_thread(
+                prune_workspaces,
+                [item.path for item in catalog.data.workspaces.recent],
+                catalog.data.settings.retention_days,
+            )
+        )
         try:
             yield
         finally:
-            if warm is not None and not warm.done():
-                warm.cancel()
+            for pending in (warm, retention):
+                if pending is not None and not pending.done():
+                    pending.cancel()
             if building is not None and not building.done():
                 building.cancel()
             if service is not None:
@@ -138,7 +152,7 @@ def create_app(
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["app://codeharness", "http://localhost:3000"],
-        allow_methods=["GET", "POST", "PUT"],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Authorization", "Last-Event-ID", "Content-Type"],
     )
     app.include_router(model_routes(catalog))
@@ -151,6 +165,8 @@ def create_app(
     app.include_router(skills_routes(ActionApprovals(catalog), app_data))
     app.include_router(connectors_routes(ActionApprovals(catalog)))
     app.include_router(customize_routes(ActionApprovals(catalog), app_data))
+    app.include_router(data_routes(catalog, app_data, lambda: service.busy() if service else False))
+    app.include_router(about_routes(app_data))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_input(request: object, error: RequestValidationError) -> JSONResponse:
@@ -171,6 +187,12 @@ def create_app(
     async def create_run(request: RunRequest) -> JSONResponse:
         manager = await runs()
         from agent.bridge import WorktreeApprovalRequired
+
+        # The retention window is applied when a run starts, before the new folder is written,
+        # so a history older than the window is gone by the time the person looks at it.
+        await asyncio.to_thread(
+            prune_workspace, request.workspace, catalog.data.settings.retention_days
+        )
 
         try:
             run_id = await manager.start(request)

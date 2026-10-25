@@ -153,6 +153,10 @@ class RunManager:
             created_at=datetime.fromtimestamp(modified, UTC),
         )
 
+    def busy(self) -> bool:
+        """True while any run is still working. History must not be cleared under one."""
+        return any(not run.task.done() for run in self.runs.values())
+
     def pending_paths(self) -> set[str]:
         """Paths a paused run is waiting on, so the file viewer can badge them."""
         paths = {

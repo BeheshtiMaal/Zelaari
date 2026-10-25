@@ -21,7 +21,7 @@ export function childEnvironment(): NodeJS.ProcessEnv {
   return env;
 }
 
-export function startSidecar(root: string, packaged: boolean, onExit: () => void, appData?: string): Sidecar {
+export function startSidecar(root: string, packaged: boolean, onExit: () => void, appData?: string, log?: (message: string) => void): Sidecar {
   const token = randomBytes(32).toString("hex");
   for (const key of ["CODEHARNESS_API_KEY", "CODEHARNESS_BASE_URL", "CODEHARNESS_MODEL"]) delete process.env[key];
   const python = resolve(root, "backend/.venv/Scripts/python.exe");
@@ -32,10 +32,11 @@ export function startSidecar(root: string, packaged: boolean, onExit: () => void
   let closing = false;
   const ready = new Promise<EngineConnection>((accept, reject) => {
     const timer = setTimeout(() => {
+      log?.("engine startup timed out");
       child?.stdin.end(); reject(new Error("Engine startup timed out"));
     }, 30000);
     const fail = () => { clearTimeout(timer); reject(new Error("Engine unavailable")); };
-    if (process.platform !== "win32" || !existsSync(python) && !useBundle) { fail(); return; }
+    if (process.platform !== "win32" || !existsSync(python) && !useBundle) { log?.("engine unavailable: no runtime"); fail(); return; }
     const executable = useBundle ? watchdog : python;
     const args = useBundle ? [] : [resolve(root, "backend/server/watchdog.py")];
     args.push(...(useBundle ? [engine] : [python, "-m", "server"]));
@@ -43,6 +44,7 @@ export function startSidecar(root: string, packaged: boolean, onExit: () => void
       cwd: useBundle ? root : resolve(root, "backend"), env: childEnvironment(),
       stdio: ["pipe", "pipe", "pipe"], windowsHide: true,
     });
+    log?.(`engine start mode=${useBundle ? "bundle" : "source"} pid=${child.pid ?? "?"}`);
     child.stdin.on("error", fail);
     child.on("error", fail);
     // Engine logs can include provider diagnostics. Do not forward stderr or persist it.
@@ -60,7 +62,11 @@ export function startSidecar(root: string, packaged: boolean, onExit: () => void
         accept({ baseUrl: `http://127.0.0.1:${Number(value.port)}`, token });
       } catch { fail(); child?.stdin.end(); }
     });
-    child.on("exit", () => { fail(); if (!closing) onExit(); });
+    child.on("exit", (code, signal) => {
+      log?.(`engine exit code=${code ?? "null"} signal=${signal ?? "none"} closing=${closing}`);
+      fail();
+      if (!closing) onExit();
+    });
   });
   return { ready, close() { closing = true; child?.stdin.end(); } };
 }

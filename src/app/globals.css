@@ -504,6 +504,24 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .rules-empty p { margin: 0; }
 .rules-edit-link { align-self: flex-start; color: #5EEAD4; font-size: 13px; }
 
+/* Data and About: a path reads as a path, and the danger zone is only the colour of one. */
+.settings-content .verify-switch { border: 0; padding: 0; border-radius: 14px; }
+.settings-content .verify-switch:disabled { opacity: .5; }
+.danger-zone { border-color: #5C2A2A; }
+.settings-content .danger-button { border: 1px solid #5C2A2A; background: transparent; color: var(--danger); font-weight: 600; }
+.settings-content .danger-button:disabled { border-color: var(--border); color: var(--text-muted); }
+.data-path { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.data-path code { font-family: Consolas, monospace; font-size: 12px; color: var(--text-muted); max-inline-size: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.confirm-dialog { position: fixed; inset-block-start: 50%; inset-inline-start: 50%; transform: translate(-50%, -50%); inline-size: min(520px, calc(100vw - 48px)); max-block-size: calc(100dvh - 48px); overflow-y: auto; background: #222326; border: 1px solid #33363D; border-radius: 24px; padding: 24px; z-index: 21; display: flex; flex-direction: column; gap: 12px; }
+[dir="rtl"] .confirm-dialog { transform: translate(50%, -50%); }
+.confirm-dialog .dialog-heading { margin: 0; }
+.confirm-dialog p { margin: 0; }
+.confirm-effects { margin: 0; padding-inline-start: 18px; display: flex; flex-direction: column; gap: 4px; color: #B5BCC5; font-size: 13px; }
+.confirm-ack { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text); }
+.confirm-ack input { inline-size: 16px; block-size: 16px; accent-color: var(--danger); }
+.confirm-dialog .destructive { border: 1px solid #7F1D1D; background: #7F1D1D; color: #fff; font-weight: 700; }
+.confirm-dialog .destructive:disabled { border-color: var(--border); background: #2A2C31; color: var(--text-muted); }
+
 
 /* -- Customize hub (Phase 8) ------------------------------------------------ */
 .customize-screen { display: flex; flex-direction: column; gap: 14px; padding-block: 24px; padding-inline: 28px; block-size: 100%; overflow: auto; }

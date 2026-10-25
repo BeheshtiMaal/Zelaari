@@ -4,8 +4,10 @@ import type { Dictionary } from "../../i18n";
 import { settingsCopy } from "../../i18n/settings";
 import type { ProviderRecord } from "../../lib/protocol";
 import type { Session } from "../../lib/use-session";
+import { AboutSection } from "./about-section";
 import { AppearanceSection } from "./appearance-section";
 import { ContextSettingsForm } from "./context-settings";
+import { DataSection } from "./data-section";
 import { ModelDialog } from "./model-dialog";
 import { ModelsSection } from "./models-section";
 import { PermissionsSection } from "./permissions-section";
@@ -26,7 +28,8 @@ export function SettingsScreen({ session, t, addInitially = false }: { session: 
     {section === 2 && <SettingsFrame title={t.sections[2]} intro={intro.permissions}><PermissionsSection session={session} /></SettingsFrame>}
     {section === 3 && <SettingsFrame title={t.sections[3]} intro={intro.context}><ContextSettingsForm session={session} /></SettingsFrame>}
     {section === 4 && <SettingsFrame title={t.sections[4]} intro={intro.terminal}><TerminalSettingsForm session={session} /></SettingsFrame>}
-    {section > 4 && <SettingsFrame title={t.sections[section]} intro={section === 5 ? intro.data : intro.about}><div className="deferred-panel">{t.soon}</div></SettingsFrame>}
+    {section === 5 && <SettingsFrame title={t.sections[5]} intro={intro.data}><DataSection session={session} /></SettingsFrame>}
+    {section === 6 && <SettingsFrame title={t.sections[6]} intro={intro.about}><AboutSection session={session} /></SettingsFrame>}
     {dialog && <ModelDialog session={session} existing={existing} t={t} close={() => setDialog(false)} />}
   </div>;
 }

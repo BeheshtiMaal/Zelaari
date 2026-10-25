@@ -76,6 +76,23 @@ class Catalog:
                 model.supports_tools = False
             self.persist()
 
+    def clear_credentials(self) -> int:
+        """Forget every key.
+
+        The models stay listed but cannot be used until a key comes back: a model with no
+        key is reported as a vault error, never as usable.
+        """
+        with self.lock:
+            removed = len(self.data.key_digests)
+            self.keys.clear()
+            self.data.key_digests = {}
+            for model in self.data.models.values():
+                model.key_suffix = ""
+                model.probe = Probe()
+                model.supports_tools = False
+            self._persist()
+            return removed
+
     def records(self) -> list[ProviderRecord]:
         demo = ProviderRecord(
             name="Demo", model="demo", kind="demo", supports_tools=True, probe=Probe(status="ok")

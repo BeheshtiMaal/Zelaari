@@ -47,6 +47,13 @@ export function toolFailure(text: string): ToolFailure {
 
 /** `{seconds}` interpolation for the two cards, in the active locale's digits. */
 export function fill(template: string, values: Record<string, string | number>, locale: string): string {
-  return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
-    key in values ? new Intl.NumberFormat(locale).format(Number(values[key])) : whole);
+  const format = new Intl.NumberFormat(locale);
+  return fillText(template, Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, format.format(Number(value))]),
+  ));
+}
+
+/** The same template for values that are text: a version is not a number to format. */
+export function fillText(template: string, values: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (whole, key: string) => (key in values ? values[key] : whole));
 }

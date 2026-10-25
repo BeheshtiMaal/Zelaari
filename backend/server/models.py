@@ -55,6 +55,11 @@ def model_routes(catalog: Catalog) -> APIRouter:
             raise HTTPException(400, "Credential unavailable") from None
         return {"status": "ok"}
 
+    @router.delete("/internal/credentials")
+    def clear_credentials() -> dict[str, int]:
+        """The renderer's "delete all keys". Counts only; no key is ever echoed back."""
+        return {"keys": catalog.clear_credentials()}
+
     @router.get("/presets")
     def presets() -> list[Preset]:
         path = Path(__file__).parents[1] / "providers" / "presets.json"

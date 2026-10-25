@@ -134,6 +134,11 @@ export function useSession() {
     try { setSettings(await api<Settings>("/settings", "PUT", next)); setFailed(false); return true; }
     catch { setSettings(previous); setFailed(true); return false; }
   }
+  async function reloadModels() {
+    // Clearing every key changes each model's probe, so the list is re-read rather than patched.
+    try { setModels(await api<ProviderRecord[]>("/models")); }
+    catch { setFailed(true); }
+  }
   async function makeDefault(id: string) {
     if (await changeSettings({ ...settings, default_model: id })) setModel(id);
   }
@@ -218,7 +223,7 @@ export function useSession() {
     try { await api(`/runs/${id}/stop`, "POST"); } catch { setFailed(true); }
   }
   return { ready, failed, busy, testing, workspace, branch, spaces, models, presets, settings, model, mode, locale, vaultOk, usableModel, workspaceError,
-    branches, branchApproval, branchError, approveBranch, rejectBranch, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, changeAppearance, changeDefaultMode, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace,
+    branches, branchApproval, branchError, approveBranch, rejectBranch, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, changeSettings, changeAppearance, changeDefaultMode, makeDefault, reloadModels, saveModel, testModel, selectWorkspace, pickWorkspace,
     revealWorkspace, switchBranch, start, approveWorktree, rejectWorktree, resolveApproval, retryWithLongerTimeout, stop, openTask, detach };
 }
 export type Session = ReturnType<typeof useSession>;

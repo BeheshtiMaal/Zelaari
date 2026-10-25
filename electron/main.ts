@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, shell } from "electron";
 import { existsSync, statSync } from "node:fs";
-import { resolve, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createLog } from "./log";
 import { startSidecar, type Sidecar } from "./sidecar";
 import { Vault, modelSubmission, trustedFrame } from "./vault";
 import { validateWorkspace } from "./workspace";
@@ -15,14 +16,17 @@ const root = app.isPackaged ? process.resourcesPath : resolve(__dirname, "..");
 let sidecar: Sidecar | undefined;
 
 app.whenReady().then(async () => {
-  const vault = new Vault(resolve(app.getPath("userData"), "vault.json"), safeStorage);
+  const appData = app.getPath("userData");
+  const logDirectory = join(appData, "logs");
+  const log = createLog(logDirectory);
+  const vault = new Vault(resolve(appData, "vault.json"), safeStorage);
   let vaultError = false;
   let initialized: Promise<import("./sidecar").EngineConnection> | undefined;
   const connect = () => initialized ??= (async () => {
     sidecar ??= startSidecar(root, app.isPackaged, () => {
       for (const window of BrowserWindow.getAllWindows()) window.destroy();
       app.quit();
-    }, app.getPath("userData"));
+    }, appData, log);
     const connection = await sidecar.ready;
     for (let attempt = 0; attempt < 120; attempt++) {
       try { if ((await fetch(connection.baseUrl + "/health", { headers: { Authorization: `Bearer ${connection.token}` } })).ok) break; }
@@ -98,6 +102,37 @@ app.whenReady().then(async () => {
     if (!trustedFrame(event.senderFrame?.url)) return false;
     try { const path = await validateWorkspace(String(value)); return (await shell.openPath(path)) === ""; }
     catch { return false; }
+  });
+  // The two folders the app owns. Neither takes a path from the renderer: the app-data root
+  // and its log directory are the only places these can open.
+  ipcMain.handle("app-info", event => trustedFrame(event.senderFrame?.url)
+    ? { name: "CodeHarness", version: app.getVersion(), appData, logDirectory }
+    : null);
+  ipcMain.handle("reveal-app-data", async event => {
+    if (!trustedFrame(event.senderFrame?.url)) return false;
+    try { return (await shell.openPath(appData)) === ""; } catch { return false; }
+  });
+  ipcMain.handle("open-log-folder", async event => {
+    if (!trustedFrame(event.senderFrame?.url)) return false;
+    try {
+      log("log folder opened");
+      return (await shell.openPath(logDirectory)) === "";
+    } catch { return false; }
+  });
+  ipcMain.handle("clear-keys", async event => {
+    if (!trustedFrame(event.senderFrame?.url)) return { ok: false, keys: 0 };
+    try {
+      const connection = await connect();
+      const response = await fetch(connection.baseUrl + "/internal/credentials", {
+        method: "DELETE", headers: { Authorization: `Bearer ${connection.token}` },
+      });
+      if (!response.ok) return { ok: false, keys: 0 };
+      const body = await response.json() as { keys?: number };
+      await vault.clear();
+      vaultError = false;
+      log(`keys cleared count=${body.keys ?? 0}`);
+      return { ok: true, keys: body.keys ?? 0 };
+    } catch { return { ok: false, keys: 0 }; }
   });
   const out = resolve(root, "out");
   protocol.handle("app", request => {

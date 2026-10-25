@@ -30,6 +30,14 @@ export class Vault {
     return Object.assign(Object.create(null) as Record<string, string>, Object.fromEntries(Object.entries(values).map(([id, encrypted]) =>
       [id, this.encryption.decryptString(Buffer.from(encrypted, "base64"))])));
   }
+
+  /** Removes every stored key. The file stays, empty, so a later save has somewhere to go. */
+  async clear(): Promise<void> {
+    this.check();
+    await mkdir(dirname(this.path), { recursive: true });
+    await writeFile(this.path + ".tmp", "{}", { mode: 0o600 });
+    await rename(this.path + ".tmp", this.path);
+  }
 }
 
 export const modelSubmission = z.object({

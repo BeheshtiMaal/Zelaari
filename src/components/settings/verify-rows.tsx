@@ -10,8 +10,10 @@ export function Row({ title, help, children }: { title: string; help?: string; c
   </div>;
 }
 
-export function Switch({ checked, label, testId, onChange }: { checked: boolean; label: string; testId: string; onChange(value: boolean): void }) {
-  return <button type="button" role="switch" aria-checked={checked} aria-label={label} data-testid={testId}
+export function Switch({ checked, label, testId, disabled = false, onChange }: {
+  checked: boolean; label: string; testId: string; disabled?: boolean; onChange(value: boolean): void;
+}) {
+  return <button type="button" role="switch" aria-checked={checked} aria-label={label} data-testid={testId} disabled={disabled}
     className="verify-switch" onClick={() => onChange(!checked)}><span aria-hidden="true" /></button>;
 }
 

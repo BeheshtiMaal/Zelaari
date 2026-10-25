@@ -682,6 +682,26 @@ export type EnabledSkills = number;
 export type Agents = number;
 export type Servers1 = number;
 export type MemoryBytes = number;
+export type AppData = string;
+export type RetentionDays1 = number;
+export type Keys = number;
+export type Path11 = string;
+export type Name16 = string;
+export type Harness = string;
+export type Runs = number;
+export type RunBytes = number;
+export type CheckpointsBytes = number;
+export type Tasks1 = number;
+export type Workspaces = WorkspaceData[];
+export type Workspace9 = string;
+export type Runs1 = number;
+export type Bytes2 = number;
+export type Tasks2 = number;
+export type Name17 = string;
+export type Version3 = string;
+export type Licence = string;
+export type AppData1 = string;
+export type LogDirectory = string;
 
 /**
  * Schema-generation envelope only; never sent over the wire.
@@ -732,6 +752,9 @@ export interface Protocol {
   agent_write_input: AgentWriteInput;
   memory_document: MemoryDocument;
   customize_settings: CustomizeSettings;
+  data_summary: DataSummary;
+  deleted_runs: DeletedRuns;
+  app_info: AppInfo;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -1573,6 +1596,37 @@ export interface CustomizeSettings {
   agents?: Agents;
   servers?: Servers1;
   memory_bytes?: MemoryBytes;
+}
+/**
+ * What is on this device. Every number is a count, never a path inside a run.
+ */
+export interface DataSummary {
+  app_data: AppData;
+  retention_days?: RetentionDays1;
+  keys?: Keys;
+  workspaces?: Workspaces;
+}
+export interface WorkspaceData {
+  path: Path11;
+  name: Name16;
+  harness: Harness;
+  runs?: Runs;
+  run_bytes?: RunBytes;
+  checkpoints_bytes?: CheckpointsBytes;
+  tasks?: Tasks1;
+}
+export interface DeletedRuns {
+  workspace: Workspace9;
+  runs?: Runs1;
+  bytes?: Bytes2;
+  tasks?: Tasks2;
+}
+export interface AppInfo {
+  name?: Name17;
+  version: Version3;
+  licence?: Licence;
+  app_data: AppData1;
+  log_directory: LogDirectory;
 }
 
 // Serialized events always include the Pydantic discriminator and timestamp defaults.

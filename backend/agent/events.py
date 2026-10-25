@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from appdata.types import AppInfo, DataSummary, DeletedRuns
 from permissions.types import (
     ApprovalDecision,
     ApprovalRecord,
@@ -381,3 +382,6 @@ class Protocol(WireModel):
     agent_write_input: AgentWriteInput
     memory_document: MemoryDocument
     customize_settings: CustomizeSettings
+    data_summary: DataSummary
+    deleted_runs: DeletedRuns
+    app_info: AppInfo
