@@ -39,6 +39,17 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | D31 | The crash screen keeps the app alive | A sidecar exit used to destroy the windows. It now reports `engine-status` and offers `restart-engine`, which is the only way "restart" can exist |
 | D32 | Destructive rows use two confirmations | A dialog that names the loss, then an explicit checkbox — not an inbox approval. They are the person's own action on their own app data, and an inbox approval would mean approving themselves |
 | D33 | A fresh install is dark | The mock is dark and the product is Persian-first; the OS preference is one click away under `مثل سیستم`. Following the OS by default would make the first screen depend on a machine setting nobody chose here |
+| D34 | Schedules live in `catalog.json`, not a new `app.sqlite` | The tech stack names an SQLite file this product has never had: models, settings, tasks and approvals all live in one atomically-written JSON catalog that the Data screen already reports. A second store means two things to back up, clear and migrate. **Proposed, awaiting approval — it changes a constitution line** |
+| D35 | An asyncio ticker, not APScheduler | A library with its own thread pool and its own persistence, running work that must stop when the process stops, buys nothing. ~40 lines plus a pure `next_run_after` cannot outlive the app and is testable with a fixed clock |
+| D36 | A missed run is a row, not a run | The app cannot know whether the machine slept, the person was away or the workspace moved. Starting unattended work the moment the window opens would queue approvals before anyone has looked at anything |
+| D37 | `min(mode, ceiling)` is applied once, in the engine, before `RunRequest` exists | No later layer has to remember the ceiling, and a schedule cannot widen its own permission by being edited while a run is queued |
+| D38 | `schedule_id` on the request and on the task record | That one link makes "N approvals queued", "which schedule made this" and the row's last result answerable from what is already persisted, with no second ledger |
+| D39 | Creating a schedule needs no inbox approval | It is the person's own action on their own app (the D32 reasoning). Full access is the exception that stays visible: a red warning and an explicit choice |
+| D40 | Every due schedule starts its own run; no global cap | A run paused on an approval must not hold the queue, and the inbox already holds several pending approvals at once |
+| D41 | A paused group sits under the active one | The mock draws only `فعال (۲)`; a switched-off schedule has to appear somewhere. An extension, not a contradiction |
+| D42 | The six-cell table exists twice and both are tested | The dialog answers before a round trip, the engine answers when a run starts. The engine's answer is authoritative; the dialog's is a display of it |
+| D43 | The row shows the effective mode, not the chosen one | A schedule stored as `ask` under a `report` ceiling runs read-only. A chip that says "with approval" would describe a run that never happens |
+| D44 | A centred dialog flips its `transform` in RTL | `transform` has no logical form, so `inset-inline-start: 50%` plus `translate(-50%, -50%)` parks a dialog half a width off-screen in Persian. One `[dir="rtl"]` rule now covers all four dialogs, and a test fails if a new one forgets it |
 
 ## Phases
 | # | Phase | Outcome | Mock screens |
@@ -53,7 +64,7 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | 7 | **Verify + self-correction + context ring - complete** | Test detection (D2), the verify gate and unknown-command question, bounded self-correction with the exhausted card, real step/time/fix budgets, TestResults + read-only xterm terminal with the timeout variant, context ring + breakdown + auto-compaction with summary handoff, and both settings screens behind the configuration approval. Offline engine and Windows Electron evidence is recorded in `2026-10-24-phase-7-verify-context/validation.md` and `learnings.md`. | Settings: context, terminal and tests |
 | 8 | **Skills + Customize hub - complete** | Skills as folders (bundled / user / project) with a bounded frontmatter parser, a pre-use scan, per-workspace switches, progressive disclosure (`load_skill`), install from folder/ZIP/Git through the protected approval, a JSON marketplace catalog, slash commands, the five bundled skills plus the sample project skill, `web_search` that always asks, MCP connectors with `server__tool` names through the permission gate, and the Agents / Memory / Rules / Connectors tabs. Offline engine and Windows Electron evidence is recorded in `2026-10-25-phase-8-skills-customize/validation.md` and `learnings.md`. | Customize: Skills, Connectors (inner screens now drawn) |
 | 9 | **`render_ui` + polish - complete** | One OpenUI library generating both the model's prompt and the validator's JSON schema, a bounded parser and a schema-driven validator, `render_ui` as a read-only tool that never asks, the twelve components drawn in the timeline with the failure note kept, seven settings sections (appearance and language, permissions and safety with the engine's five locked rows, data and privacy with a two-confirmation danger zone, about), two palettes from one token set with an 18-step type scale, six empty states, a crash card with `restart-engine`, one keyboard table, a skip link, one focus ring, and fa/en parity enforced by test. Offline engine and Windows Electron evidence is recorded in `2026-10-25-phase-9-render-ui-polish/validation.md` and `learnings.md`. | Settings: appearance, permissions, data, about; Empty; Errors |
-| 9b | Schedule | scheduler in engine (app-open only), Schedule tab, add dialog, templates, queued approvals, missed-run prompt | Schedule, Add schedule |
+| 9b | **Schedule - complete** | An engine-side asyncio ticker that runs only while the app is open, schedules stored in the app-data catalog, the six-cell mode × ceiling table enforced once at run creation, a missed occurrence offered as a row ("run now" or "skip") instead of started, `schedule_id` linking every run and approval back to its schedule, the Schedule screen with active/paused groups and six templates, an add/edit dialog where the stricter of two permissions wins, and four walkthrough-found defects fixed (including every dialog being half a width off-screen in Persian). Offline engine and Windows Electron evidence is recorded in `2026-10-25-phase-9b-schedule/validation.md` and `learnings.md`. | Schedule, Add schedule |
 | 10 | Packaging + evals | PyInstaller + electron-builder (installer + zip, D4), CI, eval suite, README, SECURITY.md | none |
 
 ## Phase 0 handoff to Phase 1
@@ -204,6 +215,9 @@ What Phase 9b inherits and should reuse rather than re-invent:
   `statesCopy(locale).noSchedules` is built and tested (`tests/unit/states.test.ts` asserts it is the one state no screen
   reaches yet, via `WIRED` in `src/lib/states.ts`). Wiring the tab means changing that one entry from `null` to the
   component and deleting the test's allowance — not writing new copy.
+  **Corrected by Phase 9b: it did need new copy.** The help line said this build has no scheduler, which was true then
+  and false once the tab existed, and the primary action had to become "Add a schedule". Wiring the state was one line;
+  telling the truth in it was not.
 - **The settings section pattern.** A tab is `src/i18n/<area>.ts` (`en` typed against `fa`), a `use-<area>.ts` hook, pure
   helpers in `src/lib/<area>.ts` covered by `tests/unit`, and `data-testid` per control. `i18n.test.ts` discovers copy
   modules automatically, so a new one is covered the day it is written — and it will fail if a Persian literal appears in
@@ -219,6 +233,31 @@ stays engine-owned and five rows long (adding a sixth means changing the middlew
 from a palette token and every size from the `--fs-*` scale (`tests/unit/theme.test.ts` reads the stylesheet as data); no
 physical CSS property anywhere (`tests/unit/logical-css.test.ts`); every key mapping goes through `src/lib/shortcuts.ts`;
 and every user-visible string lives in `fa`/`en` with the same shape, the same placeholders and Persian digits in Persian.
+
+## Phase 9b handoff to Phase 10
+
+Phase 9b is complete; the validation record, the defects its walkthrough found and the decisions it made are in
+`2026-10-25-phase-9b-schedule/validation.md` and `learnings.md`. Phase 10 is packaging and evals.
+
+What Phase 10 inherits and should reuse rather than re-invent:
+
+- **Scheduling is a loop in the engine, not a service.** `Scheduler.begin()` runs in the FastAPI lifespan and
+  `close()` cancels the loop *and* its watchers. A packaged build inherits this for free, and nothing needs installing
+  on the machine. If Phase 10 adds a watchdog, the scheduler must stay inside the engine process so the "app open only"
+  promise survives it.
+- **The app-data folder is now the only durable store**, and it holds schedules too. The Data screen's summary and the
+  danger zone already cover it; a backup or an installer upgrade has one folder to preserve, not two (D34 — still
+  pending approval, because the constitution names an SQLite file).
+- **`tests/phase9b-desktop.ts` is the walkthrough pattern for a time-based feature**: four launches on one profile, a
+  stored record edited between launches to simulate "the app was closed when it was due", and assertions read back from
+  `catalog.json` rather than only from the DOM. Phase 10's evals should keep that shape — a schedule is the one feature
+  whose evidence has to include the file on disk.
+- **`[dir="rtl"]` mirrors a centred dialog** (D44). Any new modal Phase 10 draws needs the same line, and
+  `tests/unit/logical-css.test.ts` will say so if it is forgotten.
+
+Invariants Phase 10 must not break: a scheduled run is an ordinary run — its own `events.jsonl`, its own task, its own
+approvals in the same inbox; full access never bypasses the always-ask list; a missed occurrence is never started
+silently; and every dialog, screen and string keeps the fa/en parity the parity test enforces.
 
 ## Audit log (D20): the mock wins
 

@@ -150,14 +150,13 @@ Run in this order on the settled source. `npm run build` must precede any deskto
 
 - [x] `ruff check backend` — All checks passed (220 files)
 - [x] `mypy --strict backend` — Success: no issues found in 220 source files
-- [x] `pytest backend/tests` — **873 of 874 pass**. The one failure,
-  `test_budget.py::test_real_run_raises_the_exhausted_card_and_a_hint_turns_the_check_green`, is an environment
-  limitation, not a Phase 9 regression: the engine runs the fixture's `pytest -q` through PowerShell, which cannot
-  resolve the venv's `pytest.exe` on this machine, so every verify result is a "command not found" and the fourth check
-  never turns green. It fails identically at commit `311dfd5`, which predates every backend change in this phase
-  (`git worktree add /tmp/h7 311dfd5` then the same test → 1 failed, 16 deselected). The fix belongs in the fixture
-  (invoke the running interpreter) and is recorded in `learnings.md` rather than made here, because it is another
-  phase's test and the product behaviour it covers is unchanged.
+- [x] `pytest backend/tests` — **passes in full when run the documented way**: `uv run --project backend pytest
+  backend/tests`, which is what `npm run test:engine` does. *Correction (Phase 9b):* the 873/874 recorded here was an
+  artefact of how the suite was invoked in that session, not a product failure. Run outside `uv run`, the venv is not
+  on `PATH`, so the fixture's bare `pytest -q` could not resolve `pytest.exe` and
+  `test_budget.py::test_real_run_raises_the_exhausted_card_and_a_hint_turns_the_check_green` failed on a "command not
+  found". Under `uv run` the venv is on `PATH` and the test passes unchanged; no fixture change was needed, and the
+  "tried and reverted" note in `learnings.md` described a fix for a problem that did not exist.
 - [x] `tsc --noEmit` — clean
 - [x] `npm run test:ui` — 198 tests, 0 failures
 - [x] `npm run generate:protocol` and `npm run generate:genui` leave no diff — both ran twice, `git status` empty

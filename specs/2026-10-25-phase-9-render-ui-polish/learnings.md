@@ -45,6 +45,10 @@ named evidence, and the Final evidence table records one sequential run per gate
 2. **The schedule empty state ships unwired** (Decision 7). The component and its copy are built and covered by
    `states.test.ts`, and `WIRED` in `src/lib/states.ts` records `schedules: null` as the one state no screen reaches
    yet. This is the phase's single recorded deviation from "every empty state is reachable".
+   *Closed by Phase 9b:* the Schedule screen exists, `WIRED.noSchedules` is `"schedule"`, and the allowance in
+   `states.test.ts` became a requirement that the state is reachable **and** offers its add action. The Phase 9 handoff
+   also claimed this state needed no new copy — it did: the help line said "this build has no scheduler", which was
+   true then and false now, and the primary action became "Add a schedule".
 3. **Five always-ask rows, not three** (Decision 10). The engine locks storage, web, high-risk commands, MCP calls and
    long timeouts; the mock draws the first three. The screen shows what the engine enforces, the mock's three keep
    their order, and the drift is recorded here and in `roadmap.md`.
@@ -83,15 +87,14 @@ named evidence, and the Final evidence table records one sequential run per gate
 - **A cold engine does not fit the sidecar timeout.** A first `import server.app` after a rebuild takes ~44 s in this
   sandbox (AV/disk), against a 30 s sidecar timeout, so `test:desktop` fails with "engine startup timed out" unless the
   interpreter is warmed first (`python -c "import server.app"`, then 4–9 s). The suite is not flaky; the machine is cold.
-- **One Phase 7 test cannot pass on this machine, and it is not this phase's bug.**
-  `test_budget.py::test_real_run_raises_the_exhausted_card_and_a_hint_turns_the_check_green` configures the fixture's
-  verify command as a bare `pytest -q`; the engine runs it through PowerShell, which does not resolve the venv's
-  `pytest.exe` here, so all four verify results come back "command not found" and the fourth never turns green. The
-  failure reproduces at commit `311dfd5` (`git worktree add`, then the same test), so it predates every backend change
-  in this phase. The obvious fix — pointing the fixture at `sys.executable -m pytest` — was tried and **reverted**: the
-  command works when run by hand (0.14 s) but hangs the run past 100 s when the engine executes it, and the cause was
-  not established, so the fixture was left as it was rather than made slower and less honest. The gate is recorded as
-  873/874 in `validation.md`.
+- **The "one Phase 7 test cannot pass on this machine" claim was wrong, and Phase 9b corrected it.**
+  `test_budget.py::test_real_run_raises_the_exhausted_card_and_a_hint_turns_the_check_green` does pass. The failure was
+  the invocation: run as `pytest backend/tests` without `uv run`, the venv is not on `PATH`, so the fixture's bare
+  `pytest -q` resolved to nothing and every verify result came back "command not found". Through
+  `uv run --project backend pytest` — what `npm run test:engine` does — the venv is on `PATH` and the test passes with
+  no fixture change at all. The "fix was tried and reverted" note recorded here described a fix for a problem that did
+  not exist; `validation.md` carries the correction. The lesson is narrower than "the machine is broken": a gate is
+  only a gate if it is run the way the project runs it.
 - **The bulk-delete shim trips on build output.** `rm -rf .next out && npm run build` in one command aborts with
   `SAFE_DELETE_BULK_CONFIRM_REQUIRED count=260` when Next unlinks its stale directory, so the removal runs as its own
   command. `pytest` needs `--basetemp` for the same reason.
