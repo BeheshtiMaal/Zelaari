@@ -19,7 +19,7 @@ const I18N = resolve(process.cwd(), "src/i18n");
 interface Copy { name: string; fa: unknown; en: unknown }
 
 const selectorsIn = (file: string): string[] =>
-  [...readFileSync(resolve(I18N, file), "utf8").matchAll(/export const (\w+)\s*=\s*\(locale: Locale\)/g)].map(match => match[1]);
+  [...readFileSync(resolve(I18N, file), "utf8").matchAll(/export (?:const|function) (\w+)\s*(?:=\s*)?\(locale: Locale\)/g)].map(match => match[1]);
 
 const copies: Copy[] = [];
 for (const file of readdirSync(I18N).filter(name => name.endsWith(".ts") && name !== "index.ts")) {

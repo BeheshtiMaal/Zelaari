@@ -1,7 +1,7 @@
 import type { Locale } from ".";
 
 const en = {
-  changeStart: "The agent wants to change", changeEnd: "",
+  changeTitle: "The agent wants to change {path}",
   collapse: "Collapse", reviewOpen: "Review and approve",
   retry: "Retry command",
   title: "Approvals inbox", waiting: "items waiting for your decision. The agent pauses until you decide.",
@@ -26,7 +26,7 @@ const en = {
   chooseWorkspace: "Select a workspace to edit its rules.", staged: "Changes are waiting for approval in the inbox.",
 };
 const fa: typeof en = {
-  changeStart: "عامل می‌خواهد", changeEnd: "را تغییر دهد",
+  changeTitle: "عامل می‌خواهد {path} را تغییر دهد",
   collapse: "جمع‌کردن", reviewOpen: "بررسی و تأیید",
   retry: "تلاش دوباره‌ی دستور",
   title: "صندوق تأیید", waiting: "مورد منتظر تصمیم شماست. عامل تا تصمیم شما متوقف می‌ماند.",

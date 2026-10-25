@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import type { ReactNode } from "react";
 import type { Locale } from "../../i18n";
 import { approvalCopy } from "../../i18n/approvals";
 import { recordKey, suggestedGlob, useInbox } from "../../lib/inbox";
@@ -9,6 +10,19 @@ import { DiffView } from "./diff-view";
 import { reviewShortcut } from "../../lib/approvals";
 import { PlanReview } from "../planning/plan-review";
 import { planningCopy } from "../../i18n/planning";
+
+/**
+ * One sentence per language, with the path inside it.
+ *
+ * Word order differs — English ends on the path, Persian continues after it — so the
+ * sentence is a template rather than two halves that one language leaves empty. An empty
+ * half is a sentence nobody can translate.
+ */
+function withPath(template: string, path: string | null | undefined): ReactNode {
+  if (!path) return template.replace("{path}", "").trim();
+  const [before, after = ""] = template.split("{path}");
+  return <>{before}<code dir="ltr">{path}</code>{after}</>;
+}
 
 export function ApprovalCard({ record, locale, inline = false }: { record: ApprovalRecord; locale: Locale; inline?: boolean }) {
   const t = approvalCopy(locale), request = record.request, editor = useApprovalEditor(record);
@@ -28,7 +42,7 @@ export function ApprovalCard({ record, locale, inline = false }: { record: Appro
       <span className="approval-source" dir="auto">{request.source_title}</span>
       {inline && <button onClick={() => setCompact(true)}>{t.collapse}</button>}
     </div>
-    <h2>{inline ? t.needsYou : request.kind === "command" ? t.command : request.tool === "rules_update" ? t.rules : t.changeStart} {request.path && <code dir="ltr">{request.path}</code>} {!inline && request.kind !== "command" && request.tool !== "rules_update" ? t.changeEnd : ""}</h2>
+    <h2>{inline ? t.needsYou : request.kind === "command" ? t.command : request.tool === "rules_update" ? t.rules : withPath(t.changeTitle, request.path)}</h2>
     {inline && <code dir="ltr">{request.tool}{request.path ? ` · ${request.path}` : ""}</code>}
     {request.command && <pre className="command-preview" dir="ltr">{request.command}{request.args?.timeout ? `\n${request.args.timeout}s` : ""}</pre>}
     {request.plan_proposed ? <PlanReview request={request} locale={locale} /> : <div className="approval-explanation"><strong>{request.agent_reason ? t.reason : t.policy}</strong> {request.agent_reason ?? (request.policy_code === "rules_change" ? t.rulePolicy : t.policyRequired)}</div>}
