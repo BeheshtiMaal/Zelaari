@@ -23,7 +23,7 @@ export function TerminalSettingsForm({ session }: { session: Session }) {
   const value = settings.value;
   // A finished approval reloads the values, so the segment returns to what was stored.
   useEffect(() => { setSaved(false); setChoice(null); }, [settings.approval?.status]);
-  if (!value) return <div className="deferred-panel">{settings.error ? t.error : t.saving}</div>;
+  if (!value) return <div className="deferred-panel">{settings.error ? t.error : t.loading}</div>;
   const terminal = value.terminal, verify = value.verify;
   const mode = choice ?? testModeOf(verify);
   const label = detectionLabel(value.detection, t);

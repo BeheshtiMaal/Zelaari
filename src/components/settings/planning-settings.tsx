@@ -13,6 +13,7 @@ export function PlanningSettingsForm({ session }: { session: Session }) {
   const settings = usePlanningSettings(session.workspace), t = planningCopy(session.locale), value = settings.value;
   return <section className="model-card planning-settings" data-testid="plan-approval">
     <h3>{t.settings}</h3>
+    {!value && <p className="muted" role="status">{t.loading}</p>}
     {value && <form onSubmit={event => { event.preventDefault(); void settings.save(); }}>
       <Row title={t.planGate} help={t.planGateHelp}>
         <Switch checked={value.plan_gate ?? true} label={t.planGate} testId="plan-gate"

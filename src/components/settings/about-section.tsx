@@ -29,7 +29,7 @@ export function AboutSection({ session }: { session: Session }) {
   const version = info?.version ?? "—";
   return <>
     <section className="model-card" data-testid="about-app">
-      <h3>{t.version}</h3>
+      <h3>CodeHarness</h3>
       <Row title={t.version}><code className="verify-command" dir="ltr" data-testid="about-version">{version}</code></Row>
       <Row title={t.licence}><code className="verify-command" dir="ltr">{info ? "MIT" : "—"}</code></Row>
       <Row title={t.built}>{t.builtValue}</Row>

@@ -19,7 +19,7 @@ export function ContextSettingsForm({ session }: { session: Session }) {
   const [saved, setSaved] = useState(false);
   const value = settings.value;
   useEffect(() => { setSaved(false); }, [settings.approval?.status]);
-  if (!value) return <div className="deferred-panel">{settings.error ? t.error : t.saving}</div>;
+  if (!value) return <div className="deferred-panel">{settings.error ? t.error : t.loading}</div>;
   const context = value.context, verify = value.verify;
   const percent = compactionPercent(context);
   const change = (next: typeof value) => { settings.setValue(next); setSaved(false); };

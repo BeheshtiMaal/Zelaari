@@ -111,6 +111,8 @@ test("the stylesheet answers all three font steps and the default scale", () => 
   for (const font of FONTS) {
     assert.match(css, new RegExp(`html\\[data-font="${font}"\\]\\s*\\{\\s*--fs-scale:`));
   }
-  assert.match(css, /font-size:\s*calc\(14px \* var\(--fs-scale, 1\)\)/);
+  // The base size is a step like any other, and every step carries the preference.
+  assert.match(css, /font-size:\s*var\(--fs-14\)/);
+  assert.match(css, /--fs-14:\s*calc\(14px \* var\(--fs-scale, 1\)\)/);
   assert.ok(css.includes("--fs-scale: 1;"), "the medium step has to be exactly one");
 });

@@ -6,7 +6,26 @@ import type { Locale } from "../../i18n";
 import { fill, terminalCopy } from "../../i18n/terminal";
 import { commandResult, killNote, visibleOutput } from "../../lib/terminal";
 
-const THEME = { background: "#0B1118", foreground: "#D6E0EA", cursor: "#0B1118", selectionBackground: "#1F2933" };
+/**
+ * xterm needs concrete colours, so the palette is read from the document rather than
+ * duplicated here: the terminal follows the theme and the font preference like every
+ * other surface, and switching the theme repaints the panels already on screen.
+ */
+function terminalStyle(): { theme: { background: string; foreground: string; cursor: string; selectionBackground: string }; fontSize: number } {
+  const style = getComputedStyle(document.documentElement);
+  const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+  // The scale multiplies a 14px base, so the body's computed size carries the preference.
+  const base = parseFloat(getComputedStyle(document.body).fontSize) || 14;
+  return {
+    theme: {
+      background: read("--bg-terminal", "#0B1118"),
+      foreground: read("--text-code", "#D6E0EA"),
+      cursor: read("--bg-terminal", "#0B1118"),
+      selectionBackground: read("--bg-selected", "#1F2933"),
+    },
+    fontSize: base * (12.5 / 14),
+  };
+}
 
 /** Read-only command output. It never takes input and never renders HTML. */
 export function TerminalPanel({ command, result, limit = 200, locale }: {
@@ -24,9 +43,10 @@ export function TerminalPanel({ command, result, limit = 200, locale }: {
     : result ?? "";
   useEffect(() => {
     if (!host.current) return;
+    const style = terminalStyle();
     const instance = new Terminal({
-      convertEol: true, disableStdin: true, cursorBlink: false, fontSize: 12.5, fontFamily: "Consolas, monospace",
-      theme: THEME, scrollback: 2000, allowTransparency: true,
+      convertEol: true, disableStdin: true, cursorBlink: false, fontSize: style.fontSize, fontFamily: "Consolas, monospace",
+      theme: style.theme, scrollback: 2000, allowTransparency: true,
     });
     const fit = new FitAddon();
     instance.loadAddon(fit);
@@ -38,7 +58,17 @@ export function TerminalPanel({ command, result, limit = 200, locale }: {
     term.current = instance;
     const observer = new ResizeObserver(() => { try { fit.fit(); } catch { /* host is hidden */ } });
     observer.observe(host.current);
-    return () => { observer.disconnect(); instance.dispose(); term.current = null; };
+    const repaint = new MutationObserver(() => {
+      const next = terminalStyle();
+      instance.options.theme = next.theme;
+      instance.options.fontSize = next.fontSize;
+      try { fit.fit(); } catch { /* host is hidden */ }
+    });
+    repaint.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-font"] });
+    return () => {
+      observer.disconnect(); repaint.disconnect();
+      instance.dispose(); term.current = null;
+    };
   }, []);
   useEffect(() => {
     const instance = term.current;
