@@ -21,6 +21,11 @@ from agent.meter import TokenMeter
 from agent.projection import ActivityProjection
 from agent.steering import SteeringMiddleware
 from agent.summarization import read_summary, save_summary, seed_block
+from agents import loader as agents
+from agents import memory
+from connectors.config import load as load_mcp
+from connectors.tools import Connectors
+from connectors.tools import build as build_connectors
 from permissions.middleware import PermissionMiddleware
 from permissions.review import prepare_review
 from permissions.rules import RulesEngine
@@ -41,6 +46,12 @@ from providers.base import ProviderRecord, TaskRecord
 from providers.context import detect_context
 from providers.demo import DemoModel
 from questions.types import HumanBatch, QuestionAnswer, QuestionDecision, QuestionRecord
+from skills.prompt import activated, activation_message
+from skills.registry import Registry
+from skills.settings import load_search
+from skills.tools import build_load_skill
+from skills.types import SkillRecord
+from skills.websearch import build_web_search
 from store.actions import ActionApprovals
 from store.approvals import ApprovalLedger
 from store.catalog import Catalog
@@ -49,6 +60,7 @@ from store.questions import QuestionLedger
 from store.secrets import Redactor
 from store.steering import SteeringQueue
 from store.workspaces import add_task, select_workspace
+from tools.atomic import atomic_write
 from tools.command import CommandRunner, build_run_command
 from tools.git import add_worktree, build_git_switch, repository
 from tools.jail import storage_path, workspace_root
@@ -97,8 +109,10 @@ class RunManager:
         *,
         demo_delay: float = 0.012,
         catalog: Catalog | None = None,
+        app_data: Path | None = None,
     ) -> None:
         self.runs: dict[str, Run] = {}
+        self.app_data = app_data
         self.redactor = Redactor(secrets_to_redact)
         self.demo_delay = demo_delay
         self.catalog = catalog or Catalog(redactor=self.redactor)
@@ -237,8 +251,6 @@ class RunManager:
         grill = bool(re.match(r"^/grill(?:\s|$)", safe_task))
         first_message = self.seeded(workspace, safe_task, request.seed_summary_from)
         if not restore_id:
-            from tools.atomic import atomic_write
-
             atomic_write(
                 storage_path(workspace, f"runs/{run_id}/provider.json"), record.model_dump_json()
             )
@@ -272,6 +284,41 @@ class RunManager:
             meter = TokenMeter(len(safe_task) + len(prompt))
             prompt_window = Window()
             settings = load_config(root)
+            # Skills, memory and agents belong to the project, not to a worktree checkout.
+            registry = Registry.build(workspace, self.app_data)
+            skill_prompt = registry.block()
+            memory_prompt = memory.block(workspace)
+            custom_agents: list[dict[str, Any]] = []
+            for agent_record in agents.discover(workspace):
+                document = agents.read(workspace, agent_record.name)
+                if (
+                    agent_record.problem
+                    or document is None
+                    or not document.instructions.strip()
+                ):
+                    continue
+                custom_agents.append(
+                    {
+                        "name": agent_record.name,
+                        "description": agent_record.description,
+                        "instructions": document.instructions,
+                        "tools": agent_record.tools,
+                    }
+                )
+            skill_tools: list[Any] = [build_load_skill(registry, self.redactor)]
+            web = registry.find("web-search")
+            if web is not None and web.enabled and not web.problem:
+                skill_tools.append(build_web_search(load_search(workspace)))
+            activation = (
+                activated(safe_task.split(maxsplit=1)[0], registry.records)
+                if safe_task.startswith("/")
+                else None
+            )
+            # A connector that cannot start costs its own tools, never the run: `build`
+            # records the failure and returns what did connect.
+            mcp: Connectors = await asyncio.to_thread(
+                build_connectors, workspace, load_mcp(workspace).servers
+            )
             verification = detect(root, settings.verify.command).command
             run.verification = verification
             previous_usage = next(
@@ -288,6 +335,7 @@ class RunManager:
                 record.context.estimated,
                 verification,
                 prompt_window,
+                skills=registry,
             )
 
             def adopt(command: str) -> None:
@@ -331,12 +379,24 @@ class RunManager:
                         saver,
                         self.redactor,
                         permissions=PermissionMiddleware(
-                            rules, run_id=run_id, redactor=self.redactor, grill=grill
+                            rules,
+                            run_id=run_id,
+                            redactor=self.redactor,
+                            grill=grill,
+                            delegates=frozenset(
+                                {
+                                    "reviewer",
+                                    "researcher",
+                                    *[item["name"] for item in custom_agents],
+                                }
+                            ),
                         ),
                         snapshots=SnapshotStore(root, run_id=run_id, redactor=self.redactor),
                         extra_tools=[
                             build_run_command(runner),
                             build_git_switch(root),
+                            *skill_tools,
+                            *mcp.tools,
                         ],
                         grill=grill,
                         bus=bus,
@@ -347,12 +407,38 @@ class RunManager:
                         context=settings.context,
                         window=record.context.tokens,
                         measured=prompt_window,
+                        skill_prompt=skill_prompt,
+                        memory_prompt=memory_prompt,
+                        custom_agents=custom_agents,
+                    )
+                    # The prompt this run actually sends is evidence: it is the only
+                    # place progressive disclosure can be checked after the fact, and
+                    # it is the same text `measured` counts for the breakdown.
+                    atomic_write(
+                        storage_path(workspace, f"runs/{run_id}/system.md"),
+                        self.redactor.text(prompt_window.system),
                     )
                     config: RunnableConfig = {
                         "configurable": {"thread_id": run_id},
                         "recursion_limit": 256,
                     }
                     payload: Any = {"messages": [{"role": "user", "content": first_message}]}
+                    if activation is not None and not restore_id:
+                        await bus.emit(
+                            "skill.loaded",
+                            name=activation.name,
+                            source=activation.source,
+                            command=activation.command,
+                            tokens=activation.tokens,
+                        )
+                        message = self.activation(registry, activation, first_message)
+                        # The command's own contribution is its own artefact: the request
+                        # stays what the person typed, the prompt stays the summary block,
+                        # and this is the one place the body actually entered.
+                        atomic_write(
+                            storage_path(workspace, f"runs/{run_id}/activation.md"), message
+                        )
+                        payload = {"messages": [{"role": "user", "content": message}]}
                     if restore_id:
                         await finish_open_activity(bus, "interrupted")
                         snapshot = await graph.aget_state(config)
@@ -443,6 +529,7 @@ class RunManager:
                 await bus.emit("run.finished", status="error")
             finally:
                 run.available.set()
+                await asyncio.to_thread(mcp.close)
                 final = bus.history[-1]
                 if final.type == "run.finished":
                     task_record.status = final.status
@@ -457,6 +544,15 @@ class RunManager:
             steering=steering,
         )
         return run_id
+
+    def activation(self, registry: Registry, skill: SkillRecord, task: str) -> str:
+        """A slash command is the person asking for this body, so it goes in whole."""
+        detail = registry.detail(skill)
+        if detail.scan.status == "blocked":
+            return task
+        return activation_message(
+            skill.command or "", skill.name, detail.body[:16_000], task
+        )
 
     async def recover(self) -> None:
         for item in self.catalog.data.workspaces.tasks:

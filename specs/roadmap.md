@@ -44,7 +44,7 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | 5 | **AskUserQuestion GenUI - complete** | Durable structured questions with single/multi/rank/Other, declined results, shared docked QuestionCard, mixed question/approval barriers and restart recovery, current-task waiting summary, built-in `/grill` interview and composer picker, exhausted-attempts integration contract. Windows Electron and offline evidence recorded in `2026-10-19-phase-5-ask-user-question/validation.md`. | Tasks (question moment), Errors (exhausted card), Home (command picker) |
 | 6 | **Planning + activity timeline - complete** | Structured plans, reviewed initial/deviation gates and workspace settings, stable todo progress, trusted PlanChecklist, scoped reasoning and concurrent read-only delegates, actual summarization notices, truthful telemetry, durable steering and cancellation/recovery. Offline engine and Windows Electron evidence is recorded in `2026-10-19-phase-6-planning-timeline/validation.md` and `learnings.md`. | Run |
 | 7 | **Verify + self-correction + context ring - complete** | Test detection (D2), the verify gate and unknown-command question, bounded self-correction with the exhausted card, real step/time/fix budgets, TestResults + read-only xterm terminal with the timeout variant, context ring + breakdown + auto-compaction with summary handoff, and both settings screens behind the configuration approval. Offline engine and Windows Electron evidence is recorded in `2026-10-24-phase-7-verify-context/validation.md` and `learnings.md`. | Settings: context, terminal and tests |
-| 8 | Skills + Customize hub | loader, `load_skill`, Skills tab (installed / marketplace / mine, toggles, detail, scan), install from folder/zip/git (approval), slash commands, 5 bundled skills + example project skill, Agents and Memory tabs, Connectors (MCP) tab | Customize: Skills (Connectors tab visible, inner screen not drawn) |
+| 8 | **Skills + Customize hub - complete** | Skills as folders (bundled / user / project) with a bounded frontmatter parser, a pre-use scan, per-workspace switches, progressive disclosure (`load_skill`), install from folder/ZIP/Git through the protected approval, a JSON marketplace catalog, slash commands, the five bundled skills plus the sample project skill, `web_search` that always asks, MCP connectors with `server__tool` names through the permission gate, and the Agents / Memory / Rules / Connectors tabs. Offline engine and Windows Electron evidence is recorded in `2026-10-25-phase-8-skills-customize/validation.md` and `learnings.md`. | Customize: Skills, Connectors (inner screens now drawn) |
 | 9 | `render_ui` + polish | model-composed GenUI, themes, fa/en, empty/error states, shortcuts, accessibility, remaining settings | Settings: appearance, permissions, data, about; Empty; Errors |
 | 9b | Schedule | scheduler in engine (app-open only), Schedule tab, add dialog, templates, queued approvals, missed-run prompt | Schedule, Add schedule |
 | 10 | Packaging + evals | PyInstaller + electron-builder (installer + zip, D4), CI, eval suite, README, SECURITY.md | none |
@@ -151,6 +151,39 @@ summarizer's private `.harness/context/` route stays read-only for everything el
 bounded; breakdown rows are estimates while the ring total is provider usage; and every gate/budget decision is
 reconstructable from persisted events so recovery after a crash is unchanged. The documented workspace-jail limits are
 inherited unchanged — this remains an application boundary, not an OS sandbox.
+
+## Phase 8 handoff to Phase 9
+
+Phase 8 is complete; the validation record, the installed contracts it used and the defects the walkthrough found are in
+`2026-10-25-phase-8-skills-customize/validation.md` and `learnings.md`. Phase 9 is `render_ui` plus polish: model-composed
+GenUI, themes, fa/en coverage, empty and error states, shortcuts, accessibility, and the remaining Settings sections
+(appearance, permissions, data and privacy, about).
+
+What Phase 9 inherits and should reuse rather than re-invent:
+
+- **The Customize hub** (`src/components/customize/`) is the working pattern for a tabbed screen: one screen with
+  `data-testid="customize-tab-<tab>"`, a `src/i18n/<area>.ts` copy module with `en` and `fa` typed against each other, a
+  `use-<area>.ts` hook per tab, and pure helpers in `src/lib/<area>.ts` covered by `tests/unit`. New settings sections
+  should follow it; `settings-screen.tsx` is a section list, not a template for a hub.
+- **The staged-approval contract.** Every mutation — skill install/create/edit/delete, search settings, MCP add/update/
+  delete, agent create/edit/delete, memory — returns an `ApprovalRecord`, shows "waiting for approval in the inbox" in the
+  surface that proposed it, and applies only after `POST /runs/{run}/interrupts/{id}`. Dialogs must stay open with that
+  note; closing on a proposal hides the only explanation the person gets. The reviewed bytes are the validated bytes.
+- **The audit artefacts.** `runs/<id>/request.json` (what the person asked), `system.md` (the prompt the model received),
+  `activation.md` (what a slash command added) and `provider.json`. Phase 9's `render_ui` output should be reconstructable
+  from persisted events the same way, or it is not evidence.
+- **The composer's dynamic picker** (`src/lib/use-commands.ts` + `src/lib/commands.ts`) already filters a fetched command
+  list with a keyboard contract (Arrow keys move, Enter picks the highlighted item, Escape dismisses). Reuse it for any new
+  inline trigger rather than adding a second picker.
+- **`ContextBreakdown.skills` / `.memory`** are measured blocks subtracted from the system row, so the five rows still add
+  up to the prompt the model received. Keep that arithmetic if Phase 9 adds a row.
+
+Invariants Phase 9 must not break: only `name — description` of a skill is ever in the prompt (the body arrives as a tool
+result); `load_skill` and `web_search` stay non-mutating for the verify gate while `web_search` stays `ask` even in Auto;
+MCP tools keep the `server__tool` namespace and go through the same permission barrier (a connector can never widen a
+mode); a workspace agent stays a prompt plus the read-only ceiling, intersected in the loader, the factory and the
+middleware; memory is read-only to the agent and written only by an approval; and `npm run build` must precede any desktop
+suite, because Electron serves the static export from `out/`.
 
 ## Audit log (D20): the mock wins
 The mock was left exactly as sketched. These spec statements were changed to match it:

@@ -23,6 +23,7 @@ export type Event =
   | ContextUpdated
   | SteeringUpdated
   | TestResult
+  | SkillLoaded
   | VerifyRequired
   | BudgetUpdated
   | BudgetExhausted
@@ -44,7 +45,7 @@ export type InvocationId = string | null;
 export type StepId = string | null;
 export type ParentScopeId = string | null;
 export type TurnId = string | null;
-export type Agent = "parent" | "reviewer" | "researcher";
+export type Agent = string;
 export type Model1 = string | null;
 export type Provider = string | null;
 export type RunId2 = string;
@@ -371,31 +372,39 @@ export type Summary = string;
 export type RunId27 = string;
 export type Seq22 = number;
 export type Ts22 = string;
-export type Type23 = "verify.required";
-export type Reason2 = "unverified_changes" | "no_command" | "declined";
+export type Type23 = "skill.loaded";
+export type Name1 = string;
+export type Source1 = "bundled" | "user" | "workspace";
 export type Command2 = string | null;
-export type Injections = number;
-export type Blocked = boolean;
+export type Tokens = number;
 export type RunId28 = string;
 export type Seq23 = number;
 export type Ts23 = string;
-export type Type24 = "budget.updated";
+export type Type24 = "verify.required";
+export type Reason2 = "unverified_changes" | "no_command" | "declined";
+export type Command3 = string | null;
+export type Injections = number;
+export type Blocked = boolean;
+export type RunId29 = string;
+export type Seq24 = number;
+export type Ts24 = string;
+export type Type25 = "budget.updated";
 export type Steps1 = number;
 export type MaxSteps = number;
 export type FixAttempts = number;
 export type MaxFixAttempts = number;
 export type ElapsedMs = number;
 export type MaxSeconds = number;
-export type RunId29 = string;
-export type Seq24 = number;
-export type Ts24 = string;
-export type Type25 = "budget.exhausted";
-export type Kind3 = "steps" | "time" | "verify" | "fix_attempts";
-export type Limit = number;
 export type RunId30 = string;
 export type Seq25 = number;
 export type Ts25 = string;
-export type Type26 = "ui.render";
+export type Type26 = "budget.exhausted";
+export type Kind3 = "steps" | "time" | "verify" | "fix_attempts";
+export type Limit = number;
+export type RunId31 = string;
+export type Seq26 = number;
+export type Ts26 = string;
+export type Type27 = "ui.render";
 export type Task3 = string;
 export type Workspace1 = string;
 export type Model2 = string;
@@ -403,21 +412,21 @@ export type Mode = "read-only" | "ask" | "auto";
 export type Worktree = boolean;
 export type WorktreeApproved = boolean;
 export type SeedSummaryFrom = string | null;
-export type RunId31 = string;
+export type RunId32 = string;
 export type Status8 = "ok";
 export type Id3 = string;
-export type Name1 = string;
+export type Name2 = string;
 export type BaseUrl = string;
 export type Model3 = string;
 export type Id4 = string;
-export type Name2 = string;
+export type Name3 = string;
 export type Model4 = string;
 export type Kind4 = "demo" | "openai-compatible" | "anthropic";
 export type BaseUrl1 = string | null;
 export type ApiKeyRef = string | null;
 export type KeySuffix = string;
-export type Tokens = number;
-export type Source1 = "metadata" | "table" | "error" | "fallback";
+export type Tokens1 = number;
+export type Source2 = "metadata" | "table" | "error" | "fallback";
 export type Estimated3 = boolean;
 export type Status9 = "untested" | "testing" | "retrying" | "ok" | "error";
 export type Code = ("unauthorized" | "rate_limit" | "no_tools" | "network" | "vault") | null;
@@ -426,10 +435,10 @@ export type RetrySeconds = number;
 export type SupportsTools = boolean;
 export type Locale = "fa" | "en";
 export type DefaultModel = string | null;
-export type Name3 = string;
+export type Name4 = string;
 export type Url = string | null;
 export type Path1 = string;
-export type Name4 = string;
+export type Name5 = string;
 export type Branch = string | null;
 export type Recent = Workspace2[];
 export type Selected = string | null;
@@ -463,8 +472,8 @@ export type ResolvedAt1 = string | null;
 export type ExecutionStatus = "not_started" | "running" | "completed" | "interrupted";
 export type Result1 = string | null;
 export type Status12 = "ok";
-export type RunId32 = string | null;
-export type Command3 = string;
+export type RunId33 = string | null;
+export type Command4 = string;
 export type Shell = "powershell" | "cmd";
 export type ExitCode1 = number | null;
 export type DurationMs1 = number;
@@ -477,7 +486,7 @@ export type TimeoutSeconds = number;
 export type KilledTree = boolean;
 export type Path2 = string;
 export type Kind5 = "file" | "dir";
-export type Name5 = string;
+export type Name6 = string;
 export type Path3 = string;
 export type Kind6 = "file" | "dir";
 export type Size = number;
@@ -495,8 +504,8 @@ export type CreatedSnapshotId = string;
 export type Id6 = string;
 export type Path6 = string;
 export type Existed = boolean;
-export type Ts26 = string;
-export type RunId33 = string | null;
+export type Ts27 = string;
+export type RunId34 = string | null;
 export type CallId5 = string | null;
 export type Bytes = number;
 export type Tool1 = string;
@@ -533,15 +542,15 @@ export type KeepMessages = number;
 export type Offload = boolean;
 export type ShowRing = boolean;
 export type Gate = boolean;
-export type Command4 = string | null;
+export type Command5 = string | null;
 export type MaxSteps1 = number;
 export type MaxMinutes = number;
 export type FixAttempts1 = number;
 export type Shell1 = string;
 export type TimeoutSeconds1 = number;
 export type MaxOutputLines = number;
-export type Command5 = string | null;
-export type Source2 = "custom" | "pytest.ini" | "pyproject.toml" | "tests" | "package.json" | "none";
+export type Command6 = string | null;
+export type Source3 = "custom" | "pytest.ini" | "pyproject.toml" | "tests" | "package.json" | "none";
 export type Status14 = "passed" | "failed" | "error" | "timeout";
 export type ExitCode2 = number | null;
 export type Passed1 = number | null;
@@ -563,9 +572,96 @@ export type Failures1 =
   | [string, string, string, string, string, string, string, string, string]
   | [string, string, string, string, string, string, string, string, string, string];
 export type Summary1 = string;
-export type RunId34 = string;
+export type RunId35 = string;
 export type Summary2 = string;
 export type CreatedAt2 = string;
+export type Name7 = string;
+export type Description1 = string;
+export type Command7 = string | null;
+export type Category = "coding" | "tests" | "web" | "docs" | "other";
+export type Source4 = "bundled" | "user" | "workspace";
+export type Path7 = string;
+export type Enabled = boolean;
+export type RequiresApproval = boolean;
+export type Tokens2 = number;
+export type Status15 = "clean" | "flagged" | "blocked";
+export type Findings = string[];
+export type Scripts = string[];
+export type Problem = string | null;
+export type Name8 = string;
+export type Description2 = string;
+export type Command8 = string | null;
+export type Category1 = "coding" | "tests" | "web" | "docs" | "other";
+export type Source5 = "bundled" | "user" | "workspace";
+export type Path8 = string;
+export type Enabled1 = boolean;
+export type RequiresApproval1 = boolean;
+export type Tokens3 = number;
+export type Problem1 = string | null;
+export type Body = string;
+export type References = string[];
+export type Command9 = string;
+export type Name9 = string;
+export type Description3 = string;
+export type RequiresApproval2 = boolean;
+export type Workspace5 = string;
+export type Skills1 = SkillRecord[];
+export type Commands = SkillCommand[];
+export type CatalogUrl = string | null;
+export type FetchedAt = string | null;
+export type Problems = SkillRecord[];
+export type Version1 = 1;
+export type Name10 = string;
+export type Description4 = string;
+export type Url1 = string;
+export type Command10 = string | null;
+export type Category2 = "coding" | "tests" | "web" | "docs" | "other";
+export type Version2 = string | null;
+export type Author = string | null;
+export type Skills2 = MarketplaceEntry[];
+export type FetchedAt1 = string | null;
+export type CatalogUrl1 = string | null;
+export type Error1 = string | null;
+export type Name11 = string;
+export type Transport = "stdio" | "http";
+export type Display = string;
+export type Enabled2 = boolean;
+export type Status16 = "connected" | "error" | "disabled";
+export type Name12 = string;
+export type Namespaced = string;
+export type Description5 = string;
+export type InputSchema = string;
+export type Tools2 = McpTool[];
+export type Error2 = string | null;
+export type Workspace6 = string;
+export type Servers = ConnectorStatus[];
+export type Name13 = string;
+export type Transport1 = "stdio" | "http";
+export type Command11 = string | null;
+export type Url2 = string | null;
+export type EnvKeys = string[];
+export type Enabled3 = boolean;
+export type Name14 = string;
+export type Description6 = string;
+export type Source6 = "workspace";
+export type Tools3 = string[];
+export type Path9 = string;
+export type Problem2 = string | null;
+export type Instructions = string;
+export type Name15 = string;
+export type Description7 = string;
+export type Instructions1 = string;
+export type Tools4 = string[];
+export type Workspace7 = string;
+export type Content = string;
+export type Bytes1 = number;
+export type Limit1 = number;
+export type Workspace8 = string;
+export type Skills3 = number;
+export type EnabledSkills = number;
+export type Agents = number;
+export type Servers1 = number;
+export type MemoryBytes = number;
 
 /**
  * Schema-generation envelope only; never sent over the wire.
@@ -602,6 +698,19 @@ export interface Protocol {
   verify_config: VerifyConfig;
   test_outcome: TestOutcome;
   run_summary: RunSummary;
+  skill_record: SkillRecord;
+  skill_detail: SkillDetail;
+  skill_command: SkillCommand;
+  skills_response: SkillsResponse;
+  marketplace_catalog: MarketplaceCatalog;
+  connector_status: ConnectorStatus;
+  connector_list: ConnectorList;
+  mcp_server_input: McpServerInput;
+  agent_record: AgentRecord;
+  agent_document: AgentDocument;
+  agent_write_input: AgentWriteInput;
+  memory_document: MemoryDocument;
+  customize_settings: CustomizeSettings;
 }
 export interface RunStarted {
   run_id: RunId;
@@ -956,23 +1065,36 @@ export interface TestResult {
   summary?: Summary;
 }
 /**
- * The harness blocked a finish because the changes are unverified.
+ * A skill's body entered the conversation, by tool call or by slash command.
  */
-export interface VerifyRequired {
+export interface SkillLoaded {
   run_id: RunId27;
   seq: Seq22;
   ts?: Ts22;
   type?: Type23;
-  reason: Reason2;
+  name: Name1;
+  source?: Source1;
   command?: Command2;
-  injections?: Injections;
-  blocked?: Blocked;
+  tokens?: Tokens;
 }
-export interface BudgetUpdated {
+/**
+ * The harness blocked a finish because the changes are unverified.
+ */
+export interface VerifyRequired {
   run_id: RunId28;
   seq: Seq23;
   ts?: Ts23;
   type?: Type24;
+  reason: Reason2;
+  command?: Command3;
+  injections?: Injections;
+  blocked?: Blocked;
+}
+export interface BudgetUpdated {
+  run_id: RunId29;
+  seq: Seq24;
+  ts?: Ts24;
+  type?: Type25;
   steps: Steps1;
   max_steps: MaxSteps;
   fix_attempts: FixAttempts;
@@ -981,10 +1103,10 @@ export interface BudgetUpdated {
   max_seconds: MaxSeconds;
 }
 export interface BudgetExhausted {
-  run_id: RunId29;
-  seq: Seq24;
-  ts?: Ts24;
-  type?: Type25;
+  run_id: RunId30;
+  seq: Seq25;
+  ts?: Ts25;
+  type?: Type26;
   kind: Kind3;
   limit: Limit;
 }
@@ -992,10 +1114,10 @@ export interface BudgetExhausted {
  * Reserved events: not emitted by the bridge yet.
  */
 export interface FutureEvent {
-  run_id: RunId30;
-  seq: Seq25;
-  ts?: Ts25;
-  type: Type26;
+  run_id: RunId31;
+  seq: Seq26;
+  ts?: Ts26;
+  type: Type27;
   data: Data;
 }
 export interface Data {
@@ -1011,20 +1133,20 @@ export interface RunRequest {
   seed_summary_from?: SeedSummaryFrom;
 }
 export interface RunResponse {
-  run_id: RunId31;
+  run_id: RunId32;
 }
 export interface HealthResponse {
   status?: Status8;
 }
 export interface ModelInput {
   id: Id3;
-  name: Name1;
+  name: Name2;
   base_url: BaseUrl;
   model: Model3;
 }
 export interface ProviderRecord {
   id?: Id4;
-  name: Name2;
+  name: Name3;
   model: Model4;
   kind: Kind4;
   base_url?: BaseUrl1;
@@ -1035,8 +1157,8 @@ export interface ProviderRecord {
   supports_tools?: SupportsTools;
 }
 export interface Context1 {
-  tokens?: Tokens;
-  source?: Source1;
+  tokens?: Tokens1;
+  source?: Source2;
   estimated?: Estimated3;
 }
 export interface Probe {
@@ -1050,7 +1172,7 @@ export interface Settings {
   default_model?: DefaultModel;
 }
 export interface Preset {
-  name: Name3;
+  name: Name4;
   url: Url;
 }
 export interface WorkspaceState {
@@ -1060,7 +1182,7 @@ export interface WorkspaceState {
 }
 export interface Workspace2 {
   path: Path1;
-  name: Name4;
+  name: Name5;
   branch?: Branch;
 }
 export interface TaskRecord {
@@ -1105,13 +1227,13 @@ export interface ApprovalAnswer {
 }
 export interface ApprovalResolution {
   status?: Status12;
-  run_id?: RunId32;
+  run_id?: RunId33;
 }
 /**
  * What `run_command` returns to the model and what the timeout card reads.
  */
 export interface CommandResult {
-  command: Command3;
+  command: Command4;
   shell: Shell;
   exit_code?: ExitCode1;
   duration_ms?: DurationMs1;
@@ -1133,7 +1255,7 @@ export interface FileListing {
   file?: FileContent | null;
 }
 export interface FileEntry {
-  name: Name5;
+  name: Name6;
   path: Path3;
   kind: Kind6;
   size?: Size;
@@ -1156,8 +1278,8 @@ export interface SnapshotEntry {
   id: Id6;
   path: Path6;
   existed: Existed;
-  ts: Ts26;
-  run_id?: RunId33;
+  ts: Ts27;
+  run_id?: RunId34;
   call_id?: CallId5;
   bytes?: Bytes;
   tool?: Tool1;
@@ -1237,7 +1359,7 @@ export interface ContextSettings {
 }
 export interface VerifySettings {
   gate?: Gate;
-  command?: Command4;
+  command?: Command5;
   max_steps?: MaxSteps1;
   max_minutes?: MaxMinutes;
   fix_attempts?: FixAttempts1;
@@ -1248,8 +1370,8 @@ export interface TerminalSettings {
   max_output_lines?: MaxOutputLines;
 }
 export interface Detection {
-  command?: Command5;
-  source?: Source2;
+  command?: Command6;
+  source?: Source3;
 }
 export interface VerifyConfig {
   context?: ContextSettings;
@@ -1266,9 +1388,137 @@ export interface TestOutcome {
   summary?: Summary1;
 }
 export interface RunSummary {
-  run_id: RunId34;
+  run_id: RunId35;
   summary: Summary2;
   created_at: CreatedAt2;
+}
+export interface SkillRecord {
+  name: Name7;
+  description: Description1;
+  command?: Command7;
+  category?: Category;
+  source?: Source4;
+  path?: Path7;
+  enabled?: Enabled;
+  requires_approval?: RequiresApproval;
+  tokens?: Tokens2;
+  scan?: SkillScan;
+  problem?: Problem;
+}
+/**
+ * What the pre-use scan found. `blocked` never reaches a model.
+ */
+export interface SkillScan {
+  status?: Status15;
+  findings?: Findings;
+  scripts?: Scripts;
+}
+export interface SkillDetail {
+  name: Name8;
+  description: Description2;
+  command?: Command8;
+  category?: Category1;
+  source?: Source5;
+  path?: Path8;
+  enabled?: Enabled1;
+  requires_approval?: RequiresApproval1;
+  tokens?: Tokens3;
+  scan?: SkillScan;
+  problem?: Problem1;
+  body?: Body;
+  references?: References;
+}
+export interface SkillCommand {
+  command: Command9;
+  name: Name9;
+  description: Description3;
+  requires_approval?: RequiresApproval2;
+}
+export interface SkillsResponse {
+  workspace: Workspace5;
+  skills?: Skills1;
+  commands?: Commands;
+  catalog_url?: CatalogUrl;
+  fetched_at?: FetchedAt;
+  problems?: Problems;
+}
+export interface MarketplaceCatalog {
+  version?: Version1;
+  skills?: Skills2;
+  fetched_at?: FetchedAt1;
+  catalog_url?: CatalogUrl1;
+  error?: Error1;
+}
+export interface MarketplaceEntry {
+  name: Name10;
+  description: Description4;
+  url: Url1;
+  command?: Command10;
+  category?: Category2;
+  version?: Version2;
+  author?: Author;
+}
+export interface ConnectorStatus {
+  name: Name11;
+  transport?: Transport;
+  display?: Display;
+  enabled?: Enabled2;
+  status?: Status16;
+  tools?: Tools2;
+  error?: Error2;
+}
+export interface McpTool {
+  name: Name12;
+  namespaced: Namespaced;
+  description?: Description5;
+  input_schema?: InputSchema;
+}
+export interface ConnectorList {
+  workspace: Workspace6;
+  servers?: Servers;
+}
+export interface McpServerInput {
+  name: Name13;
+  transport?: Transport1;
+  command?: Command11;
+  url?: Url2;
+  env_keys?: EnvKeys;
+  enabled?: Enabled3;
+}
+export interface AgentRecord {
+  name: Name14;
+  description: Description6;
+  source?: Source6;
+  tools?: Tools3;
+  path?: Path9;
+  problem?: Problem2;
+}
+export interface AgentDocument {
+  record: AgentRecord;
+  instructions?: Instructions;
+}
+export interface AgentWriteInput {
+  name: Name15;
+  description: Description7;
+  instructions?: Instructions1;
+  tools?: Tools4;
+}
+export interface MemoryDocument {
+  workspace: Workspace7;
+  content?: Content;
+  bytes?: Bytes1;
+  limit?: Limit1;
+}
+/**
+ * The hub's read-only overview: counts and the workspace it describes.
+ */
+export interface CustomizeSettings {
+  workspace: Workspace8;
+  skills?: Skills3;
+  enabled_skills?: EnabledSkills;
+  agents?: Agents;
+  servers?: Servers1;
+  memory_bytes?: MemoryBytes;
 }
 
 // Serialized events always include the Pydantic discriminator and timestamp defaults.

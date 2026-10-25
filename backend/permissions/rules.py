@@ -16,6 +16,8 @@ WRITE_TOOLS = frozenset({"write_file", "edit_file"})
 DELETE_TOOLS = frozenset({"delete"})
 COMMAND_TOOLS = frozenset({"run_command", "git_switch", "worktree_create"})
 WEB_TOOLS = frozenset({"web_search"})
+SKILL_TOOLS = frozenset({"load_skill"})
+"""Reading a skill body is a read: it cannot change a file or leave the machine."""
 INTERNAL_TOOLS = frozenset({"write_todos", "submit_plan", "task"})
 """Tools that only mutate graph state and never touch the workspace.
 
@@ -24,7 +26,7 @@ click approve without reading, which is the failure mode the whole layer exists 
 avoid. `web_search` is not in this set because it leaves the machine.
 """
 
-Category = Literal["read", "write", "delete", "command", "web", "internal"]
+Category = Literal["read", "write", "delete", "command", "web", "mcp", "internal"]
 
 DEFAULTS: dict[Mode, dict[Category, Action]] = {
     "read-only": {
@@ -33,6 +35,7 @@ DEFAULTS: dict[Mode, dict[Category, Action]] = {
         "delete": "deny",
         "command": "deny",
         "web": "deny",
+        "mcp": "deny",
         "internal": "allow",
     },
     "ask": {
@@ -41,6 +44,7 @@ DEFAULTS: dict[Mode, dict[Category, Action]] = {
         "delete": "ask",
         "command": "ask",
         "web": "ask",
+        "mcp": "ask",
         "internal": "allow",
     },
     "auto": {
@@ -49,6 +53,7 @@ DEFAULTS: dict[Mode, dict[Category, Action]] = {
         "delete": "allow",
         "command": "allow",
         "web": "ask",
+        "mcp": "ask",
         "internal": "allow",
     },
 }
@@ -57,7 +62,7 @@ RANK: dict[Action, int] = {"allow": 0, "ask": 1, "deny": 2}
 
 
 def category_of(tool: str) -> Category:
-    if tool in READ_TOOLS:
+    if tool in READ_TOOLS or tool in SKILL_TOOLS:
         return "read"
     if tool in WRITE_TOOLS:
         return "write"
@@ -65,6 +70,9 @@ def category_of(tool: str) -> Category:
         return "delete"
     if tool in WEB_TOOLS:
         return "web"
+    if "__" in tool:
+        # MCP tools are namespaced `server__tool`; the server is not the authority.
+        return "mcp"
     if tool in INTERNAL_TOOLS:
         return "internal"
     return "command"
@@ -197,6 +205,7 @@ class RulesEngine:
         return [
             ".harness/ writes",
             "web_search queries",
+            "MCP tool calls",
             "high-risk commands",
             "timeouts above the default",
         ]

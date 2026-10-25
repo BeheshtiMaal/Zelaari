@@ -5,7 +5,7 @@ import json
 import math
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
-from typing import Annotated, Any, Literal, NotRequired
+from typing import Annotated, Any, NotRequired
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware
@@ -28,6 +28,9 @@ from store.eventlog import EventBus
 
 delegate_scope: ContextVar[ActivityScope | None] = ContextVar("delegate_scope", default=None)
 
+DELEGATES: frozenset[str] = frozenset({"reviewer", "researcher"})
+"""The built-in read-only delegates; a workspace agent is added to this set per run."""
+
 
 def identity(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()[:32]
@@ -44,14 +47,16 @@ class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
     def __init__(
         self,
         model: str,
-        agent: Literal["parent", "reviewer", "researcher"] = "parent",
+        agent: str = "parent",
         bus: EventBus | None = None,
         provider: str | None = None,
+        delegates: frozenset[str] | None = None,
     ) -> None:
         self.model = model
         self.agent = agent
         self.bus = bus
         self.provider = provider
+        self.delegates = delegates or DELEGATES
         self.results = (
             DelegateResults(bus.path.with_name("delegates.json"), bus.redactor) if bus else None
         )
@@ -92,7 +97,7 @@ class ActivityMiddleware(AgentMiddleware[ActivityState, Any, Any]):
             return result
         args = call["args"]
         name = args.get("subagent_type")
-        if name not in {"reviewer", "researcher"}:
+        if name not in self.delegates:
             return ToolMessage(
                 content="Permission denied: unknown delegate", tool_call_id=call["id"]
             )

@@ -5,13 +5,13 @@ import { useRules } from "../../lib/use-rules";
 import type { Rule } from "../../lib/protocol";
 import { recordKey } from "../../lib/inbox";
 
-export function RulesScreen({ session }: { session: Session }) {
+export function RulesScreen({ session, bare = false }: { session: Session; bare?: boolean }) {
   const t = approvalCopy(session.locale), editor = useRules(session.workspace);
-  return <div className="rules-screen">
-    <header><h1>{t.customize}</h1><p className="muted">{t.customizeHelp}</p></header>
-    <div className="inbox-tabs customize-tabs" aria-label={t.customize}>
+  return <div className="rules-screen" data-bare={bare || undefined}>
+    {!bare && <header><h1>{t.customize}</h1><p className="muted">{t.customizeHelp}</p></header>}
+    {!bare && <div className="inbox-tabs customize-tabs" aria-label={t.customize}>
       {[t.skills, t.agents, t.rules, t.memory, t.connectors].map(label => <button key={label} disabled={label !== t.rules} aria-pressed={label === t.rules}>{label}</button>)}
-    </div>
+    </div>}
     <label className="rules-workspace">{t.workspace}<select value={session.workspace} onChange={event => void session.selectWorkspace(event.target.value)}>{session.spaces.recent?.map(workspace => <option key={workspace.path} value={workspace.path}>{workspace.name}</option>)}</select></label>
     {!session.workspace ? <p className="muted">{t.chooseWorkspace}</p> : <>
       <section className="rules-panel"><h2>{t.rules}</h2>

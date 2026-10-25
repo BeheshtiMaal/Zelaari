@@ -22,6 +22,21 @@ from planning.types import (
 )
 from providers.base import ModelInput, Preset, ProviderRecord, Settings, WorkspaceState
 from questions.types import QuestionAnswer, QuestionDecision, QuestionRecord, QuestionRequest
+from skills.types import (
+    AgentDocument,
+    AgentRecord,
+    AgentWriteInput,
+    ConnectorList,
+    ConnectorStatus,
+    CustomizeSettings,
+    MarketplaceCatalog,
+    McpServerInput,
+    MemoryDocument,
+    SkillCommand,
+    SkillDetail,
+    SkillRecord,
+    SkillsResponse,
+)
 from tools.types import (
     BranchList,
     BranchSwitch,
@@ -207,6 +222,16 @@ class UsageUpdated(EventBase):
     estimated: bool
 
 
+class SkillLoaded(EventBase):
+    """A skill's body entered the conversation, by tool call or by slash command."""
+
+    type: Literal["skill.loaded"] = "skill.loaded"
+    name: str
+    source: Literal["bundled", "user", "workspace"] = "bundled"
+    command: str | None = None
+    tokens: int = Field(default=0, ge=0)
+
+
 class VerifyRequired(EventBase):
     """The harness blocked a finish because the changes are unverified."""
 
@@ -256,6 +281,7 @@ Event = Annotated[
     | ContextUpdated
     | SteeringUpdated
     | TestResult
+    | SkillLoaded
     | VerifyRequired
     | BudgetUpdated
     | BudgetExhausted
@@ -330,3 +356,16 @@ class Protocol(WireModel):
     verify_config: VerifyConfig
     test_outcome: TestOutcome
     run_summary: RunSummary
+    skill_record: SkillRecord
+    skill_detail: SkillDetail
+    skill_command: SkillCommand
+    skills_response: SkillsResponse
+    marketplace_catalog: MarketplaceCatalog
+    connector_status: ConnectorStatus
+    connector_list: ConnectorList
+    mcp_server_input: McpServerInput
+    agent_record: AgentRecord
+    agent_document: AgentDocument
+    agent_write_input: AgentWriteInput
+    memory_document: MemoryDocument
+    customize_settings: CustomizeSettings

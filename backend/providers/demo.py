@@ -15,7 +15,9 @@ from langchain_core.tools import BaseTool
 
 from providers.planning_demo import demo_planning
 from providers.question_demo import demo_question
+from providers.skills_demo import demo_customize
 from providers.verify_demo import demo_verify
+from skills.prompt import task_of
 
 
 class DemoModel(BaseChatModel):
@@ -37,10 +39,15 @@ class DemoModel(BaseChatModel):
 
     def answer(self, messages: list[BaseMessage]) -> AIMessage:
         results = [message for message in messages if isinstance(message, ToolMessage)]
-        task = next((str(message.content) for message in messages if message.type == "human"), "")
+        task = task_of(
+            next((str(message.content) for message in messages if message.type == "human"), "")
+        )
         verify = demo_verify(task, messages, results)
         if verify is not None:
             return verify
+        customize = demo_customize(task, results)
+        if customize is not None:
+            return customize
         planning = demo_planning(task, results)
         if planning is not None:
             return planning

@@ -155,8 +155,9 @@ try {
   step("grill picker, Home chip, two batches and graceful restart during interview");
   await api(page, "/workspaces", "POST", { path: workspace });
   await page.locator(".sidebar nav button").first().click();
-  await page.locator("#task").fill("/"); await expect(page.getByRole("listbox")).toBeVisible();
-  await page.locator("#task").press("ArrowDown"); await page.locator("#task").press("Enter");
+  await page.locator("#task").fill("/gr"); await expect(page.getByRole("listbox")).toBeVisible();
+  await page.locator("#task").press("ArrowDown"); await page.locator("#task").press("ArrowUp");
+  await page.locator("#task").press("Enter");
   await expect(page.locator("#task")).toHaveValue("/grill "); await expect(page.locator(".run-header")).toHaveCount(0);
   await page.locator("#task").fill("/"); await page.locator("#task").press("Escape"); await expect(page.getByRole("listbox")).toHaveCount(0);
   await page.getByRole("button", { name: "Interview with grill-me", exact: true }).click(); await expect(page.locator("#task")).toHaveValue("/grill ");

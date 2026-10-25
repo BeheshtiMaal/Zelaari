@@ -99,6 +99,49 @@ def summarizer(
     )
 
 
+def _delegate(
+    name: str,
+    description: str,
+    instructions: str,
+    tools: list[Any],
+    *,
+    model: BaseChatModel,
+    backend: ReadOnlyWorkspaceBackend,
+    redactor: Redactor,
+    model_name: str | None,
+    provider_name: str | None,
+) -> CompiledSubAgent:
+    """One read-only child. Every delegate, built-in or workspace-defined, comes from here."""
+    return {
+        "name": name,
+        "description": description,
+        "runnable": create_agent(
+            model=model,
+            system_prompt=instructions,
+            middleware=cast(
+                list[AgentMiddleware[Any, Any, Any]],
+                [
+                    ReadOnlyDelegateMiddleware(redactor),
+                    FilesystemMiddleware(
+                        backend=backend,
+                        tools=tools,
+                        tool_token_limit_before_evict=None,
+                        human_message_token_limit_before_evict=None,
+                    ),
+                    RedactingMiddleware(redactor),
+                    RedactingSummarization(model, backend, redactor),
+                    ActivityMiddleware(
+                        model_name or model.name or type(model).__name__,
+                        name,
+                        provider=provider_name,
+                    ),
+                ],
+            ),
+            name=name,
+        ),
+    }
+
+
 def build_agent(
     root: Path,
     model: BaseChatModel,
@@ -117,6 +160,9 @@ def build_agent(
     context: ContextSettings | None = None,
     window: int | None = None,
     measured: Window | None = None,
+    skill_prompt: str = "",
+    memory_prompt: str = "",
+    custom_agents: list[dict[str, Any]] | None = None,
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
     limits = context or ContextSettings()
     backend = WorkspaceBackend(root, redactor, snapshots, cancelled=cancelled)
@@ -127,40 +173,44 @@ def build_agent(
     delegate_names: tuple[Literal["reviewer", "researcher"], ...] = ("reviewer", "researcher")
     for name in delegate_names:
         children.append(
-            {
-                "name": name,
-                "description": "Review source and report findings"
+            _delegate(
+                name,
+                "Review source and report findings"
                 if name == "reviewer"
                 else "Research workspace and local documentation",
-                "runnable": create_agent(
-                    model=model,
-                    system_prompt=(
-                        f"You are the read-only {name}. Read workspace files and report findings "
-                        "in the user's language. Return clarification needs to the parent."
-                    ),
-                    middleware=cast(
-                        list[AgentMiddleware[Any, Any, Any]],
-                        [
-                            ReadOnlyDelegateMiddleware(redactor),
-                            FilesystemMiddleware(
-                                backend=child_backend,
-                                tools=read_tools,
-                                tool_token_limit_before_evict=None,
-                                human_message_token_limit_before_evict=None,
-                            ),
-                            RedactingMiddleware(redactor),
-                            RedactingSummarization(model, child_backend, redactor),
-                            ActivityMiddleware(
-                                model_name or model.name or type(model).__name__,
-                                name,
-                                provider=provider_name,
-                            ),
-                        ],
-                    ),
-                    name=name,
+                (
+                    f"You are the read-only {name}. Read workspace files and report findings "
+                    "in the user's language. Return clarification needs to the parent."
                 ),
-            }
+                read_tools,
+                model=model,
+                backend=child_backend,
+                redactor=redactor,
+                model_name=model_name,
+                provider_name=provider_name,
+            )
         )
+    for custom in custom_agents or []:
+        # A workspace agent is a prompt plus a read-only tool ceiling; the name is
+        # validated at load time, so it can never shadow a built-in delegate.
+        custom_name = str(custom.get("name", ""))
+        if not custom_name or custom_name in delegate_names:
+            continue
+        chosen = [tool for tool in read_tools if tool in set(custom.get("tools") or read_tools)]
+        children.append(
+            _delegate(
+                custom_name,
+                str(custom.get("description", "")) or f"Workspace agent {custom_name}",
+                str(custom.get("instructions", "")),
+                chosen or read_tools,
+                model=model,
+                backend=child_backend,
+                redactor=redactor,
+                model_name=model_name,
+                provider_name=provider_name,
+            )
+        )
+    delegates = frozenset(str(child["name"]) for child in children)
     system = (
         "You are CodeHarness, a coding agent working inside one workspace folder. "
         "Use relative paths. Read before you edit. Keep changes small and explain them. "
@@ -184,6 +234,14 @@ def build_agent(
             if grill
             else ""
         )
+        + (
+            "Delegates are read-only and are called with task(subagent_type=..., description=...). "
+            f"Available: {', '.join(sorted(delegates))}. "
+            if custom_agents
+            else ""
+        )
+        + (f"\n{skill_prompt}\n" if skill_prompt else "")
+        + (f"\n{memory_prompt}\n" if memory_prompt else "")
         + "Your final response must use this UI library:\n"
         + prompt
     )
@@ -197,6 +255,8 @@ def build_agent(
         # The breakdown counts the prompt the model actually receives.
         measured.system = system
         measured.tools = list(tools)
+        measured.skills = skill_prompt
+        measured.memory = memory_prompt
     return create_deep_agent(
         model=model,
         backend=backend,
@@ -223,6 +283,7 @@ def build_agent(
                     model_name or model.name or type(model).__name__,
                     bus=bus,
                     provider=provider_name,
+                    delegates=delegates,
                 ),
                 *(extra_middleware or []),
                 *([ContextMiddleware(measured)] if measured is not None else []),

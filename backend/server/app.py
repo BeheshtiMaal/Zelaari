@@ -25,10 +25,13 @@ from permissions.types import (
 )
 from planning.types import SteeringRecord, SteeringSubmission
 from questions.types import QuestionDecision, QuestionRecord
+from server.connectors import connectors_routes
+from server.customize import customize_routes
 from server.files import file_routes
 from server.git import git_routes
 from server.models import model_routes
 from server.rules import rules_routes
+from server.skills import skills_routes
 from server.snapshots import snapshot_routes
 from server.verify import verify_routes
 from server.workspaces import workspace_routes
@@ -84,7 +87,7 @@ def create_app(
             await warm
         from agent.bridge import RunManager
 
-        return RunManager(secrets_to_redact=[token], catalog=catalog)
+        return RunManager(secrets_to_redact=[token], catalog=catalog, app_data=app_data)
 
     async def runs() -> RunService:
         # Every caller must share one manager: a second instance would restore the same runs
@@ -143,6 +146,9 @@ def create_app(
     app.include_router(file_routes(lambda: service.pending_paths() if service else set()))
     app.include_router(rules_routes(ActionApprovals(catalog)))
     app.include_router(verify_routes(ActionApprovals(catalog)))
+    app.include_router(skills_routes(ActionApprovals(catalog), app_data))
+    app.include_router(connectors_routes(ActionApprovals(catalog)))
+    app.include_router(customize_routes(ActionApprovals(catalog), app_data))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_input(request: object, error: RequestValidationError) -> JSONResponse:

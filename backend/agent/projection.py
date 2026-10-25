@@ -11,6 +11,7 @@ from agent.meter import TokenMeter, content_parts
 from planning.gate import record_from_state
 from planning.publication import publish_plan
 from planning.types import ActivityScope
+from skills.registry import Registry
 from store.delegates import DelegateResults
 from store.eventlog import EventBus
 from store.secrets import StreamRedactor
@@ -27,6 +28,7 @@ class ActivityProjection:
         context_window_estimated: bool = False,
         verification: str | None = None,
         prompt: Window | None = None,
+        skills: Registry | None = None,
     ) -> None:
         self.bus = bus
         self.meter = meter
@@ -40,6 +42,8 @@ class ActivityProjection:
         self.finished: set[str] = set()
         self.commands: dict[str, str] = {}
         self.tested: set[str] = set()
+        self.skills = skills
+        self.loaded: set[str] = set()
 
     async def content(
         self, namespace: tuple[str, ...], message: AIMessage | AIMessageChunk, final: bool
@@ -96,6 +100,22 @@ class ActivityProjection:
             call_id=message.tool_call_id,
             command=command,
             **outcome.model_dump(),
+        )
+
+    async def skill_loaded(self, name: object) -> None:
+        """One event per skill body actually handed to the model."""
+        if self.skills is None or not isinstance(name, str) or name in self.loaded:
+            return
+        record = self.skills.find(name)
+        if record is None:
+            return
+        self.loaded.add(name)
+        await self.bus.emit(
+            "skill.loaded",
+            name=record.name,
+            source=record.source,
+            command=record.command,
+            tokens=record.tokens,
         )
 
     async def update(self, namespace: tuple[str, ...], update: dict[str, Any]) -> None:
@@ -168,6 +188,8 @@ class ActivityProjection:
                             and isinstance(command, str)
                         ):
                             self.commands[call["id"]] = command
+                        if call["name"] == "load_skill":
+                            await self.skill_loaded(call["args"].get("name"))
                         await self.bus.emit(
                             "tool.call",
                             scope=scope,

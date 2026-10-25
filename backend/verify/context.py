@@ -29,9 +29,18 @@ class ContextBreakdown(BaseModel):
 
 
 def breakdown(
-    messages: Sequence[Any], system: str = "", tools: Sequence[Any] = ()
+    messages: Sequence[Any],
+    system: str = "",
+    tools: Sequence[Any] = (),
+    skills: str = "",
+    memory: str = "",
 ) -> ContextBreakdown:
-    """Split the prompt into the five rows the popover shows."""
+    """Split the prompt into the rows the popover shows.
+
+    Skills and memory are part of the system text the model receives, so their rows are
+    measured from their own blocks and *subtracted* from the system row: the five rows
+    still add up to the same total.
+    """
     results = [message for message in messages if isinstance(message, ToolMessage)]
     prompt = [message for message in messages if isinstance(message, SystemMessage)]
     plain = [
@@ -40,16 +49,24 @@ def breakdown(
         if not isinstance(message, (ToolMessage, SystemMessage))
     ]
     text = "\n".join([*(str(message.content) for message in prompt), system]).strip()
+    total = count_tokens_approximately(
+        [SystemMessage(content=text)] if text else [], tools=list(tools) or None
+    )
+    skill_tokens = _tokens(skills)
+    memory_tokens = _tokens(memory)
     return ContextBreakdown(
         messages=count_tokens_approximately(plain),
         tool_results=count_tokens_approximately(results),
-        system=count_tokens_approximately(
-            [SystemMessage(content=text)] if text else [], tools=list(tools) or None
-        ),
-        # Skills and memory are wired in Phase 8; until then they cost nothing.
-        skills=0,
-        memory=0,
+        system=max(0, total - skill_tokens - memory_tokens),
+        skills=skill_tokens,
+        memory=memory_tokens,
         estimated=True,
+    )
+
+
+def _tokens(text: str) -> int:
+    return (
+        count_tokens_approximately([SystemMessage(content=text)]) if text.strip() else 0
     )
 
 
@@ -60,9 +77,11 @@ class Window:
     system: str = ""
     tools: list[Any] = field(default_factory=list)
     messages: list[Any] = field(default_factory=list)
+    skills: str = ""
+    memory: str = ""
 
     def breakdown(self) -> ContextBreakdown:
-        return breakdown(self.messages, self.system, self.tools)
+        return breakdown(self.messages, self.system, self.tools, self.skills, self.memory)
 
 
 class ContextMiddleware(AgentMiddleware[AgentState[Any], Any, Any]):

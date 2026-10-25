@@ -1,5 +1,6 @@
 """Durable approvals for user-initiated configuration changes, without a model run."""
 
+import shutil
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
@@ -7,6 +8,12 @@ from threading import RLock
 from typing import Literal, cast
 from uuid import uuid4
 
+from pydantic import JsonValue
+
+from agents import loader as agents
+from agents import memory
+from connectors.config import McpFile, McpServerConfig
+from connectors.config import merged as merged_mcp
 from permissions.review import prepare_review
 from permissions.rules import RulesEngine
 from permissions.types import (
@@ -20,6 +27,11 @@ from permissions.types import (
 )
 from planning.policy import merged_settings
 from planning.types import PlanningSettings
+from skills import install
+from skills.registry import Registry
+from skills.search import SearchSettings
+from skills.settings import merged_search
+from skills.types import AgentWriteInput, SkillWriteInput
 from store.approvals import ApprovalLedger
 from store.catalog import Catalog
 from store.workspaces import select_workspace
@@ -224,6 +236,242 @@ class ActionApprovals:
             ),
         )
 
+    def propose_search(self, root: Path, value: SearchSettings) -> ApprovalRecord:
+        content = merged_search(root, value)
+        if self.catalog.redactor.text(content) != content:
+            raise ValueError("Secret in workspace configuration")
+        return self.propose(
+            root,
+            ApprovalRequest(
+                approval_id="",
+                run_id="",
+                kind="tool",
+                tool="search_settings_update",
+                path=".harness/config.json",
+                source_kind="configuration",
+                source_title="Web search",
+                policy_code="search_settings_change",
+                reason="Changes to engine configuration always require approval",
+                args={"content": content},
+            ),
+        )
+
+    def skill_folder(self, root: Path, name: str) -> Path:
+        """Only `.harness/skills/<name>`, proven after resolution."""
+        base = (root / ".harness" / "skills").resolve()
+        folder = (base / name).resolve()
+        if not folder.is_relative_to(base) or folder == base:
+            raise ValueError("That skill folder is outside the workspace")
+        return folder
+
+    def propose_skill_install(
+        self, root: Path, kind: str, source: str, app_data: Path | None
+    ) -> ApprovalRecord:
+        found = install.build(kind, source)
+        existing = Registry.build(root, app_data).find(found.name)
+        if existing is not None and existing.source == "workspace":
+            raise ValueError("A skill with that name is already installed in this workspace")
+        return self.propose_files(
+            root,
+            found.name,
+            found.files,
+            tool="skill_install",
+            title=f"Install skill {found.name}",
+            policy="skill_install",
+            reason="Installing a skill writes files the agent may later follow",
+            extra={"kind": kind, "source": source},
+        )
+
+    def propose_skill_write(
+        self, root: Path, value: SkillWriteInput, *, create: bool
+    ) -> ApprovalRecord:
+        existing = Registry.build(root, None).find(value.name)
+        if create:
+            if existing is not None and existing.source == "workspace":
+                raise ValueError("That skill already exists")
+            files = install.from_write(
+                value.name,
+                value.description,
+                value.body,
+                value.command,
+                value.category,
+                value.requires_approval,
+            )
+        else:
+            if existing is None or existing.source != "workspace":
+                raise ValueError("Only a skill installed in this workspace can be edited")
+            folder = self.skill_folder(root, value.name)
+            files = install.from_folder(folder)
+            files.update(
+                install.from_write(
+                    value.name,
+                    value.description,
+                    value.body,
+                    value.command,
+                    value.category,
+                    value.requires_approval,
+                )
+            )
+        checked = install.candidate(files)
+        return self.propose_files(
+            root,
+            checked.name,
+            checked.files,
+            tool="skill_create" if create else "skill_edit",
+            title=("Create skill " if create else "Edit skill ") + checked.name,
+            policy="skill_create" if create else "skill_edit",
+            reason="Skill instructions change what the agent does",
+        )
+
+    def propose_skill_delete(self, root: Path, name: str) -> ApprovalRecord:
+        existing = Registry.build(root, None).find(name)
+        if existing is None or existing.source != "workspace":
+            raise ValueError("Only a skill installed in this workspace can be deleted")
+        request = ApprovalRequest(
+            approval_id="",
+            run_id="",
+            kind="tool",
+            tool="skill_delete",
+            path=f".harness/skills/{name}/SKILL.md",
+            source_kind="configuration",
+            source_title=f"Delete skill {name}",
+            policy_code="skill_delete",
+            reason="Deleting a skill removes files from the workspace",
+            args={"remove": True, "name": name},
+        )
+        return self.propose(root, request)
+
+    def propose_files(
+        self,
+        root: Path,
+        name: str,
+        files: dict[str, str],
+        *,
+        tool: str,
+        title: str,
+        policy: str,
+        reason: str,
+        extra: dict[str, str] | None = None,
+    ) -> ApprovalRecord:
+        if self.catalog.redactor.text("\n".join(files.values())) != "\n".join(files.values()):
+            raise ValueError("Secret in the skill")
+        return self.propose(
+            root,
+            ApprovalRequest(
+                approval_id="",
+                run_id="",
+                kind="tool",
+                tool=tool,
+                path=f".harness/skills/{name}/SKILL.md",
+                source_kind="configuration",
+                source_title=title,
+                policy_code=policy,
+                reason=reason,
+                args={"name": name, "files": cast(JsonValue, files), **(extra or {})},
+            ),
+        )
+
+    def propose_mcp(
+        self,
+        root: Path,
+        servers: list[McpServerConfig],
+        *,
+        tool: str,
+        name: str,
+        reason: str,
+    ) -> ApprovalRecord:
+        content = merged_mcp(servers)
+        if self.catalog.redactor.text(content) != content:
+            raise ValueError("Secret in the MCP configuration")
+        return self.propose(
+            root,
+            ApprovalRequest(
+                approval_id="",
+                run_id="",
+                kind="command",
+                tool=tool,
+                path=".harness/mcp.json",
+                command=(servers[0].command[0] if servers and servers[0].command else None),
+                source_kind="configuration",
+                source_title=f"MCP server {name}",
+                policy_code=tool,
+                reason=reason,
+                args={"content": content, "name": name},
+            ),
+        )
+
+    def propose_agent_write(
+        self, root: Path, value: AgentWriteInput, *, create: bool
+    ) -> ApprovalRecord:
+        existing = agents.read(root, value.name)
+        if create and existing is not None:
+            raise ValueError("That agent already exists")
+        if not create and existing is None:
+            raise ValueError("Unknown agent")
+        content = agents.render(
+            value.name, value.description, value.instructions, value.tools
+        )
+        parsed = agents.parse(content, value.name)
+        if isinstance(parsed, str):
+            raise ValueError(parsed)
+        if self.catalog.redactor.text(content) != content:
+            raise ValueError("Secret in the agent instructions")
+        return self.propose(
+            root,
+            ApprovalRequest(
+                approval_id="",
+                run_id="",
+                kind="tool",
+                tool="agent_create" if create else "agent_edit",
+                path=f".harness/agents/{value.name}.md",
+                source_kind="configuration",
+                source_title=("Create agent " if create else "Edit agent ") + value.name,
+                policy_code="agent_create" if create else "agent_edit",
+                reason="A workspace agent changes how delegated work is done",
+                args={"name": value.name, "content": content},
+            ),
+        )
+
+    def propose_agent_delete(self, root: Path, name: str) -> ApprovalRecord:
+        if agents.read(root, name) is None:
+            raise ValueError("Unknown agent")
+        return self.propose(
+            root,
+            ApprovalRequest(
+                approval_id="",
+                run_id="",
+                kind="tool",
+                tool="agent_delete",
+                path=f".harness/agents/{name}.md",
+                source_kind="configuration",
+                source_title=f"Delete agent {name}",
+                policy_code="agent_delete",
+                reason="Deleting an agent removes a file from the workspace",
+                args={"remove": True, "name": name},
+            ),
+        )
+
+    def propose_memory(self, root: Path, content: str) -> ApprovalRecord:
+        if len(content.encode("utf-8")) > memory.LIMIT:
+            raise ValueError(f"Memory is limited to {memory.LIMIT} bytes")
+        if self.catalog.redactor.text(content) != content:
+            raise ValueError("Secret in the memory file")
+        return self.propose(
+            root,
+            ApprovalRequest(
+                approval_id="",
+                run_id="",
+                kind="tool",
+                tool="memory_update",
+                path=".harness/memory.md",
+                source_kind="configuration",
+                source_title="Workspace memory",
+                policy_code="memory_update",
+                reason="Memory is read at the start of every run in this workspace",
+                args={"content": content},
+            ),
+        )
+
     @serialized
     def propose(self, root: Path, request: ApprovalRequest) -> ApprovalRecord:
         request = ApprovalRequest.model_validate(
@@ -306,25 +554,155 @@ class ActionApprovals:
             if request.tool == "worktree_create":
                 ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
                 return
+            if request.tool in {"skill_install", "skill_create", "skill_edit"}:
+                files = request.args.get("files")
+                name = str(request.args.get("name", ""))
+                if not isinstance(files, dict) or not name:
+                    raise ValueError("Invalid skill proposal")
+                folder = self.skill_folder(root, name)
+                manifest = {str(key): str(value) for key, value in files.items()}
+                install.candidate(manifest)
+                record.execution_status = "running"
+                ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
+                try:
+                    existing = folder / "SKILL.md"
+                    if existing.is_file():
+                        SnapshotStore(root, redactor=self.catalog.redactor).capture(
+                            resolve_virtual(
+                                root,
+                                f".harness/skills/{name}/SKILL.md",
+                                allow_protected=True,
+                            ),
+                            tool=request.tool,
+                            call_id=approval_id,
+                        )
+                    install.write(folder, manifest)
+                except (SnapshotError, OSError, ValueError):
+                    record.execution_status = "interrupted"
+                    record.result = (
+                        "The skill was not written completely; inspect the folder before retrying."
+                    )
+                    ledger.save()
+                    raise ValueError(record.result) from None
+                record.execution_status = "completed"
+                record.result = f"Skill {name} saved."
+                ledger.save()
+                return
+            if request.tool == "skill_delete":
+                name = str(request.args.get("name", ""))
+                folder = self.skill_folder(root, name)
+                ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
+                try:
+                    if folder.is_dir():
+                        shutil.rmtree(folder)
+                except OSError:
+                    record.execution_status = "interrupted"
+                    record.result = "The skill folder could not be removed."
+                    ledger.save()
+                    raise ValueError(record.result) from None
+                record.execution_status = "completed"
+                record.result = f"Skill {name} deleted."
+                ledger.save()
+                return
+            if request.tool in {"agent_create", "agent_edit"}:
+                name = str(request.args.get("name", ""))
+                content = str(request.args.get("content", ""))
+                if not name or not content:
+                    raise ValueError("Invalid agent proposal")
+                parsed = agents.parse(content, name)
+                if isinstance(parsed, str):
+                    raise ValueError(parsed)
+                record.execution_status = "running"
+                ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
+                try:
+                    target = agents.path_for(root, name)
+                    if target.is_file():
+                        SnapshotStore(root, redactor=self.catalog.redactor).capture(
+                            resolve_virtual(
+                                root, f".harness/agents/{name}.md", allow_protected=True
+                            ),
+                            tool=request.tool,
+                            call_id=approval_id,
+                        )
+                    atomic_write(target, content)
+                except (SnapshotError, OSError):
+                    record.execution_status = "interrupted"
+                    record.result = "The agent file was not written; inspect the folder."
+                    ledger.save()
+                    raise ValueError(record.result) from None
+                record.execution_status = "completed"
+                record.result = f"Agent {name} saved."
+                ledger.save()
+                return
+            if request.tool == "agent_delete":
+                name = str(request.args.get("name", ""))
+                if not agents.NAME.match(name):
+                    raise ValueError("Invalid agent name")
+                ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
+                try:
+                    agents.path_for(root, name).unlink(missing_ok=True)
+                except OSError:
+                    record.execution_status = "interrupted"
+                    record.result = "The agent file could not be removed."
+                    ledger.save()
+                    raise ValueError(record.result) from None
+                record.execution_status = "completed"
+                record.result = f"Agent {name} deleted."
+                ledger.save()
+                return
+            if request.tool == "memory_update":
+                content = str(request.args.get("content", ""))
+                record.execution_status = "running"
+                ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
+                try:
+                    SnapshotStore(root, redactor=self.catalog.redactor).capture(
+                        resolve_virtual(root, ".harness/memory.md", allow_protected=True),
+                        tool="memory_update",
+                        call_id=approval_id,
+                    )
+                    atomic_write(memory.path_for(root), content)
+                except (SnapshotError, OSError):
+                    record.execution_status = "interrupted"
+                    record.result = "Memory was not saved; inspect file permissions."
+                    ledger.save()
+                    raise ValueError(record.result) from None
+                record.execution_status = "completed"
+                record.result = "Memory saved."
+                ledger.save()
+                return
             remove = request.args.get("remove") is True
-            config = request.tool in {"planning_settings_update", "verify_settings_update"}
-            if not remove and not config:
+            config = request.tool in {
+                "planning_settings_update",
+                "verify_settings_update",
+                "search_settings_update",
+            }
+            mcp = request.tool in {
+                "mcp_server_add",
+                "mcp_server_update",
+                "mcp_server_delete",
+            }
+            if mcp:
+                McpFile.model_validate_json(str(request.args["content"]))
+            if not remove and not config and not mcp:
                 RulesFile.model_validate_json(str(request.args["content"]))
             # An answer is durable before mutation. If the process dies in between,
             # the proposal stays decided and is never automatically applied again.
             record.execution_status = "running"
             ledger.answer(ApprovalAnswer(approval_id=approval_id, **decision.model_dump()))
             try:
+                relative = (
+                    ".harness/mcp.json"
+                    if mcp
+                    else ".harness/config.json"
+                    if config
+                    else ".harness/rules.json"
+                )
                 SnapshotStore(root, redactor=self.catalog.redactor).capture(
-                    resolve_virtual(
-                        root,
-                        ".harness/config.json" if config else ".harness/rules.json",
-                        allow_protected=True,
-                    ),
-                    tool=request.tool if config else "rules_update",
+                    resolve_virtual(root, relative, allow_protected=True),
+                    tool=request.tool if config or mcp else "rules_update",
                     call_id=approval_id,
                 )
-                target = storage_path(root, "config.json" if config else "rules.json")
+                target = storage_path(root, relative.rsplit("/", 1)[-1])
                 if remove:
                     target.unlink(missing_ok=True)
                 else:
@@ -340,6 +718,10 @@ class ActionApprovals:
                 if request.tool == "planning_settings_update"
                 else "Verification settings saved."
                 if request.tool == "verify_settings_update"
+                else "Search settings saved."
+                if request.tool == "search_settings_update"
+                else "MCP servers saved."
+                if mcp
                 else "Rules saved."
             )
             ledger.save()

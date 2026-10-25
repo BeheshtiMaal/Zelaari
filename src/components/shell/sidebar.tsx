@@ -14,7 +14,7 @@ export function Sidebar({ t, session, settings, current = "home", reset, openSet
     <div className="brand"><span className="brand-mark" /><span dir="ltr">CodeHarness</span></div>
     <nav><button className={`nav-item ${!settings && current === "home" ? "active" : ""}`} onClick={reset}><PlusCircleIcon size={18} /><span>{t.newTask}</span></button>
       <a className={`nav-item ${current === "inbox" ? "active" : ""}`} href="/approvals/"><TrayIcon size={18} /><span>{t.approvals}</span>{count > 0 && <span className="inbox-badge" data-testid="inbox-badge">{new Intl.NumberFormat(session.locale).format(count)}</span>}</a>
-      <a className={`nav-item ${current === "rules" ? "active" : ""}`} href="/customize/"><SparkleIcon size={18} /><span>{t.customize}</span></a>
+      <a className={`nav-item ${current === "customize" || current === "rules" ? "active" : ""}`} href="/customize/"><SparkleIcon size={18} /><span>{t.customize}</span></a>
       <button className="nav-item" disabled title={t.soon}><AlarmIcon size={18} /><span>{t.schedule}</span></button>
     </nav>
     <div className="workspace-label">{t.workspaces} ({new Intl.NumberFormat(session.locale).format(session.spaces.recent?.length ?? 0)})</div>

@@ -6,8 +6,9 @@ import { ShieldCheckIcon } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import type { Dictionary } from "../i18n";
 import type { Session } from "../lib/use-session";
 import { Hint } from "./hint";
-import { useCommands } from "../lib/use-commands";
+import { useCommands, useCommandList } from "../lib/use-commands";
 import { questionCopy } from "../i18n/questions";
+import { customizeCopy } from "../i18n/customize";
 import { contextCopy } from "../i18n/context";
 import { useRun } from "../store/run";
 import { currentContext } from "../lib/timeline";
@@ -15,7 +16,8 @@ import { useVerifySettings } from "../lib/use-verify-settings";
 import { useRunSummary } from "../lib/use-summary";
 import { ContextRing } from "./context/context-ring";
 export function Composer({ t, task, setTask, session: s, submit }: {t: Dictionary; task: string; setTask(task: string): void; session: Session; submit(): void}) {
-  const commands = useCommands(task, setTask), q = questionCopy(s.locale), c = contextCopy(s.locale);
+  const commandList = useCommandList(s.workspace);
+  const commands = useCommands(task, setTask, commandList), q = questionCopy(s.locale), c = contextCopy(s.locale);
   const events = useRun(state => state.events), runId = useRun(state => state.runId);
   const settings = useVerifySettings(s.workspace);
   const summarised = events.filter(event => event.type === "context.summarized").length;
@@ -25,11 +27,12 @@ export function Composer({ t, task, setTask, session: s, submit }: {t: Dictionar
   return <form className="composer-frame" onSubmit={event => { event.preventDefault(); submit(); }}>
     <div className="composer">
       <label className="sr-only" htmlFor="task">{t.taskLabel}</label>
-      {commands.matches.length > 0 && <div className="command-picker" role="listbox" id="composer-commands" aria-label={q.options}>{commands.matches.map(command => <button key={command} type="button" role="option" aria-selected="true" id="command-grill" onMouseDown={event => event.preventDefault()} onClick={() => commands.choose(command)}><code>{command}</code><span>{q.command}</span></button>)}</div>}
-      <textarea id="task" rows={2} role="combobox" aria-autocomplete="list" aria-expanded={commands.matches.length > 0} aria-controls="composer-commands" aria-activedescendant={commands.matches.length ? "command-grill" : undefined} placeholder={t.placeholder} value={task} disabled={!s.ready} onChange={event => setTask(event.target.value)} onKeyDown={event => {
+      {commands.matches.length > 0 && <div className="command-picker" role="listbox" id="composer-commands" aria-label={q.options}>{commands.matches.map((command, at) => <button key={command.name} type="button" role="option" aria-selected={at === commands.index} id={`command-${command.name}`} onMouseDown={event => event.preventDefault()} onClick={() => commands.choose(command.command)}><code>{command.command}</code><span>{command.description}</span>{command.requires_approval && <span className="type-chip">{customizeCopy(s.locale).needsApproval}</span>}</button>)}</div>}
+      <textarea id="task" rows={2} role="combobox" aria-autocomplete="list" aria-expanded={commands.matches.length > 0} aria-controls="composer-commands" aria-activedescendant={commands.matches.length ? `command-${commands.matches[commands.index].name}` : undefined} placeholder={t.placeholder} value={task} disabled={!s.ready} onChange={event => setTask(event.target.value)} onKeyDown={event => {
         if (commands.keyDown(event) || event.nativeEvent.isComposing) return;
         if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); }
       }} />
+      {commands.active && <p className="active-skill" data-testid="active-skill" dir="auto"><code dir="ltr">{commands.active.command}</code><span>{commands.active.name}</span></p>}
       <div className="composer-toolbar"><Hint text={t.soon}><button type="button" className="icon-button" disabled aria-label={t.add}><PlusIcon size={22} /></button></Hint>
         <div className="model-send">{context?.type === "context.updated" && (ring.show_ring ?? true) && <ContextRing event={context} locale={s.locale} threshold={ring.compaction_percent ?? 60} summary={!!summary} busy={s.busy} onNewChat={() => void s.start(task.trim() || c.continueTask, false, runId ?? undefined)} />}
           <label className="model-select"><span className="sr-only">{t.modelSelect}</span><select aria-label={t.modelSelect} value={s.model} disabled={s.busy} onChange={event => s.setModel(event.target.value)}><option value="">{t.modelSelect}</option>{s.models.map(model => <option key={model.id} value={model.id} disabled={!model.supports_tools || model.probe?.status !== "ok"}>{model.kind === "demo" ? t.demo : model.name}</option>)}</select></label>

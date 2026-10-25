@@ -30,8 +30,16 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command, interrupt
 from pydantic import BaseModel, JsonValue
 
+from agent.activity import DELEGATES
 from permissions.review import arguments_digest, prepare_review
-from permissions.rules import COMMAND_TOOLS, DELETE_TOOLS, READ_TOOLS, WRITE_TOOLS, RulesEngine
+from permissions.rules import (
+    COMMAND_TOOLS,
+    DELETE_TOOLS,
+    READ_TOOLS,
+    SKILL_TOOLS,
+    WRITE_TOOLS,
+    RulesEngine,
+)
 from permissions.types import (
     ApprovalAnswer,
     ApprovalBatch,
@@ -88,6 +96,11 @@ def tool_target(tool: str, args: dict[str, Any]) -> tuple[str | None, str | None
     if tool == "git_switch":
         branch = args.get("branch")
         return None, f"git switch {branch}" if branch else None, None
+    if tool == "web_search":
+        # The query is the thing a person must read and may edit, so it is the
+        # command the approval card shows.
+        query = args.get("query")
+        return None, str(query) if isinstance(query, str) else None, None
     if tool == "worktree_create":
         path = args.get("path") or args.get("name")
         return str(path) if path else None, None, None
@@ -110,26 +123,32 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
         run_id: str,
         redactor: Redactor | None = None,
         grill: bool = False,
+        delegates: frozenset[str] | None = None,
     ) -> None:
         super().__init__()
         self.rules = rules
         self.run_id = run_id
         self.redactor = redactor or Redactor()
         self.grill = grill
+        self.delegates = delegates or DELEGATES
         self.plans = PlanGate(rules.root, run_id, rules.mode)
         self.plan_context: dict[str, Any] = {}
 
     # -- resolution --------------------------------------------------------
     def decide(self, call: ToolCall) -> PermissionOutcome:
-        if call["name"] == "task" and call.get("args", {}).get("subagent_type") not in {
-            "reviewer",
-            "researcher",
-        }:
+        if call["name"] == "task" and call.get("args", {}).get("subagent_type") not in (
+            self.delegates
+        ):
             return PermissionOutcome(
-                action="deny", reason="Only read-only reviewer/researcher delegates are authorized"
+                action="deny",
+                reason="Only the read-only delegates this workspace defines are authorized",
             )
         if call["name"] in {"ask_user_question", "finish_interview", "submit_plan"}:
             return PermissionOutcome(action="allow", reason="human information request")
+        if call["name"] in SKILL_TOOLS:
+            # Reading instructions the person installed cannot change anything; the
+            # body still passes through the redactor like every other tool result.
+            return PermissionOutcome(action="allow", reason="skill body read")
         path, command, timeout = tool_target(call["name"], call.get("args") or {})
         return self.rules.decide(call["name"], path=path, command=command, timeout=timeout)
 
@@ -248,7 +267,8 @@ class PermissionMiddleware(AgentMiddleware[Any, Any, Any]):
             if (
                 self.grill
                 and phase != "ready"
-                and call["name"] not in READ_TOOLS | {"ask_user_question", "finish_interview"}
+                and call["name"]
+                not in READ_TOOLS | SKILL_TOOLS | {"ask_user_question", "finish_interview"}
             ):
                 return PermissionOutcome(
                     action="deny", reason="Interview is not ready for implementation"

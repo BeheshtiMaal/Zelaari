@@ -175,6 +175,7 @@ try {
   await page.screenshot({ path: join(artifacts, "history-fa.png") });
   step("Rules grid chrome and explicit save approval");
   await page.locator('a[href="/customize/"]').click();
+  await page.getByTestId("customize-tab-rules").click();
   await expect(page.locator(".rules-panel").first()).toBeVisible();
   await page.getByRole("button", { name: approvalCopy("fa").add, exact: true }).click();
   await page.locator(".rules-table input").nth(2).fill("delete");

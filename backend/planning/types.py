@@ -110,7 +110,9 @@ class ActivityScope(PlanningModel):
     step_id: Identity | None = None
     parent_scope_id: Identity | None = None
     turn_id: Identity | None = None
-    agent: Literal["parent", "reviewer", "researcher"] = "parent"
+    # `parent`, the two built-in delegates, or a workspace agent's name. The allowlist
+    # lives in the permission gate, not in this annotation.
+    agent: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,31}$")] = "parent"
     model: str | None = None
     provider: str | None = None
 

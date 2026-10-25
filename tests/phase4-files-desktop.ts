@@ -86,11 +86,13 @@ try {
   await page.screenshot({ path: join(artifacts, "worktree-en.png") });
   console.log("[phase4-files] Rules changes always ask in Auto");
   await page.locator('a[href="/customize/"]').click();
+  await page.getByTestId("customize-tab-rules").click();
   await page.locator(".rules-mode select").selectOption("auto");
   await page.getByRole("button", { name: "Review changes", exact: true }).click();
   await page.locator('a[href="/approvals/"]').first().click();
   await card.getByTestId("approval-approve").click();
   await page.locator('a[href="/customize/"]').click();
+  await page.getByTestId("customize-tab-rules").click();
   await expect(page.locator(".rules-mode select")).toHaveValue("auto");
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
   await page.getByRole("button", { name: "Review changes", exact: true }).click();

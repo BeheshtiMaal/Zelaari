@@ -33,6 +33,7 @@ from permissions.types import (
     UnknownApproval,
 )
 from server.app import create_app
+from skills.prompt import task_of
 from store.eventlog import EventBus
 from store.secrets import Redactor
 from tools.command import CommandRunner, build_run_command
@@ -73,7 +74,9 @@ class ScriptedModel(BaseChatModel):
         # Keep the original scripted call IDs/turns so approval/recovery assertions still apply.
         effects = {"write_file", "edit_file", "delete", "run_command", "git_switch"}
         results = [item for item in messages if isinstance(item, ToolMessage)]
-        task = next((str(item.content) for item in messages if item.type == "human"), "")
+        task = task_of(
+            next((str(item.content) for item in messages if item.type == "human"), "")
+        )
         interview_ready = not task.startswith("/grill") or any(
             item.name == "finish_interview" and "Permission denied" not in str(item.content)
             for item in results
@@ -411,7 +414,8 @@ def test_a_longer_timeout_asks_even_in_auto(root: Path) -> None:
         ("grep", {"pattern": "x", "path": "src"}, ("src", None, None)),
         ("run_command", {"command": "ls", "timeout": 30}, (None, "ls", 30.0)),
         ("git_switch", {"branch": "main"}, (None, "git switch main", None)),
-        ("web_search", {"query": "x"}, (None, None, None)),
+        # Phase 8: the query is the approval card's subject, so it can be read and edited.
+        ("web_search", {"query": "x"}, (None, "x", None)),
     ],
 )
 def test_tool_target_extraction(
