@@ -11,4 +11,12 @@ if ($runningBundles) { throw 'Close the running bundled CodeHarness engine befor
 uv run --offline --no-sync --project backend pyinstaller --noconfirm --onedir --name watchdog --distpath build/engine --workpath build/work --specpath build/work backend/server/watchdog.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 uv run --offline --no-sync --project backend pyinstaller --noconfirm --onedir --name engine --distpath build/engine --workpath build/work --specpath build/work --paths $engineSourceRoot --collect-all deepagents --collect-all langchain --collect-all langchain_openai --collect-all langchain_anthropic --collect-all langgraph --collect-all tiktoken --copy-metadata langchain-core --add-data "$enginePromptFile;agent" --add-data "$providerPresetFile;providers" --add-data "$providerContextFile;providers" backend/server/entrypoint.py
-exit $LASTEXITCODE
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$sampleSourceRoot = Join-Path $workspaceRoot 'examples'
+$sampleTargetRoot = Join-Path $engineOutputRoot 'engine/examples'
+if (-not (Test-Path -LiteralPath (Join-Path $sampleSourceRoot 'sample-project/README.md'))) { throw 'examples/sample-project/README.md is missing from the checkout; the bundle would ship without the sample it advertises.' }
+if (Test-Path -LiteralPath $sampleTargetRoot) { Remove-Item -LiteralPath $sampleTargetRoot -Recurse -Force }
+New-Item -ItemType Directory -Path $sampleTargetRoot | Out-Null
+Get-ChildItem -LiteralPath $sampleSourceRoot -Force | Copy-Item -Destination $sampleTargetRoot -Recurse -Force
+if (-not (Test-Path -LiteralPath (Join-Path $sampleTargetRoot 'sample-project/README.md'))) { throw "The engine bundle has no examples/sample-project/README.md under $sampleTargetRoot; a packaged app would answer 404 on the sample project." }
+exit 0
