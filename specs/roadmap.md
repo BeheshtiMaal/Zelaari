@@ -32,6 +32,13 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | D24 | Breakdown numbers | Per-category rows are estimates (`~`); the total uses provider usage when reported, so the ring is exact and the rows are honest |
 | D25 | Unknown test command | The agent asks through `ask_user_question`; a middleware cannot raise the Phase 5 barrier without duplicating it, so the gate verifies the call happened and adopts the answer |
 | D26 | Terminal renderer | xterm.js (`@xterm/xterm` 6.0.0 + `@xterm/addon-fit` 0.11.0), output-only. The `<pre>` fallback was not needed; the install worked offline |
+| D27 | The generated schema is the validator's contract | One library (`library.tsx`) produces both the model's prompt and the JSON schema the Python validator reads. No component list is maintained in Python, so React and the validator cannot disagree |
+| D28 | `render_ui` is read-only, so it never asks | It changes no file, no rule and no permission. A tool that asked on every render would train the person to click approve without reading |
+| D29 | Light theme is a palette, not a second tree | Every colour is a token and every size is a type step, so the same components render in both themes. The sweep was a precondition, not a follow-up |
+| D30 | The font preference scales type tokens, not `zoom` | xterm measures its own cell size; `zoom` breaks it. `--fs-scale` multiplies every `--fs-*` step instead |
+| D31 | The crash screen keeps the app alive | A sidecar exit used to destroy the windows. It now reports `engine-status` and offers `restart-engine`, which is the only way "restart" can exist |
+| D32 | Destructive rows use two confirmations | A dialog that names the loss, then an explicit checkbox — not an inbox approval. They are the person's own action on their own app data, and an inbox approval would mean approving themselves |
+| D33 | A fresh install is dark | The mock is dark and the product is Persian-first; the OS preference is one click away under `مثل سیستم`. Following the OS by default would make the first screen depend on a machine setting nobody chose here |
 
 ## Phases
 | # | Phase | Outcome | Mock screens |
@@ -45,7 +52,7 @@ The UI mock (19 screens, Persian RTL, dark) is the visual source of truth; every
 | 6 | **Planning + activity timeline - complete** | Structured plans, reviewed initial/deviation gates and workspace settings, stable todo progress, trusted PlanChecklist, scoped reasoning and concurrent read-only delegates, actual summarization notices, truthful telemetry, durable steering and cancellation/recovery. Offline engine and Windows Electron evidence is recorded in `2026-10-19-phase-6-planning-timeline/validation.md` and `learnings.md`. | Run |
 | 7 | **Verify + self-correction + context ring - complete** | Test detection (D2), the verify gate and unknown-command question, bounded self-correction with the exhausted card, real step/time/fix budgets, TestResults + read-only xterm terminal with the timeout variant, context ring + breakdown + auto-compaction with summary handoff, and both settings screens behind the configuration approval. Offline engine and Windows Electron evidence is recorded in `2026-10-24-phase-7-verify-context/validation.md` and `learnings.md`. | Settings: context, terminal and tests |
 | 8 | **Skills + Customize hub - complete** | Skills as folders (bundled / user / project) with a bounded frontmatter parser, a pre-use scan, per-workspace switches, progressive disclosure (`load_skill`), install from folder/ZIP/Git through the protected approval, a JSON marketplace catalog, slash commands, the five bundled skills plus the sample project skill, `web_search` that always asks, MCP connectors with `server__tool` names through the permission gate, and the Agents / Memory / Rules / Connectors tabs. Offline engine and Windows Electron evidence is recorded in `2026-10-25-phase-8-skills-customize/validation.md` and `learnings.md`. | Customize: Skills, Connectors (inner screens now drawn) |
-| 9 | `render_ui` + polish | model-composed GenUI, themes, fa/en, empty/error states, shortcuts, accessibility, remaining settings | Settings: appearance, permissions, data, about; Empty; Errors |
+| 9 | **`render_ui` + polish - complete** | One OpenUI library generating both the model's prompt and the validator's JSON schema, a bounded parser and a schema-driven validator, `render_ui` as a read-only tool that never asks, the twelve components drawn in the timeline with the failure note kept, seven settings sections (appearance and language, permissions and safety with the engine's five locked rows, data and privacy with a two-confirmation danger zone, about), two palettes from one token set with an 18-step type scale, six empty states, a crash card with `restart-engine`, one keyboard table, a skip link, one focus ring, and fa/en parity enforced by test. Offline engine and Windows Electron evidence is recorded in `2026-10-25-phase-9-render-ui-polish/validation.md` and `learnings.md`. | Settings: appearance, permissions, data, about; Empty; Errors |
 | 9b | Schedule | scheduler in engine (app-open only), Schedule tab, add dialog, templates, queued approvals, missed-run prompt | Schedule, Add schedule |
 | 10 | Packaging + evals | PyInstaller + electron-builder (installer + zip, D4), CI, eval suite, README, SECURITY.md | none |
 
@@ -185,8 +192,38 @@ mode); a workspace agent stays a prompt plus the read-only ceiling, intersected 
 middleware; memory is read-only to the agent and written only by an approval; and `npm run build` must precede any desktop
 suite, because Electron serves the static export from `out/`.
 
+## Phase 9 handoff to Phase 9b
+
+Phase 9 is complete; the validation record, the installed contracts it used and the defects the walkthrough found are in
+`2026-10-25-phase-9-render-ui-polish/validation.md` and `learnings.md`. Phase 9b is the Schedule tab; Phase 10 is
+packaging and evals.
+
+What Phase 9b inherits and should reuse rather than re-invent:
+
+- **The schedule empty state already exists.** `EmptyState` in `src/components/states/empty-state.tsx` with
+  `statesCopy(locale).noSchedules` is built and tested (`tests/unit/states.test.ts` asserts it is the one state no screen
+  reaches yet, via `WIRED` in `src/lib/states.ts`). Wiring the tab means changing that one entry from `null` to the
+  component and deleting the test's allowance — not writing new copy.
+- **The settings section pattern.** A tab is `src/i18n/<area>.ts` (`en` typed against `fa`), a `use-<area>.ts` hook, pure
+  helpers in `src/lib/<area>.ts` covered by `tests/unit`, and `data-testid` per control. `i18n.test.ts` discovers copy
+  modules automatically, so a new one is covered the day it is written — and it will fail if a Persian literal appears in
+  a component.
+- **The staged-approval contract** still applies to a schedule that writes. Queued approvals from a scheduled run arrive in
+  the same inbox, and the inline `ApprovalCard` is what the proposing surface shows.
+- **`tests/phase9-desktop.ts`** is the template for a walkthrough: launch, assert on the DOM, collect evidence, never
+  screenshot-and-hope. It also shows how to prove persistence (three launches on one profile) and how to prove a restart
+  (kill the engine's children, wait for the card, restart, then use the app).
+
+Invariants Phase 9b must not break: `render_ui` stays read-only and absent from the always-ask list; the always-ask list
+stays engine-owned and five rows long (adding a sixth means changing the middleware, not the screen); every colour comes
+from a palette token and every size from the `--fs-*` scale (`tests/unit/theme.test.ts` reads the stylesheet as data); no
+physical CSS property anywhere (`tests/unit/logical-css.test.ts`); every key mapping goes through `src/lib/shortcuts.ts`;
+and every user-visible string lives in `fa`/`en` with the same shape, the same placeholders and Persian digits in Persian.
+
 ## Audit log (D20): the mock wins
+
 The mock was left exactly as sketched. These spec statements were changed to match it:
+- Permissions: the always-ask list shows the engine's **five** rows, not the mock's three. The mock's three keep their order and MCP tool calls and long timeouts follow, because showing three would tell the person those run unattended in Auto (D10, Decision 10).
 - Skills: tab is called Marketplace (JSON catalog in a Git repo); 5 bundled skills plus `read-framework-docs` as an example project skill; `node-project` moved to backlog.
 - Customize hub includes **Connectors (MCP)**; MCP moved from backlog into Phase 8.
 - Permissions: delete defaults to `ask` while the mock shows a user-set `deny`; "deleting many files" folded into high-risk commands; the high-risk plan trigger is fixed
