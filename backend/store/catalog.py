@@ -1,5 +1,6 @@
 """Atomic app-data metadata and memory-only credentials."""
 
+from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 from threading import RLock
@@ -15,6 +16,7 @@ from providers.base import (
     WorkspaceState,
     infer_kind,
 )
+from scheduling.model import ScheduleRecord, reloaded
 from store.secrets import Redactor
 
 
@@ -23,6 +25,8 @@ class CatalogData(Record):
     models: dict[str, ProviderRecord] = Field(default_factory=dict)
     settings: Settings = Field(default_factory=Settings)
     workspaces: WorkspaceState = Field(default_factory=WorkspaceState)
+    schedules: list[ScheduleRecord] = Field(default_factory=list)
+    """Scheduled tasks. App data, not workspace data: they outlive any one folder."""
 
 
 class Credential(Record):
@@ -46,6 +50,11 @@ class Catalog:
             for task in self.data.workspaces.tasks:
                 if task.status == "running":
                     task.status = "interrupted"
+            # A schedule reloads the way a task does: anything the last session left in
+            # flight is repaired, and an occurrence that fell due while the app was closed
+            # is kept so the startup pass can offer it instead of silently skipping it.
+            moment = datetime.now()
+            self.data.schedules = [reloaded(item, moment) for item in self.data.schedules]
 
     def persist(self) -> None:
         with self.lock:

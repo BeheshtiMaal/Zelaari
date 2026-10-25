@@ -214,22 +214,30 @@ def skipped(schedule: ScheduleRecord, now: datetime) -> ScheduleRecord:
 
 
 def failed(schedule: ScheduleRecord, message: str, now: datetime) -> ScheduleRecord:
-    """Record why this occurrence could not start and move past it rather than retry in a loop."""
-    return schedule.model_copy(
-        update={
-            "last_error": message,
-            "next_run_at": next_run_after(schedule, now),
-            "last_status": "error",
-        }
-    )
+    """Record why this occurrence could not start.
+
+    The occurrence is *not* advanced past: a missing model or a locked folder is usually fixed
+    within the hour, and skipping to tomorrow would quietly lose tonight's run. The ticker
+    holds the backoff, so this stays a pure record of the last attempt.
+    """
+    del now  # the transition itself does not depend on the clock
+    return schedule.model_copy(update={"last_error": message, "last_status": "error"})
 
 
 def reloaded(schedule: ScheduleRecord, now: datetime) -> ScheduleRecord:
-    """After a restart: recompute the next occurrence and stop claiming a run is still going."""
+    """After a restart: fill in a missing occurrence and stop claiming a run is still going.
+
+    An occurrence that fell due while the app was closed is *kept*, not recomputed: the
+    ticker's startup pass has to see it to offer "run now". Recomputing from `now` here would
+    quietly delete the one thing a missed run is.
+    """
     status = schedule.last_status
+    next_at = schedule.next_run_at
+    if next_at is None:
+        next_at = next_run_after(schedule, now)
     return schedule.model_copy(
         update={
-            "next_run_at": next_run_after(schedule, now),
+            "next_run_at": next_at,
             "last_status": "interrupted" if status == "running" else status,
         }
     )
