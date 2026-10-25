@@ -5,6 +5,11 @@
 یک مدل نمایشی آفلاین همراه برنامه است تا پیش از آنکه کلید داشته باشید، یک فراخوانی واقعی ابزار و یک پاسخ واقعی ببینید.
 
 <p align="center">
+  <a href="https://github.com/BeheshtiMaal/Zelaari/releases/latest"><strong>دانلود برای ویندوز</strong></a>
+  · ویندوز ۱۰ و ۱۱، ۶۴ بیتی · بدون نیاز به پایتون یا نود
+</p>
+
+<p align="center">
   <img src="docs/screenshots/run.png" alt="یک اجرای واقعی با مدل نمایشی" width="880">
 </p>
 <p align="center" dir="rtl"><strong>تصویر ۱.</strong> یک اجرای واقعی با مدل نمایشی: خط ابزار <code>read_file</code>، پاسخ مدل با نقل‌قول از فایل، و شمارندهٔ توکن.</p>
@@ -13,9 +18,18 @@
 
 ## نصب
 
-1. `CodeHarness-Setup-0.1.0.exe` را دانلود کنید (یا `CodeHarness-0.1.0-x64.zip` را برای نسخهٔ قابل‌حمل بردارید — هرجا باز کنید و `CodeHarness.exe` را اجرا کنید).
-2. اجرایش کنید. ویندوز پیام **«Windows protected your PC»** را نشان می‌دهد، چون نصب‌کننده امضای کد ندارد. روی **More info** و سپس **Run anyway** بزنید.
+از صفحهٔ [Releases](https://github.com/BeheshtiMaal/Zelaari/releases/latest) یکی از این دو فایل را بردارید:
+
+| فایل | توضیح |
+| --- | --- |
+| [`CodeHarness-Setup-0.1.0.exe`](https://github.com/BeheshtiMaal/Zelaari/releases/download/v0.1.0/CodeHarness-Setup-0.1.0.exe) | نصب‌کننده؛ میانبر می‌سازد و از «افزودن یا حذف برنامه‌ها» حذف می‌شود |
+| [`CodeHarness-0.1.0-x64.zip`](https://github.com/BeheshtiMaal/Zelaari/releases/download/v0.1.0/CodeHarness-0.1.0-x64.zip) | نسخهٔ قابل‌حمل؛ هرجا باز کنید و `CodeHarness.exe` را اجرا کنید |
+
+1. فایل انتخاب‌شده را اجرا کنید. برای نسخهٔ قابل‌حمل، zip را باز کنید و `CodeHarness.exe` را اجرا کنید.
+2. ویندوز پیام **«Windows protected your PC»** را نشان می‌دهد، چون نصب‌کننده امضای کد ندارد. روی **More info** و سپس **Run anyway** بزنید.
 3. یک پوشه انتخاب کنید — مسیر پیش‌فرضِ هر کاربر است و به دسترسی مدیر نیاز ندارد — و نصب را تمام کنید.
+
+هر دو فایل با `SHA256SUMS.txt` در همان نسخه منتشر می‌شوند؛ برای بررسی، در پاورشل `Get-FileHash .\CodeHarness-Setup-0.1.0.exe -Algorithm SHA256` را اجرا کنید.
 
 هیچ چیز دیگری لازم نیست: **نه پایتون، نه نود، نه ابزار ساخت.** موتور داخل برنامه است و نصب‌کننده آن را همان‌جا می‌گذارد.
 
