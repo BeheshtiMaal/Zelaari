@@ -4,7 +4,23 @@ import json
 import os
 import socket
 import sys
+from collections.abc import Callable
 from pathlib import Path
+
+
+def hook_crashes(log: Callable[[str], None]) -> None:
+    """Write the exception type and message, then let the default handler report it.
+
+    Only the type and message: a traceback frame can hold the task text, and this file
+    is meant to be safe to send.
+    """
+    previous = sys.excepthook
+
+    def report(kind: type[BaseException], value: BaseException, traceback: object) -> None:
+        log(f"unhandled {kind.__name__}: {value}")
+        previous(kind, value, traceback)  # type: ignore[arg-type]
+
+    sys.excepthook = report
 
 
 def main() -> None:
@@ -28,15 +44,27 @@ def main() -> None:
     import uvicorn
 
     from server.app import create_app
+    from server.logging import open_log
+
+    # The same `logs` folder the Electron side writes `main.log` into, so the crash card's
+    # "open the log folder" shows both halves of one failure.
+    log = open_log(app_data / "logs") if app_data else (lambda message: None)
+    hook_crashes(log)
+    log(f"engine start mode={'dev' if dev else 'app'} pid={os.getpid()}")
 
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen(128)
-        print(json.dumps({"port": listener.getsockname()[1]}), flush=True)
-        uvicorn.Server(
-            uvicorn.Config(
-                create_app(token, dev=dev, app_data=app_data),
-                log_level="critical",
-                access_log=False,
-            )
-        ).run(sockets=[listener])
+        port = listener.getsockname()[1]
+        print(json.dumps({"port": port}), flush=True)
+        log(f"engine listening port={port}")
+        try:
+            uvicorn.Server(
+                uvicorn.Config(
+                    create_app(token, dev=dev, app_data=app_data),
+                    log_level="critical",
+                    access_log=False,
+                )
+            ).run(sockets=[listener])
+        finally:
+            log("engine stop")

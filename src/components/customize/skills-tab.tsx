@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
+import { SparkleIcon } from "@phosphor-icons/react/dist/csr/Sparkle";
 import type { CustomizeCopy } from "../../i18n/customize";
 import type { Locale } from "../../i18n";
+import { statesCopy } from "../../i18n/states";
 import type { Session } from "../../lib/use-session";
 import { useSkills, type SkillsHub } from "../../lib/use-skills";
 import {
@@ -18,6 +20,7 @@ import { SkillCard, SkillDetailPanel } from "./skill-card";
 import { InstallDialog } from "./install-dialog";
 import { CreateDialog } from "./create-dialog";
 import { MarketplaceList } from "./marketplace-list";
+import { EmptyState } from "../states/empty-state";
 
 type Inner = "installed" | "market" | "mine";
 
@@ -31,9 +34,12 @@ export function SkillsTab({ session, copy }: { session: Session; copy: Customize
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [dialog, setDialog] = useState<"install" | "create" | "edit" | "delete" | null>(null);
-  const locale: Locale = session.locale;
+  const [browsing, setBrowsing] = useState(false);
+  const locale: Locale = session.locale, states = statesCopy(locale);
   const shown = filterSkills(innerSkills(hub, inner), query, category);
   const selected = hub.detail;
+  // "No skills enabled" is a nudge, not a wall: browsing it shows the cards to switch on.
+  const nothingOn = hub.skills.length > 0 && !hub.skills.some(skill => skill.enabled) && !browsing;
 
   if (!session.workspace) return <p className="muted">{copy.chooseWorkspace}</p>;
 
@@ -76,6 +82,9 @@ export function SkillsTab({ session, copy }: { session: Session; copy: Customize
 
         {hub.error && <p className="error" role="alert">{copy.error}</p>}
 
+        {nothingOn ? <EmptyState testId="state-no-skills" icon={<SparkleIcon size={26} />}
+          label={states.noSkills.label} title={states.noSkills.title} help={states.noSkills.help}
+          actions={[{ label: states.noSkills.primary, testId: "state-browse-skills", primary: true, onClick: () => setBrowsing(true) }]} /> :
         <div className="skill-grid">
           {shown.map(skill => <SkillCard key={skill.name} skill={skill} copy={copy} locale={locale}
             active={hub.selected === skill.name} disabled={hub.busy}
@@ -84,7 +93,7 @@ export function SkillsTab({ session, copy }: { session: Session; copy: Customize
           <button className="skill-add" data-testid="skill-add" onClick={() => setDialog("install")}>
             <b>{copy.addSkill}</b><span>{copy.addSkillHint}</span>
           </button>
-        </div>
+        </div>}
 
         {hub.problems.length > 0 && <section className="skill-problems">
           <h3>{copy.broken}</h3>

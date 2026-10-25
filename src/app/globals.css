@@ -22,7 +22,6 @@
 .rules-defaults > div { display: flex; gap: 10px; }
 .rules-defaults dt { font-family: Consolas, monospace; color: var(--text-muted); }
 .rules-defaults dd { margin: 0; }
-.rules-screen :focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
 .inbox-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 .inbox-heading h1 { font-size: var(--fs-22); font-weight: 800; margin: 0; }
 .inbox-heading p { margin: 0; }
@@ -72,7 +71,6 @@
 .approval-actions button.reject { border-color: var(--danger-border); color: var(--danger); }
 .approval-actions a, .approval-actions .shortcuts { margin-inline-start: auto; font-size: var(--fs-12); }
 .approval-actions a { color: var(--accent-text); }
-.approval-card :focus-visible, .inbox-screen :focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
 @media (max-width: 1120px) { .inbox-panes { flex-direction: column; } .inbox-list, .inbox-detail { inline-size: 100%; } }
 
 .settings-layout { display: flex; gap: 24px; padding-block: 24px; padding-inline: 28px; overflow: auto; block-size: 100%; align-items: flex-start; }
@@ -117,7 +115,6 @@ button.light-button { display: inline-flex; align-items: center; justify-content
 .model-dialog label { display: flex; flex-direction: column; gap: 4px; color: var(--text-soft); font-size: var(--fs-13); }
 .model-dialog input { border: 1px solid var(--border-input); background: var(--bg-input); color: var(--text); border-radius: 12px; padding-block: 9px; padding-inline: 14px; font: inherit; inline-size: 100%; }
 .model-dialog input[dir="ltr"] { font-family: Consolas, monospace; }
-input:focus-visible, [tabindex="0"]:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
 .model-dialog small { color: var(--text-dim); font-size: var(--fs-12); }
 .presets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-block-start: 8px; }
 .presets span { color: var(--text-dim); font-size: var(--fs-12); }
@@ -136,9 +133,21 @@ input:focus-visible, [tabindex="0"]:focus-visible { outline: 2px solid var(--acc
 .empty-state-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-block-size: 250px; padding-block: 26px; padding-inline: 22px; border-radius: 16px; background: var(--bg-surface); text-align: center; }
 .empty-icon { inline-size: 56px; block-size: 56px; border-radius: 50%; background: var(--bg-raised); color: var(--text-soft); display: flex; align-items: center; justify-content: center; }
 .empty-state strong { font-size: var(--fs-16); }
-.empty-state p { color: var(--text-muted); font-size: var(--fs-13); margin: 0; max-inline-size: 320px; }
+.empty-state p { color: var(--text-muted); font-size: var(--fs-13-5); margin: 0; max-inline-size: 320px; }
 .empty-state button { border: 1px solid var(--border-button); border-radius: 12px; background: transparent; padding-block: 6px; padding-inline: 18px; }
-.empty-state .button-row button:first-child, .empty-state-body > button { background: var(--accent); border: 0; }
+.empty-state .button-row button.primary { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); font-weight: 700; }
+.empty-state-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.empty-state-chips button { border-radius: 20px; padding-inline: 12px; font-size: var(--fs-12-5); color: var(--text-muted); }
+/* The crash card is the only thing on screen, so it is centred and cannot be dismissed. */
+.crash-overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: var(--overlay); padding: 24px; }
+.crash-card { inline-size: min(520px, 100%); background: var(--bg-dialog); border: 1px solid var(--border-strong); border-radius: 24px; padding: 28px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.crash-icon { inline-size: 56px; block-size: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--danger-bg); color: var(--danger); }
+.crash-card h2 { margin: 0; font-size: var(--fs-18); font-weight: 800; }
+.crash-card p { margin: 0; color: var(--text-muted); font-size: var(--fs-13-5); max-inline-size: 380px; }
+.crash-card p.error { color: var(--danger); }
+.crash-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-block-start: 6px; }
+.crash-card button { border: 1px solid var(--border-button); border-radius: 12px; background: transparent; color: var(--text); padding-block: 8px; padding-inline: 20px; font-weight: 600; }
+.crash-card button.primary { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
 .workspace-history { overflow-y: auto; min-block-size: 0; }
 .workspace-history details { margin-block: 4px; }
 .workspace-history summary { display: flex; align-items: center; gap: 12px; cursor: pointer; border-radius: 12px; padding-block: 9px; padding-inline: 12px; }
@@ -178,6 +187,7 @@ input:focus-visible, [tabindex="0"]:focus-visible { outline: 2px solid var(--acc
   --text-inverse: #1B1D21;
   /* accent */
   --accent: #0E7C86; --accent-bright: #2DD4BF; --accent-text: #5EEAD4;
+  --focus-ring: #2DD4BF;
   /* states */
   --ok-text: #86EFAC; --ok-bg: #12301F; --ok-border: #15803D;
   --warn-text: #FCD34D; --warn-bg: #33290F; --warn-border: #5A4510;
@@ -208,6 +218,7 @@ input:focus-visible, [tabindex="0"]:focus-visible { outline: 2px solid var(--acc
   --text-inverse: #FFFFFF;
   /* accent */
   --accent: #0B6B74; --accent-bright: #0E7C86; --accent-text: #0A5F68;
+  --focus-ring: #0E7C86;
   /* states */
   --ok-text: #14603A; --ok-bg: #E3F6EA; --ok-border: #17864A;
   --warn-text: #7A4A06; --warn-bg: #FCF1D6; --warn-border: #D9B267;
@@ -243,8 +254,11 @@ html, body { margin: 0; min-block-size: 100%; background: var(--bg-frame); color
 body, button, textarea, select { font-family: Vazirmatn, Tahoma, sans-serif; font-size: var(--fs-14); line-height: 1.7; }
 button, textarea, select { color: inherit; }
 button { cursor: pointer; }
+/* One focus ring for the whole app: the same width, colour and offset on every control, so a
+   keyboard user learns it once. `:where()` keeps specificity at zero, so a component can still
+   adjust its own ring deliberately rather than by accident of order. */
+:where(a, button, input, select, textarea, summary, [tabindex], [role="option"], [role="tab"]):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 button:disabled, input:disabled, select:disabled { cursor: default; opacity: .46; }
-button:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 4px; }
 button, select { transition: background-color 120ms; }
 button:not(:disabled):hover { background-color: var(--bg-active); }
 .app-shell { display: flex; block-size: 100dvh; min-block-size: 600px; }
@@ -307,7 +321,6 @@ code { font-family: Consolas, monospace; direction: ltr; unicode-bidi: isolate; 
 .genui-tablist { display: flex; flex-wrap: wrap; gap: 6px; border-block-end: 1px solid var(--border); padding-block-end: 8px; }
 .genui-tab { border: 1px solid transparent; background: transparent; color: var(--text-muted); border-radius: 10px; padding-block: 6px; padding-inline: 12px; font: inherit; font-size: var(--fs-13); cursor: pointer; }
 .genui-tab[aria-selected="true"] { background: var(--bg-active); border-color: var(--border-strong); color: inherit; font-weight: 700; }
-.genui-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .genui-table-wrap { overflow-x: auto; border: 1px solid var(--border-strong); border-radius: 16px; }
 .genui-table { border-collapse: collapse; inline-size: 100%; font-size: var(--fs-13); }
 .genui-table th, .genui-table td { text-align: start; padding-block: 10px; padding-inline: 14px; border-block-end: 1px solid var(--border); }
@@ -334,9 +347,15 @@ code { font-family: Consolas, monospace; direction: ltr; unicode-bidi: isolate; 
 .tool-error-hint { color: var(--text-muted); font-size: var(--fs-12); }
 .tooltip { background: var(--bg-inverse); color: var(--text-inverse); border-radius: 12px; padding-block: 6px; padding-inline: 14px; font-size: var(--fs-13); z-index: 10; }
 .sr-only { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+/* The skip link sits above the content and below every dialog, so a modal still owns the screen. */
+.skip-link { position: fixed; inset-block-start: 8px; inset-inline-start: 8px; z-index: 15; background: var(--bg-dialog); color: var(--text); border: 1px solid var(--focus-ring); border-radius: 10px; padding-block: 8px; padding-inline: 14px; font-weight: 700; transform: translateY(-300%); transition: transform .12s ease; }
+.skip-link:focus { transform: none; }
 @media (max-width: 1000px) { .sidebar { inline-size: 210px; } .home-title { font-size: var(--fs-32); } .home-surface { padding-inline: 20px; } .hints { gap: 8px; } .hints button { padding-inline: 12px; } }
 @media (max-width: 700px) { .sidebar { inline-size: 64px; padding-inline: 8px; } .sidebar span, .workspace-label { display: none; } .brand { margin-inline: 10px; } .brand-mark { display: block !important; } .brand > span[dir] { display: none; } .nav-item { justify-content: center; padding-inline: 0; } .home-title { font-size: var(--fs-26); } .home-surface { padding-inline: 14px; } .workspace-toolbar { gap: 12px; } .model-select select { max-inline-size: 120px; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+/* Reduced motion is a preference about motion, not a suggestion: transitions, animations and
+   the streaming caret all stop. The caret also stops blinking for anyone who prefers it, which
+   is the one animation a person is expected to stare at. */
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 
 /* Workspace page (R28) */
 .workspace-surface { padding: 24px 28px; gap: 16px; overflow: auto; }
@@ -395,7 +414,6 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .approval-note { color: var(--text-dim); font-size: var(--fs-12); margin-block: 12px 0; }
 .danger-outline { border: 1px solid var(--danger-border); background: transparent; color: var(--danger); border-radius: 12px; padding-block: 8px; padding-inline: 20px; font-weight: 600; }
 .question-card { background: var(--bg-card); border: 2px solid var(--accent); border-radius: 18px; padding: 16px; margin-block-end: 12px; min-inline-size: 0; }
-.question-card:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; }
 .question-heading, .question-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .question-heading > span { background: var(--bg-accent-chip); color: var(--accent-text); border-radius: 20px; padding: 1px 12px; font-size: var(--fs-12); font-weight: 800; }
 .question-card small { color: var(--text-muted); font-size: var(--fs-12); }
@@ -407,7 +425,6 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .question-option small { display: block; }
 .question-option input[type=radio], .question-option input[type=checkbox] { flex: none; margin-block-start: 5px; accent-color: var(--accent); }
 .question-option input[type=text] { flex: 1; inline-size: 0; border: 0; background: transparent; color: inherit; padding: 0; }
-.question-option input:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; }
 .question-footer { margin-block-start: 12px; }
 .question-card button { padding: 7px 14px; border-radius: 12px; }
 .question-card .question-send { background: var(--accent); color: white; font-weight: 800; border: 0; }
@@ -489,7 +506,6 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .planning-settings input[type=checkbox] { accent-color: var(--accent); }
 @media (max-width: 1100px) { .run-info { inline-size: auto; flex-direction: row; flex-wrap: wrap; gap: 16px; max-block-size: 180px; } .run-info > section { flex: 1 1 180px; } .run-info .current-waiting { flex: 1 1 100%; } }
 @media (max-width: 650px) { .step-summary { flex-basis: 100%; margin-inline-start: 32px; } .step-card > .disclosure-button { flex-wrap: wrap; } .step-body { padding-inline: 10px; } .delegate-card { margin-inline: 10px; } }
-@media (prefers-reduced-motion: reduce) { .streaming-caret { animation: none; } }
 .question-exhausted { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; }
 .question-exhausted .question-heading > span { background: var(--danger-bg); color: var(--danger-text); }
 .question-failure { background: var(--bg-terminal); color: var(--text-code); border-radius: 10px; padding: 8px 12px; font-size: var(--fs-12-5); white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 180px; overflow: auto; }
@@ -515,7 +531,6 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .context-new-chat { border: 1px solid var(--accent); background: transparent; color: var(--accent-text); border-radius: 12px; padding-block: 7px; padding-inline: 12px; font: inherit; font-size: var(--fs-13); }
 .context-new-chat:disabled { border-color: var(--border); color: var(--text-muted); }
 .context-help { margin: 0; font-size: var(--fs-11-5); color: var(--text-muted); }
-.context-popover :focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
 .command-block { margin-block: 8px; margin-inline: 18px; display: flex; flex-direction: column; gap: 8px; }
 .terminal-panel { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--bg-terminal); }
 .terminal-header { display: flex; align-items: center; gap: 12px; padding-block: 7px; padding-inline: 12px; background: var(--bg-terminal-header); border-block-end: 1px solid var(--border); font-size: var(--fs-12-5); }
@@ -689,7 +704,6 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .marketplace-list li { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 14px; }
 .marketplace-list p { margin: 2px 0 6px; }
 .marketplace-list button { border: 1px solid var(--border-strong); background: var(--bg-card); border-radius: 12px; padding-block: 6px; padding-inline: 14px; flex: none; }
-.customize-screen :focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
 @media (max-width: 1100px) {
   .skills-layout { flex-direction: column; }
   .skill-detail { inline-size: 100%; position: static; }

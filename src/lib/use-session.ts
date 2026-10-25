@@ -92,6 +92,12 @@ export function useSession() {
     try { const path = await connection()?.pickWorkspace(); if (path) await selectWorkspace(path); }
     catch { setWorkspaceError(true); }
   }
+  async function openSample() {
+    // The engine copies the bundled sample into app data once and opens that copy, so a
+    // second click lands on the folder the person may already have edited.
+    try { setSpaces(await api<WorkspaceState>("/workspaces/sample", "POST")); setFailed(false); setWorkspaceError(false); }
+    catch { setWorkspaceError(true); }
+  }
   async function revealWorkspace() {
     if (!workspace) return;
     try { await connection()?.revealWorkspace(workspace); } catch { setFailed(true); }
@@ -224,6 +230,6 @@ export function useSession() {
   }
   return { ready, failed, busy, testing, workspace, branch, spaces, models, presets, settings, model, mode, locale, vaultOk, usableModel, workspaceError,
     branches, branchApproval, branchError, approveBranch, rejectBranch, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, changeSettings, changeAppearance, changeDefaultMode, makeDefault, reloadModels, saveModel, testModel, selectWorkspace, pickWorkspace,
-    revealWorkspace, switchBranch, start, approveWorktree, rejectWorktree, resolveApproval, retryWithLongerTimeout, stop, openTask, detach };
+    revealWorkspace, openSample, switchBranch, start, approveWorktree, rejectWorktree, resolveApproval, retryWithLongerTimeout, stop, openTask, detach };
 }
 export type Session = ReturnType<typeof useSession>;

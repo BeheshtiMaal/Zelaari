@@ -1,9 +1,12 @@
 import type { fa } from "./fa";
 export const en: { [Key in keyof typeof fa]: typeof fa[Key] } = {
+  skipToContent: "Skip to main content",
+  more: "More", interrupted: "Action interrupted",
+  interruptedHelp: "This action may have run before the engine stopped. It was not replayed. Inspect its effects before retrying.",
   undoChange: "Undo last change", undoFailed: "Could not undo the change. Try reopening the file.",
   sections: ["Models and keys", "Appearance and language", "Permissions and safety", "Context and compaction", "Terminal and tests", "Data and privacy", "About"],
   invalidWorkspace: "Choose an accessible project folder; drive roots and your home folder are not allowed.",
-  emptyWorkspaceLabel: "First use · no workspace selected", emptyModelLabel: "First use · no model added",
+ 
   addModel: "Add model", editModel: "Edit model", edit: "Edit", test: "Test", testConnection: "Test connection", save: "Save", cancel: "Cancel", close: "Close",
   displayName: "Display name", baseUrl: "Base URL", apiKey: "API key", modelName: "Model name", fillPreset: "Fill with one click:",
   vaultHelp: "Stored only in the Windows vault; never written to the project folder.",
@@ -14,9 +17,10 @@ export const en: { [Key in keyof typeof fa]: typeof fa[Key] } = {
   probeErrors: { unauthorized: "Model connection failed (401)", rate_limit: "Rate limit (429)", no_tools: "This model does not support tool calling", network: "Could not connect to the provider", vault: "Key unavailable; save the key again." },
   probeDetails: { unauthorized: "The API key was rejected. The probe stopped and no files were changed.", rate_limit: "The service is busy. Automatic backoff makes up to three total attempts.", no_tools: "The connection succeeded, but the model cannot call tools to read files or execute commands and cannot be used by this app.", network: "Check the provider URL and internet connection.", vault: "Windows vault is unavailable; insecure storage is disabled." },
   editKey: "Edit key", retry: "Try again", changeModel: "Change model", otherModel: "Choose another model", attemptsEnded: "Attempts exhausted", invalidModel: "Check the fields; the model could not be saved.",
-  noWorkspace: "No workspace selected", noWorkspaceHelp: "Choose your project folder to get started.",
-  noModel: "No model added yet", noModelHelp: "Add a model with your API key, or start with the offline demo without a key or internet.",
-  tokens: "tokens", placeholderRing: "Context display arrives in Phase 7", phase3: "Available in Phase 3", readOnly: "Read-only", auto: "Auto", noTasks: "No tasks in this workspace yet", modelSelect: "Model", workspaceSelect: "Workspace",
+ 
+ 
+  noTasks: "No tasks in this workspace yet",
+  tokens: "tokens", placeholderRing: "Context display arrives in Phase 7", phase3: "Available in Phase 3", readOnly: "Read-only", auto: "Auto", modelSelect: "Model", workspaceSelect: "Workspace",
   newTask: "New task", approvals: "Approvals inbox", customize: "Customize", schedule: "Schedule",
   paused: "Waiting for your approval",
   approvalTitle: "This call needs your approval", approve: "Approve", reject: "Reject",

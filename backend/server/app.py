@@ -156,7 +156,7 @@ def create_app(
         allow_headers=["Authorization", "Last-Event-ID", "Content-Type"],
     )
     app.include_router(model_routes(catalog))
-    app.include_router(workspace_routes(catalog))
+    app.include_router(workspace_routes(catalog, app_data))
     app.include_router(snapshot_routes(catalog.redactor, ActionApprovals(catalog)))
     app.include_router(git_routes(ActionApprovals(catalog)))
     app.include_router(file_routes(lambda: service.pending_paths() if service else set()))

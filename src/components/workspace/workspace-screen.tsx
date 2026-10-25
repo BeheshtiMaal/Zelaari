@@ -4,14 +4,20 @@ import { ArrowUpIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
 import { FileIcon } from "@phosphor-icons/react/dist/csr/File";
 import { FolderIcon } from "@phosphor-icons/react/dist/csr/Folder";
 import type { Dictionary } from "../../i18n";
+import { statesCopy } from "../../i18n/states";
 import { api } from "../../lib/api";
 import { useUndo } from "../../lib/use-undo";
 import { changedLineSet, entriesOf, fileOf, parentPath, workspaceSubtitle } from "../../lib/files";
 import type { FileEntry, FileListing } from "../../lib/protocol";
 import type { Session } from "../../lib/use-session";
 import { Sidebar } from "../shell/sidebar";
+import { CrashCard } from "../states/crash-card";
+import { EmptyState } from "../states/empty-state";
+import { connection } from "../../lib/desktop";
+import { useEngine } from "../../lib/use-engine";
 
 export function WorkspaceScreen({ t, session, root }: { t: Dictionary; session: Session; root: string }) {
+  const states = statesCopy(session.locale);
   const [folder, setFolder] = useState("");
   const [system, setSystem] = useState(false);
   const [listing, setListing] = useState<FileListing | null>(null);
@@ -51,10 +57,12 @@ export function WorkspaceScreen({ t, session, root }: { t: Dictionary; session: 
   const tasks = useMemo(() => session.spaces.tasks?.filter(task => task.workspace === active) ?? [], [session.spaces.tasks, active]);
   const name = active ? active.split(/[\\/]/).filter(Boolean).pop() ?? active : "";
   const rows = file ? file.text.split("\n") : [];
+  // The workspace page has its own shell, so it carries its own crash card.
+  const engine = useEngine(id => void session.openTask(id));
 
   return <div className="app-shell" data-ready={session.ready}>
     <Sidebar t={t} session={session} settings={false} reset={() => undefined} openSettings={() => undefined} openTask={id => void session.openTask(id)} />
-    <main className="surface workspace-surface">
+    <main id="main" tabIndex={-1} className="surface workspace-surface">
       <header className="ws-header">
         <div className="ws-title">
           <span className="ws-folder-icon"><FolderIcon size={30} /></span>
@@ -103,10 +111,14 @@ export function WorkspaceScreen({ t, session, root }: { t: Dictionary; session: 
             <div>{task.title}</div>
             <div className={`ws-task-status ${task.status}`}>{task.status === "completed" ? t.completed : task.status === "running" ? t.reading : task.status === "error" ? t.errorShort : t.stopped}</div>
           </a>)}
-          {!tasks.length && <p className="muted">{t.noTasks}</p>}
+          {!tasks.length && <EmptyState testId="state-no-tasks" icon={<FileIcon size={26} />}
+            label={states.noTasks.label} title={states.noTasks.title} help={states.noTasks.help}
+            actions={[{ label: states.noTasks.primary, testId: "state-start-task", primary: true, onClick: () => { window.location.href = "/"; } }]} />}
           <p className="ws-task-note">{t.workspaceNote}</p>
         </section>
       </div>
     </main>
+    {!engine.alive && <CrashCard locale={session.locale} restarting={engine.restarting} failed={engine.failed}
+      onRestart={() => void engine.restart()} onLogs={() => void connection()?.openLogFolder()} />}
   </div>;
 }

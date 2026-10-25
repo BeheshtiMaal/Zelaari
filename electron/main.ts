@@ -22,10 +22,17 @@ app.whenReady().then(async () => {
   const vault = new Vault(resolve(appData, "vault.json"), safeStorage);
   let vaultError = false;
   let initialized: Promise<import("./sidecar").EngineConnection> | undefined;
+  // The renderer shows the crash card from this, so a dead engine is a state the app can
+  // recover from rather than a window that disappears.
+  const announce = (alive: boolean) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send("engine-status", { alive });
+    }
+  };
   const connect = () => initialized ??= (async () => {
     sidecar ??= startSidecar(root, app.isPackaged, () => {
-      for (const window of BrowserWindow.getAllWindows()) window.destroy();
-      app.quit();
+      log("engine exited unexpectedly");
+      announce(false);
     }, appData, log);
     const connection = await sidecar.ready;
     for (let attempt = 0; attempt < 120; attempt++) {
@@ -133,6 +140,27 @@ app.whenReady().then(async () => {
       log(`keys cleared count=${body.keys ?? 0}`);
       return { ok: true, keys: body.keys ?? 0 };
     } catch { return { ok: false, keys: 0 }; }
+  });
+  // A restart is a new process on a new port with a new token, so the renderer is handed
+  // the new connection and re-runs its bootstrap with it. The old sidecar is closed first,
+  // which is also what stops its exit from being reported as a crash.
+  ipcMain.handle("restart-engine", async event => {
+    if (!trustedFrame(event.senderFrame?.url)) return null;
+    try {
+      log("engine restart requested");
+      sidecar?.close();
+      sidecar = undefined;
+      initialized = undefined;
+      vaultError = false;
+      const connection = await connect();
+      announce(true);
+      log("engine restarted");
+      return connection;
+    } catch {
+      log("engine restart failed");
+      announce(false);
+      return null;
+    }
   });
   const out = resolve(root, "out");
   protocol.handle("app", request => {
