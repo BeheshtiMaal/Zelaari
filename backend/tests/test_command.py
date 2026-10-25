@@ -54,20 +54,26 @@ def test_non_zero_exit_is_a_normal_result(runner: CommandRunner) -> None:
 
 
 def test_timeout_kills_the_whole_process_tree(runner: CommandRunner, tmp_path: Path) -> None:
-    # The timeout has to outlast a nested process launch on a loaded machine, or the
-    # child never gets recorded and the assertion below proves nothing.
+    # The timeout has to outlast a nested process launch, or the child never gets recorded
+    # and the assertion below proves nothing. Twelve seconds was enough on a quiet machine
+    # and not on a contended CI runner, so measure what this machine needs instead of
+    # trusting a constant: four launches of headroom, never less than twenty seconds.
+    probe = time.monotonic()
+    runner.run("Write-Output probe")
+    budget = max(20.0, (time.monotonic() - probe) * 4)
+
     started = time.monotonic()
     result = runner.run(
         "$p = Start-Process powershell -ArgumentList '-NoProfile','-Command','Start-Sleep 60' "
         "-PassThru; Set-Content -Path child.pid -Value $p.Id; Start-Sleep 60",
-        timeout=12,
+        timeout=budget,
     )
     elapsed = time.monotonic() - started
 
     assert result.timed_out is True
     assert result.killed_tree is True
     assert result.exit_code is None
-    assert elapsed < 45
+    assert elapsed < budget + 30
 
     pid_file = tmp_path / "child.pid"
     assert pid_file.is_file(), "the command never recorded its child"
