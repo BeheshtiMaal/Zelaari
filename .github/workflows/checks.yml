@@ -5,12 +5,12 @@ jobs:
   gates:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10
       - run: uv sync --project backend --frozen
       - run: npm ci
       # Run from `backend` so the isort classification matches the config's own root.
@@ -37,12 +37,12 @@ jobs:
     needs: gates
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10
       - run: uv sync --project backend --frozen
       - run: npm ci
       - name: Version is 0.1.0
@@ -63,7 +63,7 @@ jobs:
           }
       - run: uv run --project backend python scripts/smoke-installer.py dist/win-unpacked
       - run: npx tsx tests/phase10-desktop.ts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: codeharness-0.1.0
           path: |

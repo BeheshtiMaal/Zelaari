@@ -1,6 +1,8 @@
 """Real graph/SQLite recovery with partial decisions and an atomic approval ledger."""
 
 import asyncio
+import inspect
+import time
 from pathlib import Path
 from typing import Any
 
@@ -16,10 +18,28 @@ from permissions.types import ApprovalDecision, UnknownApproval
 from store.catalog import Catalog
 
 
-async def wait_for(predicate: Any) -> None:
-    async with asyncio.timeout(15):
-        while not predicate():
-            await asyncio.sleep(0.01)
+def _describe(predicate: Any) -> str:
+    """Name the condition a timeout gave up on, so a failure explains itself."""
+    try:
+        return inspect.getsource(predicate).strip()
+    except (OSError, TypeError):  # pragma: no cover - source is present for real tests
+        return getattr(predicate, "__qualname__", repr(predicate))
+
+
+async def wait_for(predicate: Any, budget: float = 60.0) -> None:
+    """Poll until `predicate` holds, or fail with the condition that never became true.
+
+    Every caller drives a real LangGraph run over SQLite checkpoints, usually with a real
+    subprocess: the waits are dominated by disk and process spawn, not by logic. The first
+    approval lands in about four seconds on a developer machine, and CI's shared two-core
+    runner was several times slower than that, so the old fifteen second cap failed a test
+    that was working correctly. The budget is a hang detector, not an assertion about speed.
+    """
+    started = time.monotonic()
+    while not predicate():
+        if time.monotonic() - started > budget:
+            pytest.fail(f"still false after {budget:g}s: {_describe(predicate)}")
+        await asyncio.sleep(0.01)
 
 
 def test_pending_batch_partial_answer_restart_and_exactly_once(

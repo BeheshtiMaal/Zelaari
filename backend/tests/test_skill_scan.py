@@ -59,6 +59,11 @@ def test_references_are_not_scripts(tmp_path: Path) -> None:
     assert scan_skill(tmp_path, "Body").status == "clean"
 
 
-def test_describe_is_one_line() -> None:
-    assert describe(scan_skill(Path("."), "echo ok")) == "security scan: no risky patterns"
-    assert "deletes files recursively" in describe(scan_skill(Path("."), "rm -rf x"))
+def test_describe_is_one_line(tmp_path: Path) -> None:
+    # The folder matters: `scan_skill` also reads `<folder>/scripts`, so scanning `Path(".")`
+    # picks up whatever the caller's cwd happens to contain. `pytest backend/tests` from the
+    # repo root would read the repository's own `scripts/build-engine.ps1`, whose
+    # `Remove-Item -Recurse -Force` is rightly blocked, and this assertion would fail for a
+    # reason that has nothing to do with `describe`.
+    assert describe(scan_skill(tmp_path, "echo ok")) == "security scan: no risky patterns"
+    assert "deletes files recursively" in describe(scan_skill(tmp_path, "rm -rf x"))
