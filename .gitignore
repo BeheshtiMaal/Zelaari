@@ -25,3 +25,5 @@ spikes/python/*.spec
 specs/
 prompts/
 AGENTS.md
+backend/evals/report.md
+backend/evals/report.json
