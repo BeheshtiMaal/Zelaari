@@ -125,11 +125,21 @@ class QuestionAnswered(EventBase):
     answer: QuestionAnswer
 
 
-class FutureEvent(EventBase):
-    """Reserved events: not emitted by the bridge yet."""
+class UiRender(EventBase):
+    """One rendering attempt: the program, whether it rendered, and why it did not.
 
-    type: Literal["ui.render"]
-    data: dict[str, JsonValue]
+    `text` is the program itself, so a replayed run reconstructs exactly the interface that
+    was shown. It is redacted by the bus before it is written, like every other event.
+    """
+
+    type: Literal["ui.render"] = "ui.render"
+    scope: ActivityScope
+    call_id: str
+    ok: bool
+    text: str
+    components: list[str] = Field(default_factory=list)
+    statements: int = Field(default=0, ge=0)
+    error: str | None = None
 
 
 class TestResult(EventBase):
@@ -286,7 +296,7 @@ Event = Annotated[
     | VerifyRequired
     | BudgetUpdated
     | BudgetExhausted
-    | FutureEvent,
+    | UiRender,
     Field(discriminator="type"),
 ]
 event_adapter: TypeAdapter[Event] = TypeAdapter(Event)

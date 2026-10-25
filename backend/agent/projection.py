@@ -41,6 +41,7 @@ class ActivityProjection:
         self.streamed: set[str] = set()
         self.finished: set[str] = set()
         self.commands: dict[str, str] = {}
+        self.programs: dict[str, str] = {}
         self.tested: set[str] = set()
         self.skills = skills
         self.loaded: set[str] = set()
@@ -100,6 +101,41 @@ class ActivityProjection:
             call_id=message.tool_call_id,
             command=command,
             **outcome.model_dump(),
+        )
+
+    async def render_ui(self, message: ToolMessage, scope: ActivityScope) -> None:
+        """Emit `ui.render` for one attempt, from the program the model actually sent.
+
+        A successful render is evidence: the timeline draws the program. A failed one keeps
+        the program and the one-line reason, so a silent fallback can never hide it.
+        """
+        program = self.programs.pop(str(message.tool_call_id), None)
+        if program is None:
+            return
+        payload: dict[str, Any] = {}
+        try:
+            parsed = json.loads(str(message.content))
+        except ValueError:
+            parsed = None
+        if isinstance(parsed, dict):
+            payload = parsed
+        if not isinstance(payload.get("ok"), bool):
+            # The tool contract rejected the call before it ran; that is still a failure.
+            payload = {"ok": False, "error": str(message.content)[:200]}
+        components = payload.get("components")
+        statements = payload.get("statements")
+        error = payload.get("error")
+        await self.bus.emit(
+            "ui.render",
+            scope=scope,
+            call_id=message.tool_call_id,
+            ok=payload["ok"] is True,
+            text=program,
+            components=(
+                [str(item) for item in components][:32] if isinstance(components, list) else []
+            ),
+            statements=statements if isinstance(statements, int) and statements >= 0 else 0,
+            error=str(error)[:200] if isinstance(error, str) else None,
         )
 
     async def skill_loaded(self, name: object) -> None:
@@ -188,6 +224,12 @@ class ActivityProjection:
                             and isinstance(command, str)
                         ):
                             self.commands[call["id"]] = command
+                        if (
+                            call["name"] == "render_ui"
+                            and call["id"]
+                            and isinstance(call["args"].get("ui"), str)
+                        ):
+                            self.programs[call["id"]] = str(call["args"]["ui"])
                         if call["name"] == "load_skill":
                             await self.skill_loaded(call["args"].get("name"))
                         await self.bus.emit(
@@ -236,6 +278,7 @@ class ActivityProjection:
                         text=str(message.content),
                     )
                     await self.test_result(message, scope)
+                    await self.render_ui(message, scope)
                     if not namespace:
                         records = DelegateResults(
                             self.bus.path.with_name("delegates.json"), self.bus.redactor

@@ -19,6 +19,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from agent.activity import ActivityMiddleware
 from agent.summarization import RedactingSummarization, summary_backend
+from genui.tool import build_render_ui
 from permissions.middleware import PermissionMiddleware
 from planning.readonly import SAFE_READ_TOOLS, ReadOnlyDelegateMiddleware, ReadOnlyWorkspaceBackend
 from planning.tools import build_submit_plan
@@ -167,7 +168,6 @@ def build_agent(
     limits = context or ContextSettings()
     backend = WorkspaceBackend(root, redactor, snapshots, cancelled=cancelled)
     child_backend = ReadOnlyWorkspaceBackend(root, redactor)
-    prompt = Path(__file__).with_name("genui_prompt.txt").read_text(encoding="utf-8")
     children: list[CompiledSubAgent] = []
     read_tools: list[Any] = sorted(SAFE_READ_TOOLS)
     delegate_names: tuple[Literal["reviewer", "researcher"], ...] = ("reviewer", "researcher")
@@ -242,12 +242,17 @@ def build_agent(
         )
         + (f"\n{skill_prompt}\n" if skill_prompt else "")
         + (f"\n{memory_prompt}\n" if memory_prompt else "")
-        + "Your final response must use this UI library:\n"
-        + prompt
+        + "When an interface says it better than prose — a comparison, a summary of changed "
+        "files, a command's output, a plan — call render_ui with one program built from the "
+        "library in that tool's description, then answer in one or two sentences. "
+        "Use only ids that appear in this run's tool results. "
+        "A rejected program comes back with the line to fix: fix it, or answer in plain text. "
+        "Never paste the program in your reply."
     )
     tools: list[Any] = [
         build_ask_question(),
         build_submit_plan(),
+        build_render_ui(),
         *([build_finish_interview()] if grill else []),
         *(extra_tools or []),
     ]

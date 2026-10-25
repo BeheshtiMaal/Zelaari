@@ -27,7 +27,7 @@ export type Event =
   | VerifyRequired
   | BudgetUpdated
   | BudgetExhausted
-  | FutureEvent;
+  | UiRender;
 export type RunId = string;
 export type Seq = number;
 export type Ts = string;
@@ -405,6 +405,12 @@ export type RunId31 = string;
 export type Seq26 = number;
 export type Ts26 = string;
 export type Type27 = "ui.render";
+export type CallId5 = string;
+export type Ok = boolean;
+export type Text5 = string;
+export type Components = string[];
+export type Statements = number;
+export type Error = string | null;
 export type Task3 = string;
 export type Workspace1 = string;
 export type Model2 = string;
@@ -493,7 +499,7 @@ export type Size = number;
 export type Changed = boolean;
 export type Entries = FileEntry[];
 export type Path4 = string;
-export type Text5 = string;
+export type Text6 = string;
 export type Binary = boolean;
 export type Truncated1 = boolean;
 export type ChangedLines = [unknown, unknown][];
@@ -506,7 +512,7 @@ export type Path6 = string;
 export type Existed = boolean;
 export type Ts27 = string;
 export type RunId34 = string | null;
-export type CallId5 = string | null;
+export type CallId6 = string | null;
 export type Bytes = number;
 export type Tool1 = string;
 export type Workspace4 = string;
@@ -514,7 +520,7 @@ export type Branch1 = string;
 export type Approved = boolean;
 export type Mode2 = ("read-only" | "ask" | "auto") | null;
 export type Branch2 = string | null;
-export type Error = string | null;
+export type Error1 = string | null;
 export type Git = boolean;
 export type Current = string | null;
 export type Branches = string[];
@@ -536,7 +542,7 @@ export type Answers1 =
   | [QuestionSelection, QuestionSelection]
   | [QuestionSelection, QuestionSelection, QuestionSelection];
 export type SubmissionId1 = string;
-export type Text6 = string;
+export type Text7 = string;
 export type CompactionPercent = number;
 export type KeepMessages = number;
 export type Offload = boolean;
@@ -627,7 +633,7 @@ export type Author = string | null;
 export type Skills2 = MarketplaceEntry[];
 export type FetchedAt1 = string | null;
 export type CatalogUrl1 = string | null;
-export type Error1 = string | null;
+export type Error2 = string | null;
 export type Name11 = string;
 export type Transport = "stdio" | "http";
 export type Display = string;
@@ -638,7 +644,7 @@ export type Namespaced = string;
 export type Description5 = string;
 export type InputSchema = string;
 export type Tools2 = McpTool[];
-export type Error2 = string | null;
+export type Error3 = string | null;
 export type Workspace6 = string;
 export type Servers = ConnectorStatus[];
 export type Name13 = string;
@@ -1118,17 +1124,23 @@ export interface BudgetExhausted {
   limit: Limit;
 }
 /**
- * Reserved events: not emitted by the bridge yet.
+ * One rendering attempt: the program, whether it rendered, and why it did not.
+ *
+ * `text` is the program itself, so a replayed run reconstructs exactly the interface that
+ * was shown. It is redacted by the bus before it is written, like every other event.
  */
-export interface FutureEvent {
+export interface UiRender {
   run_id: RunId31;
   seq: Seq26;
   ts?: Ts26;
-  type: Type27;
-  data: Data;
-}
-export interface Data {
-  [k: string]: JsonValue;
+  type?: Type27;
+  scope: ActivityScope;
+  call_id: CallId5;
+  ok: Ok;
+  text: Text5;
+  components?: Components;
+  statements?: Statements;
+  error?: Error;
 }
 export interface RunRequest {
   task: Task3;
@@ -1270,7 +1282,7 @@ export interface FileEntry {
 }
 export interface FileContent {
   path: Path4;
-  text: Text5;
+  text: Text6;
   binary?: Binary;
   truncated?: Truncated1;
   changed_lines?: ChangedLines;
@@ -1287,7 +1299,7 @@ export interface SnapshotEntry {
   existed: Existed;
   ts: Ts27;
   run_id?: RunId34;
-  call_id?: CallId5;
+  call_id?: CallId6;
   bytes?: Bytes;
   tool?: Tool1;
 }
@@ -1299,7 +1311,7 @@ export interface BranchSwitch {
 }
 export interface BranchSwitchResult {
   branch?: Branch2;
-  error?: Error;
+  error?: Error1;
 }
 /**
  * What the branch chip and the Worktree checkbox need to know before a run.
@@ -1350,7 +1362,7 @@ export interface QuestionDecision {
 }
 export interface SteeringSubmission {
   submission_id: SubmissionId1;
-  text: Text6;
+  text: Text7;
 }
 export interface VerifySettingsResponse {
   context?: ContextSettings;
@@ -1467,7 +1479,7 @@ export interface MarketplaceCatalog {
   skills?: Skills2;
   fetched_at?: FetchedAt1;
   catalog_url?: CatalogUrl1;
-  error?: Error1;
+  error?: Error2;
 }
 export interface MarketplaceEntry {
   name: Name10;
@@ -1485,7 +1497,7 @@ export interface ConnectorStatus {
   enabled?: Enabled2;
   status?: Status16;
   tools?: Tools2;
-  error?: Error2;
+  error?: Error3;
 }
 export interface McpTool {
   name: Name12;

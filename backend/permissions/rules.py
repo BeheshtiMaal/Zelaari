@@ -26,7 +26,14 @@ click approve without reading, which is the failure mode the whole layer exists 
 avoid. `web_search` is not in this set because it leaves the machine.
 """
 
-Category = Literal["read", "write", "delete", "command", "web", "mcp", "internal"]
+UI_TOOLS = frozenset({"render_ui"})
+"""Rendering changes nothing, so it is allowed in every mode and never asks.
+
+It has its own category rather than joining `internal` so the rules grid shows the
+person that the tool exists and is always allowed.
+"""
+
+Category = Literal["read", "write", "delete", "command", "web", "mcp", "internal", "ui"]
 
 DEFAULTS: dict[Mode, dict[Category, Action]] = {
     "read-only": {
@@ -37,6 +44,7 @@ DEFAULTS: dict[Mode, dict[Category, Action]] = {
         "web": "deny",
         "mcp": "deny",
         "internal": "allow",
+        "ui": "allow",
     },
     "ask": {
         "read": "allow",
@@ -46,6 +54,7 @@ DEFAULTS: dict[Mode, dict[Category, Action]] = {
         "web": "ask",
         "mcp": "ask",
         "internal": "allow",
+        "ui": "allow",
     },
     "auto": {
         "read": "allow",
@@ -55,6 +64,7 @@ DEFAULTS: dict[Mode, dict[Category, Action]] = {
         "web": "ask",
         "mcp": "ask",
         "internal": "allow",
+        "ui": "allow",
     },
 }
 
@@ -70,6 +80,8 @@ def category_of(tool: str) -> Category:
         return "delete"
     if tool in WEB_TOOLS:
         return "web"
+    if tool in UI_TOOLS:
+        return "ui"
     if "__" in tool:
         # MCP tools are namespaced `server__tool`; the server is not the authority.
         return "mcp"
