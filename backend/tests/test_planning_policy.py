@@ -54,6 +54,20 @@ def test_configurable_thresholds_and_fixed_risk(tmp_path: Path) -> None:
     ]
 
 
+def test_turning_the_plan_gate_off_stops_every_review(tmp_path: Path) -> None:
+    # The gate is the switch the person sees; off has to mean off, including for a high-risk
+    # step, because the alternative is a switch that only sometimes switches.
+    value = submission(8, [f"file{n}.txt" for n in range(5)])
+    value.steps[0].high_risk = True
+    scope = file_scope(tmp_path, value)
+    assert initial_reasons(tmp_path, value, scope, PlanningSettings(), "ask") != []
+    off = PlanningSettings(plan_gate=False)
+    for mode in ("ask", "read-only", "auto"):
+        assert initial_reasons(tmp_path, value, scope, off, mode) == []
+    # Defaults keep the gate on, so no existing workspace changes behaviour.
+    assert PlanningSettings().plan_gate is True
+
+
 def test_distinct_existing_matches_literals_and_unknown(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     for name in ("a.py", "b.py"):

@@ -63,6 +63,13 @@ class PlanSubmission(PlanningModel):
 
 
 class PlanningSettings(PlanningModel):
+    plan_gate: bool = Field(default=True, strict=True)
+    """Whether a plan is reviewed at all. Off means every plan is adopted automatically.
+
+    It does not widen the permission boundary: each tool call is still decided by the rules
+    grid, so a plan that is adopted automatically still cannot write a file that would ask.
+    """
+
     step_threshold: int = Field(default=4, ge=1, le=64, strict=True)
     file_threshold: int = Field(default=3, ge=1, le=10000, strict=True)
     deviation_gate: bool = Field(default=True, strict=True)

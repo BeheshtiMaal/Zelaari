@@ -8,7 +8,7 @@ import { AppearanceSection } from "./appearance-section";
 import { ContextSettingsForm } from "./context-settings";
 import { ModelDialog } from "./model-dialog";
 import { ModelsSection } from "./models-section";
-import { PlanningSettingsForm } from "./planning-settings";
+import { PermissionsSection } from "./permissions-section";
 import { SettingsFrame } from "./settings-frame";
 import { TerminalSettingsForm } from "./terminal-settings";
 
@@ -23,7 +23,7 @@ export function SettingsScreen({ session, t, addInitially = false }: { session: 
       <ModelsSection session={session} t={t} edit={edit} />
     </SettingsFrame>}
     {section === 1 && <SettingsFrame title={t.sections[1]} intro={intro.appearance}><AppearanceSection session={session} /></SettingsFrame>}
-    {section === 2 && <SettingsFrame title={t.sections[2]} intro={intro.permissions}><PlanningSettingsForm session={session} /></SettingsFrame>}
+    {section === 2 && <SettingsFrame title={t.sections[2]} intro={intro.permissions}><PermissionsSection session={session} /></SettingsFrame>}
     {section === 3 && <SettingsFrame title={t.sections[3]} intro={intro.context}><ContextSettingsForm session={session} /></SettingsFrame>}
     {section === 4 && <SettingsFrame title={t.sections[4]} intro={intro.terminal}><TerminalSettingsForm session={session} /></SettingsFrame>}
     {section > 4 && <SettingsFrame title={t.sections[section]} intro={section === 5 ? intro.data : intro.about}><div className="deferred-panel">{t.soon}</div></SettingsFrame>}

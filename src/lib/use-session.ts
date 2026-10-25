@@ -121,6 +121,11 @@ export function useSession() {
     catch { setFailed(true); return false; }
   }
   async function setLocale(value: Locale) { await changeSettings({ ...settings, locale: value }); }
+  async function changeDefaultMode(value: NonNullable<Settings["default_mode"]>) {
+    // A new task starts in this mode, so the composer follows it — unless a run is already
+    // going, where the mode describes that run and the person changes it in the composer.
+    if (await changeSettings({ ...settings, default_mode: value }) && !useRun.getState().runId) setMode(value);
+  }
   async function changeAppearance(patch: Appearance) {
     const next = withAppearance(settings, patch), previous = settings;
     // A theme or font switch has to land on the next frame, so the document updates first and the
@@ -213,7 +218,7 @@ export function useSession() {
     try { await api(`/runs/${id}/stop`, "POST"); } catch { setFailed(true); }
   }
   return { ready, failed, busy, testing, workspace, branch, spaces, models, presets, settings, model, mode, locale, vaultOk, usableModel, workspaceError,
-    branches, branchApproval, branchError, approveBranch, rejectBranch, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, changeAppearance, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace,
+    branches, branchApproval, branchError, approveBranch, rejectBranch, worktree, worktreeApproval, setWorktree, setModel, setMode, setLocale, changeAppearance, changeDefaultMode, makeDefault, saveModel, testModel, selectWorkspace, pickWorkspace,
     revealWorkspace, switchBranch, start, approveWorktree, rejectWorktree, resolveApproval, retryWithLongerTimeout, stop, openTask, detach };
 }
 export type Session = ReturnType<typeof useSession>;

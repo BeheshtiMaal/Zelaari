@@ -105,7 +105,7 @@ def initial_reasons(
     settings: PlanningSettings,
     mode: str,
 ) -> list[str]:
-    if mode == "auto":
+    if mode == "auto" or not settings.plan_gate:
         return []
     reasons: list[str] = []
     if len(submission.steps) >= settings.step_threshold:

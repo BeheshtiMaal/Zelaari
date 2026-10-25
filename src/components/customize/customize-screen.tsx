@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Session } from "../../lib/use-session";
 import { customizeCopy } from "../../i18n/customize";
 import { RulesScreen } from "../approvals/rules-screen";
@@ -15,6 +15,11 @@ const TABS: CustomizeTab[] = ["skills", "agents", "rules", "memory", "connectors
 
 export function CustomizeScreen({ session, initial = "skills" }: { session: Session; initial?: CustomizeTab }) {
   const [tab, setTab] = useState<CustomizeTab>(initial);
+  // Settings links here with `?tab=rules`; read it after mount so the static export still renders.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab") as CustomizeTab | null;
+    if (requested && TABS.includes(requested)) setTab(requested);
+  }, []);
   const copy = customizeCopy(session.locale);
   const { counts } = useOverview(session.workspace);
   return <div className="customize-screen">

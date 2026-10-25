@@ -28,6 +28,7 @@ def test_authenticated_settings_save_asks_even_auto_and_preserves_keys(tmp_path:
         params = {"workspace": str(tmp_path)}
         assert http.get("/planning/settings", params=params).status_code == 401
         assert http.get("/planning/settings", headers=HEADERS, params=params).json() == {
+            "plan_gate": True,
             "step_threshold": 4,
             "file_threshold": 3,
             "deviation_gate": True,
@@ -50,7 +51,12 @@ def test_authenticated_settings_save_asks_even_auto_and_preserves_keys(tmp_path:
         assert decision.status_code == 200, decision.text
     assert json.loads(target.read_text(encoding="utf-8")) == {
         "other": {"preserved": True},
-        "planning": {"step_threshold": 5, "file_threshold": 6, "deviation_gate": False},
+        "planning": {
+            "plan_gate": True,
+            "step_threshold": 5,
+            "file_threshold": 6,
+            "deviation_gate": False,
+        },
     }
     snapshots = SnapshotStore(tmp_path)
     snapshot = next(entry for entry in snapshots.entries() if entry.path == ".harness/config.json")

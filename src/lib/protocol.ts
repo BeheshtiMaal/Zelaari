@@ -279,6 +279,7 @@ export type GateReasons =
 export type KnownFiles = string[];
 export type Uncertain = boolean;
 export type Revision2 = string;
+export type PlanGate = boolean;
 export type StepThreshold = number;
 export type FileThreshold = number;
 export type DeviationGate = boolean;
@@ -972,6 +973,7 @@ export interface FileScope {
   revision: Revision2;
 }
 export interface PlanningSettings {
+  plan_gate?: PlanGate;
   step_threshold?: StepThreshold;
   file_threshold?: FileThreshold;
   deviation_gate?: DeviationGate;

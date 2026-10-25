@@ -494,6 +494,15 @@ a.light-button { text-decoration: none; display: inline-flex; align-items: cente
 .verify-segment button { padding-inline: 14px; font-size: 13px; }
 .verify-save { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .verify-save .muted, .verify-approval { margin: 0; font-size: 12px; }
+/* Permissions: a decision badge reads as a decision, and a locked row says it cannot be changed. */
+.decision-badge { border-radius: 20px; padding-inline: 10px; font-size: 12px; white-space: nowrap; }
+.decision-badge.allow { background: #12301F; color: #86EFAC; }
+.decision-badge.ask { background: #33290F; color: #FCD34D; }
+.decision-badge.deny { background: #3A1A1A; color: #FCA5A5; }
+.locked-chip { color: #B5BCC5; }
+.rules-empty { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rules-empty p { margin: 0; }
+.rules-edit-link { align-self: flex-start; color: #5EEAD4; font-size: 13px; }
 
 
 /* -- Customize hub (Phase 8) ------------------------------------------------ */
