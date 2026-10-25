@@ -1,5 +1,8 @@
 """Export the authoritative wire schema for TypeScript generation."""
 
+# ruff: noqa: E402
+# The import below has to follow the sys.path line: `agent` is not installed.
+
 import json
 import sys
 from pathlib import Path

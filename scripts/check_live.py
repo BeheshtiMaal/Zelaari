@@ -1,5 +1,9 @@
 """Opt-in live adapter check. Never writes credentials or provider diagnostics."""
 
+# ruff: noqa: E402
+# These imports have to follow the sys.path and tracing-environment setup below, and
+# `load_provider_env()` has to run before the modules that read it are imported.
+
 import argparse
 import asyncio
 import os
@@ -14,11 +18,12 @@ from providers.config import load_provider_env
 
 load_provider_env()
 
+from pydantic import SecretStr
+
 from agent.bridge import RunManager
 from agent.events import RunRequest
 from providers.base import ModelInput
 from providers.probe import test_connection
-from pydantic import SecretStr
 from store.catalog import Catalog, Credential
 
 
