@@ -88,8 +88,10 @@ named evidence, and the Final evidence table records one sequential run per gate
   verify command as a bare `pytest -q`; the engine runs it through PowerShell, which does not resolve the venv's
   `pytest.exe` here, so all four verify results come back "command not found" and the fourth never turns green. The
   failure reproduces at commit `311dfd5` (`git worktree add`, then the same test), so it predates every backend change
-  in this phase. The fixture should invoke `sys.executable -m pytest`; that is a Phase 7 change and was deliberately not
-  made at the end of another phase. The gate is recorded as 873/874 in `validation.md` rather than ticked as green.
+  in this phase. The obvious fix — pointing the fixture at `sys.executable -m pytest` — was tried and **reverted**: the
+  command works when run by hand (0.14 s) but hangs the run past 100 s when the engine executes it, and the cause was
+  not established, so the fixture was left as it was rather than made slower and less honest. The gate is recorded as
+  873/874 in `validation.md`.
 - **The bulk-delete shim trips on build output.** `rm -rf .next out && npm run build` in one command aborts with
   `SAFE_DELETE_BULK_CONFIRM_REQUIRED count=260` when Next unlinks its stale directory, so the removal runs as its own
   command. `pytest` needs `--basetemp` for the same reason.
