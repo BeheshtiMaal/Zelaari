@@ -24,9 +24,6 @@ export function rankMove(selection: QuestionSelection, id: string, direction: -1
   [ids[index], ids[target]] = [ids[target], ids[index]];
   return { ...selection, option_ids: ids };
 }
-export function editableTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && !!target.closest("input:not([type=radio]):not([type=checkbox]),textarea,select,[contenteditable=true],[role=combobox]");
-}
 export function rankDrop(selection: QuestionSelection, id: string, target: string): QuestionSelection {
   const ids = [...(selection.option_ids ?? [])], from = ids.indexOf(id), to = ids.indexOf(target);
   if (from < 0 || to < 0) return selection;
@@ -41,7 +38,4 @@ export function answeredSummary(record: QuestionRecord) {
     if (answer?.hint) values.push(answer.hint);
     return { id: question.id, text: question.text, values: values.join(question.type === "rank" ? " → " : ", ") };
   });
-}
-export function questionDigit(key: string, code: string): number {
-  return /^Digit[1-4]$/.test(code) ? Number(code.slice(-1)) : Number(key);
 }

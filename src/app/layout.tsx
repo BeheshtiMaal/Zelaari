@@ -5,11 +5,12 @@ import "@fontsource/vazirmatn/800.css";
 import "@openuidev/react-ui/index.css";
 import "@xterm/xterm/css/xterm.css";
 import { BOOTSTRAP } from "../lib/appearance";
+import { SkipLink } from "../components/shell/skip-link";
 import "./globals.css";
 export const metadata: Metadata = { title: "CodeHarness", description: "Local coding assistant" };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <html lang="fa" dir="rtl" suppressHydrationWarning>
     <head><script dangerouslySetInnerHTML={{ __html: BOOTSTRAP }} /></head>
-    <body>{children}</body>
+    <body><SkipLink />{children}</body>
   </html>;
 }

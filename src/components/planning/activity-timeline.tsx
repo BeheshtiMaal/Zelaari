@@ -70,7 +70,9 @@ function EventBody({ events, locale, runId, child = false, retry, activity = SHO
 
 export function ActivityTimeline({ run, locale, retry, activity = SHOW_ALL }: { run: RunState; locale: Locale; retry?: (command: string) => void; activity?: ActivityView }) {
   const t = planningCopy(locale), number = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
-  return <div className="activity-timeline">
+  // `polite`: a run narrates itself for minutes, so the person is told what changed without
+  // the announcement cutting across whatever they are reading.
+  return <div className="activity-timeline" aria-live="polite" aria-relevant="additions text">
     {verifyNotices(run.events).map((event, index) => <p key={`verify-${index}-${event.seq}`} className={`verify-notice ${event.blocked ? "" : "is-off"}`} data-testid="verify-notice">
       {t[verifyNoticeKey(event.reason)]}{event.blocked && event.command ? <> <code dir="ltr">{event.command}</code></> : null}
     </p>)}

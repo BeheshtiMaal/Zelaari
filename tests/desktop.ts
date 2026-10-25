@@ -73,13 +73,27 @@ for (const language of ["fa", "en"] as const) {
     await page.unroute("**/health");
     assert.equal(await page.evaluate(() => document.documentElement.dir), language === "fa" ? "rtl" : "ltr");
     assert.equal(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require), "undefined");
-    assert.deepEqual(await page.evaluate(() => Object.keys(window.harness ?? {}).sort()), ["appInfo", "baseUrl", "clearKeys", "openLogFolder", "pickWorkspace", "revealAppData", "revealWorkspace", "saveModel", "testModelDraft", "token", "vaultStatus"]);
+    assert.deepEqual(await page.evaluate(() => Object.keys(window.harness ?? {}).sort()), ["appInfo", "baseUrl", "clearKeys", "onEngineStatus", "openLogFolder", "pickWorkspace", "restartEngine", "revealAppData", "revealWorkspace", "saveModel", "testModelDraft", "token", "vaultStatus"]);
     await expect(page.locator(".sidebar button:disabled")).toHaveCount(1);
     await page.screenshot({ path: resolve(artifacts, `home-${language}.png`) });
     const body = await page.locator("body").boundingBox();
     const sidebar = await page.locator(".sidebar").boundingBox();
     assert.ok(body && sidebar);
     assert.ok(language === "fa" ? sidebar.x > body.width / 2 : sidebar.x < body.width / 2);
+    // R15: the reference size, in both directions, with nothing hanging off the edge.
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const overflow = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, width: innerWidth }));
+    assert.ok(overflow.scroll <= overflow.width, `${language} overflows horizontally: ${overflow.scroll} > ${overflow.width}`);
+    const toolbar = await page.locator(".composer-toolbar > *").evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().x));
+    assert.ok(toolbar.length >= 2, "the composer toolbar should have two ends");
+    assert.ok(language === "fa" ? toolbar[0] > toolbar[toolbar.length - 1] : toolbar[0] < toolbar[toolbar.length - 1], `${language} composer should mirror`);
+    // R14: the first thing Tab reaches is the way past the sidebar.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("skip-link")).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#main")).toBeFocused();
     assert.equal(await page.locator(".surface").evaluate(element => getComputedStyle(element).borderRadius), "24px");
     evidence[`${language}-scroll-return`] = await page.locator(".surface").evaluate(element => {
       const returned: unknown = element.scrollIntoView({ block: "end" });

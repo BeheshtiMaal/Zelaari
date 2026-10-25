@@ -1,4 +1,5 @@
 import type { ApprovalDecision, ApprovalRequest } from "./protocol";
+import { resolve } from "./shortcuts";
 
 /** What the modal shows: one line naming the thing, one line naming the risk. */
 export interface ApprovalView {
@@ -28,18 +29,20 @@ export function decision(verdict: "approve" | "reject", reason?: string): Approv
 
 /**
  * Enter approves and Esc rejects (R23). Anything else returns null so the caller can
- * ignore it; the modal is the only place this mapping exists.
+ * ignore it. The mapping lives in `shortcuts.ts` with every other key, so this is a
+ * narrow view of that table rather than a second copy of it.
  */
+function verdictOf(key: string, tag?: string, contentEditable = false): "approve" | "reject" | null {
+  const hit = resolve("approval", { key, tag, contentEditable });
+  return hit?.action === "approve" || hit?.action === "reject" ? hit.action : null;
+}
+
 export function keyAction(key: string): "approve" | "reject" | null {
-  if (key === "Enter") return "approve";
-  if (key === "Escape") return "reject";
-  return null;
+  return verdictOf(key);
 }
 
 export function reviewShortcut(key: string, tag: string, contentEditable = false) {
-  if (contentEditable || ["TEXTAREA", "INPUT", "SELECT"].includes(tag)) return null;
-  if (tag === "BUTTON" && key === "Enter") return null;
-  return keyAction(key);
+  return verdictOf(key, tag, contentEditable);
 }
 
 /** A run that is waiting on a person is paused, not running and not finished. */

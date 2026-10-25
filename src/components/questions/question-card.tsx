@@ -3,7 +3,8 @@ import { useEffect, useRef } from "react";
 import type { Locale } from "../../i18n";
 import { questionCopy } from "../../i18n/questions";
 import type { QuestionRecord } from "../../lib/protocol";
-import { answeredSummary, editableTarget, questionDigit } from "../../lib/questions";
+import { answeredSummary } from "../../lib/questions";
+import { resolve } from "../../lib/shortcuts";
 import { useQuestionEditor, useQuestionStore } from "../../lib/use-questions";
 import { useRun } from "../../store/run";
 
@@ -17,12 +18,20 @@ export function QuestionCard({ record, locale }: { record: QuestionRecord; local
   const exhausted = record.request.presentation === "exhausted";
   const label = (id: string, fallback: string) => exhausted ? ({ retry: t.retry, change: t.change, stop: t.stop }[id] ?? fallback) : fallback;
   return <section ref={root} className={`question-card ${exhausted ? "question-exhausted" : ""} ${pending ? "" : "question-history"}`} tabIndex={0} data-testid="question-card" onKeyDown={event => {
-    if (!pending || e.busy || event.nativeEvent.isComposing || editableTarget(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
-    const digit = questionDigit(event.key, event.code);
-    if (digit >= 1 && digit <= q.options.length) { event.preventDefault(); if (q.type === "rank") root.current?.querySelector<HTMLElement>(`[data-rank="${q.options[digit - 1].id}"] button:not(:disabled)`)?.focus(); else e.choose(q.options[digit - 1].id); }
-    if (digit === q.options.length + 1 && digit <= 4) { event.preventDefault(); e.other(""); root.current?.querySelector<HTMLInputElement>("input[type=text]")?.focus(); }
-    if (event.key === "Enter" && !(event.target as HTMLElement).closest("button")) { event.preventDefault(); e.advance(); }
-    if (event.key === "Escape") { event.preventDefault(); void e.send(true); }
+    if (!pending || e.busy || event.nativeEvent.isComposing) return;
+    const target = event.target as HTMLElement;
+    // A key pressed inside a button belongs to that button, so the table is told so.
+    const tag = target.closest("button") ? "BUTTON" : target.tagName;
+    const hit = resolve("questions", { key: event.key, code: event.code, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey, altKey: event.altKey, tag, contentEditable: target.isContentEditable }, { optionCount: q.options.length });
+    if (!hit) return;
+    event.preventDefault();
+    if (hit.action === "pick" && hit.index !== undefined) {
+      if (q.type === "rank") root.current?.querySelector<HTMLElement>(`[data-rank="${q.options[hit.index].id}"] button:not(:disabled)`)?.focus();
+      else e.choose(q.options[hit.index].id);
+    }
+    if (hit.action === "other") { e.other(""); root.current?.querySelector<HTMLInputElement>("input[type=text]")?.focus(); }
+    if (hit.action === "advance") e.advance();
+    if (hit.action === "decline") void e.send(true);
   }}>
     <div className="question-heading"><span dir="auto">{exhausted && record.request.failure ? `${format(record.request.failure.attempts)} ${t.failedAttempts}` : q.header}</span><small>{record.request.failure?.step} {t.question} {format(e.index + 1)} {t.of} {format(record.request.questions.length)}</small></div>
     {record.request.failure && <pre className="question-failure" dir="ltr">{record.request.failure.output}</pre>}

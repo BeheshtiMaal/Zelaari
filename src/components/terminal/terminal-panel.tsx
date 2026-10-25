@@ -81,7 +81,7 @@ export function TerminalPanel({ command, result, limit = 200, locale }: {
   const rows = Math.max(1, body ? body.split("\n").length : 1);
   return <section className={`terminal-panel ${parsed?.timedOut ? "terminal-timeout" : ""}`} data-testid="terminal-panel" dir="ltr" aria-label={t.terminal}>
     <header className="terminal-header">
-      <code className="terminal-command">$ {command}</code>
+      <code className="terminal-command" dir="ltr">$ {command}</code>
       <span className="terminal-status">
         {parsed?.timedOut ? <span className="terminal-tag">{t.timeoutTag}</span>
           : exit === null || exit === undefined ? t.running

@@ -123,6 +123,8 @@ const PAIRS: { foreground: string; background: string; minimum: number; why: str
   { foreground: "--notice-text", background: "--notice", minimum: 4.5, why: "the unread count" },
   { foreground: "--border-input", background: "--bg-card", minimum: 3, why: "an input edge on a card" },
   { foreground: "--border-button", background: "--bg-card", minimum: 3, why: "a secondary button edge" },
+  { foreground: "--focus-ring", background: "--bg-card", minimum: 3, why: "the focus ring on a card" },
+  { foreground: "--focus-ring", background: "--bg-frame", minimum: 3, why: "the focus ring on the frame" },
   { foreground: "--accent", background: "--bg-card", minimum: 3, why: "the selected border" },
   { foreground: "--accent-bright", background: "--bg-surface", minimum: 3, why: "the focus ring" },
 ];
@@ -176,6 +178,25 @@ describe("the rules", () => {
     const scale = [...css.matchAll(/--fs-[0-9-]+:\s*([^;]+);/g)].map(match => match[1].trim());
     assert.ok(scale.length >= 10);
     for (const value of scale) assert.match(value, /^calc\([0-9.]+px \* var\(--fs-scale, 1\)\)$/);
+  });
+
+  it("put inverse text on the inverse surface, never on a transparent one", () => {
+    // A button that inherits `--text-inverse` and then paints its own background transparent
+    // draws dark text on a dark card. Pairing them in the same rule is what prevents it.
+    const offenders = rules.split("}").filter(block => block.includes("color: var(--text-inverse)") && !/background(-color)?:[^;]*var\(--bg-inverse\)/.test(block));
+    assert.deepEqual(offenders.map(block => block.split("{")[0].trim()), []);
+  });
+
+  it("draws exactly one focus ring, from one token", () => {
+    const rings = [...rules.matchAll(/outline:\s*[^;}]*/g)].map(match => match[0].trim());
+    assert.deepEqual(rings, ["outline: 2px solid var(--focus-ring)"], "every focus ring must be the same ring");
+  });
+
+  it("stops moving for anyone who asked it to", () => {
+    const reduce = css.match(/@media \(prefers-reduced-motion: reduce\) \{([^}]*\}[^}]*)\}/)?.[1] ?? "";
+    assert.match(reduce, /transition:\s*none !important/);
+    assert.match(reduce, /animation:\s*none !important/);
+    assert.match(reduce, /scroll-behavior:\s*auto !important/);
   });
 });
 

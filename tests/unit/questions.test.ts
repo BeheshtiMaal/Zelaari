@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { chooseOption, initialSelection, questionDigit, rankDrop, rankMove, validSelection } from "../../src/lib/questions";
+import { chooseOption, initialSelection, rankDrop, rankMove, validSelection } from "../../src/lib/questions";
 import type { Question } from "../../src/lib/protocol";
 import { initialRun, reduceEvent } from "../../src/store/run";
 const q: Question = { id: "q", header: "Approach", text: "Choose", type: "single", options: [{ id: "a", label: "A", description: "First" }, { id: "b", label: "B", description: "Second" }] };
@@ -24,7 +24,6 @@ test("question selections require explicit complete single/multi/rank input", ()
   assert.equal(validSelection(rank, { ...answer, option_ids: ["b"] }), false);
   assert.deepEqual(rankDrop(answer, "b", "a").option_ids, ["a", "b"]);
   assert.equal(rankMove(answer, "b", -1), answer);
-  assert.equal(questionDigit("۱", "Digit1"), 1);
 });
 test("question events replay history independently from approval waiting", () => {
   let state = reduceEvent(initialRun, { type: "run.started", run_id: "run", seq: 1, ts: "now", task: "task", model: "demo" });

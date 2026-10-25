@@ -15,6 +15,7 @@ import { currentContext } from "../lib/timeline";
 import { useVerifySettings } from "../lib/use-verify-settings";
 import { useRunSummary } from "../lib/use-summary";
 import { ContextRing } from "./context/context-ring";
+import { resolve } from "../lib/shortcuts";
 export function Composer({ t, task, setTask, session: s, submit }: {t: Dictionary; task: string; setTask(task: string): void; session: Session; submit(): void}) {
   const commandList = useCommandList(s.workspace);
   const commands = useCommands(task, setTask, commandList), q = questionCopy(s.locale), c = contextCopy(s.locale);
@@ -27,10 +28,12 @@ export function Composer({ t, task, setTask, session: s, submit }: {t: Dictionar
   return <form className="composer-frame" onSubmit={event => { event.preventDefault(); submit(); }}>
     <div className="composer">
       <label className="sr-only" htmlFor="task">{t.taskLabel}</label>
-      {commands.matches.length > 0 && <div className="command-picker" role="listbox" id="composer-commands" aria-label={q.options}>{commands.matches.map((command, at) => <button key={command.name} type="button" role="option" aria-selected={at === commands.index} id={`command-${command.name}`} onMouseDown={event => event.preventDefault()} onClick={() => commands.choose(command.command)}><code>{command.command}</code><span>{command.description}</span>{command.requires_approval && <span className="type-chip">{customizeCopy(s.locale).needsApproval}</span>}</button>)}</div>}
+      {commands.matches.length > 0 && <div className="command-picker" role="listbox" id="composer-commands" aria-label={q.options}>{commands.matches.map((command, at) => <button key={command.name} type="button" role="option" aria-selected={at === commands.index} id={`command-${command.name}`} onMouseDown={event => event.preventDefault()} onClick={() => commands.choose(command.command)}><code dir="ltr">{command.command}</code><span>{command.description}</span>{command.requires_approval && <span className="type-chip">{customizeCopy(s.locale).needsApproval}</span>}</button>)}</div>}
       <textarea id="task" rows={2} role="combobox" aria-autocomplete="list" aria-expanded={commands.matches.length > 0} aria-controls="composer-commands" aria-activedescendant={commands.matches.length ? `command-${commands.matches[commands.index].name}` : undefined} placeholder={t.placeholder} value={task} disabled={!s.ready} onChange={event => setTask(event.target.value)} onKeyDown={event => {
         if (commands.keyDown(event) || event.nativeEvent.isComposing) return;
-        if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); }
+        // The picker has first refusal above; what is left is the table's business.
+        const hit = resolve("composer", { key: event.key, shiftKey: event.shiftKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey, altKey: event.altKey, tag: "TEXTAREA" });
+        if (hit?.action === "send") { event.preventDefault(); submit(); }
       }} />
       {commands.active && <p className="active-skill" data-testid="active-skill" dir="auto"><code dir="ltr">{commands.active.command}</code><span>{commands.active.name}</span></p>}
       <div className="composer-toolbar"><Hint text={t.soon}><button type="button" className="icon-button" disabled aria-label={t.add}><PlusIcon size={22} /></button></Hint>
